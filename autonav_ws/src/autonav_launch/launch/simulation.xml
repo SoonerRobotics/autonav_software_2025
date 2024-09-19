@@ -1,0 +1,4 @@
+<launch>
+    <!-- Core -->
+    <include file="$(find-pkg-share rosbridge_server)/launch/rosbridge_websocket_launch.xml" />
+</launch>
