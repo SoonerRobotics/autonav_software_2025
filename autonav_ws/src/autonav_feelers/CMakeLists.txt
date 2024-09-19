@@ -18,6 +18,7 @@ find_package(image_transport REQUIRED)
 # Install Python programs
 install(PROGRAMS
   src/feelers.py
+  src/feeler_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -26,7 +27,8 @@ add_executable(expandify src/feelers.cpp)
 ament_target_dependencies(expandify rclcpp autonav_msgs cv_bridge image_transport scr) #TODO
 
 install(TARGETS
-  feelers
+  feeler
+  feeler_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
