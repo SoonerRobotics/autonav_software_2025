@@ -64,6 +64,18 @@ To edit the software with Visual Studio Code, please install the ros extension a
 }
 ```
 
+# Shared Node Compatability
+
+Listed below is a table that compares compability for the C++ and Python version of the shared node. This should be updated **any** time either version is changed.
+
+| Feature | C++ | Python |
+| ------- | --- | ------ |
+| Logging | ✅ | ❌ |
+| Configuration | ❌ | ❌ |
+| Conbus | ❌ | ❌ |
+| Performance Logging | ❌ | ❌ |
+| System State | ❌ | ❌ |
+
 ## Style
 All folder names including packages should be in `snake_case`
 
