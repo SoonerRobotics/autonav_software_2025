@@ -70,11 +70,14 @@ Listed below is a table that compares compability for the C++ and Python version
 
 | Feature | C++ | Python |
 | ------- | --- | ------ |
-| Logging | ✅ | ❌ |
+| Console Logging | ✅ | ✅ |
+| File Logging | ❌ | ❌ |
+| Topic Logging | ❌ | ❌ |
 | Configuration | ❌ | ❌ |
 | Conbus | ❌ | ❌ |
 | Performance Logging | ❌ | ❌ |
 | System State | ❌ | ❌ |
+| Device State | ❌ | ❌ |
 
 ## Style
 All folder names including packages should be in `snake_case`
