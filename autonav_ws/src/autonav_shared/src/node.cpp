@@ -4,12 +4,29 @@ namespace AutoNav
 {
     Node::Node(const std::string & node_name) : rclcpp::Node(node_name)
     {
+        // Setup our device state
+        system_state = AutoNav::SystemState::DISABLED;
+        device_states.insert_or_assign(node_name, AutoNav::DeviceState::OFF);
+
         // TODO: Setup all relevant publishers, subscribers, services, clients, etc
+        system_state_sub = this->create_subscription<autonav_msgs::msg::SystemState>("/autonav/shared/system", 1, std::bind(&Node::system_state_callback, this, std::placeholders::_1));
+        device_state_sub = this->create_subscription<autonav_msgs::msg::DeviceState>("/autonav/shared/device", 1, std::bind(&Node::device_state_callback, this, std::placeholders::_1));
     }
 
     Node::~Node()
     {
         // TODO: Cleanup stuff as required
+    }
+
+    void Node::system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg)
+    {
+        system_state = static_cast<AutoNav::SystemState>(msg->state);
+        has_mobility = msg->mobility;
+    }
+
+    void Node::device_state_callback(const autonav_msgs::msg::DeviceState::SharedPtr msg)
+    {
+        device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));
     }
 
     // TODO: Log to file

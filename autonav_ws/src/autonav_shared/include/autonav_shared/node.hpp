@@ -4,6 +4,9 @@
 #include "external/termcolor.hpp"
 #include "types.hpp"
 
+#include "autonav_msgs/msg/system_state.hpp"
+#include "autonav_msgs/msg/device_state.hpp"
+
 namespace AutoNav
 {
     class Node : public rclcpp::Node
@@ -21,8 +24,17 @@ namespace AutoNav
         void log(const std::string &message, Logging::LogLevel level = Logging::LogLevel::INFO, const std::string &function_caller = __builtin_FUNCTION(), int line = __builtin_LINE());
 
     private:
-        AutoNav::DeviceState device_state = AutoNav::DeviceState::OFF;
+        // State
         AutoNav::SystemState system_state = AutoNav::SystemState::DISABLED;
+        std::map<std::string, AutoNav::DeviceState> device_states;
         bool has_mobility = false;
+
+        // Subscribers
+        rclcpp::Subscription<autonav_msgs::msg::SystemState>::SharedPtr system_state_sub;
+        rclcpp::Subscription<autonav_msgs::msg::DeviceState>::SharedPtr device_state_sub;
+
+        // Functions
+        void system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg);
+        void device_state_callback(const autonav_msgs::msg::DeviceState::SharedPtr msg);
     };
 }

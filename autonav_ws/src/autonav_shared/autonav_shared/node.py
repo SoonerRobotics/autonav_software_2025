@@ -1,5 +1,6 @@
 from rclpy.node import Node as RclpyNode
-from autonav_shared.types import LogLevel
+from autonav_shared.types import DeviceState, LogLevel, SystemState
+from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg
 import sty
 import time
 import inspect
@@ -8,6 +9,27 @@ import inspect
 class Node(RclpyNode):
     def __init__(self, name: str) -> None:
         super().__init__(name)
+        
+        # Setup our device state
+        self.system_state = SystemState.DISABLED
+        self.device_states = {}
+        self.device_states[name] = DeviceState.OFF
+        
+        # TODO: Setup all relevant publishers, subscribers, services, clients, etc
+        self.system_state_sub = self.create_subscription(SystemStateMsg, "/autonav/shared/system", self.system_state_callback, 10)
+        self.device_state_sub = self.create_subscription(DeviceStateMsg, "/autonav/shared/device", self.device_state_callback, 10)
+        
+    def system_state_callback(self, msg: SystemStateMsg) -> None:
+        """
+        Callback for the system state topic.
+        """
+        self.system_state = SystemState(msg.state)
+        
+    def device_state_callback(self, msg: DeviceStateMsg) -> None:
+        """
+        Callback for the device state topic.
+        """
+        self.device_states[msg.device] = DeviceState(msg.state)
         
     def log(self, message: str, level: LogLevel = LogLevel.INFO) -> None:
         """
