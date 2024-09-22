@@ -57,7 +57,7 @@ public:
             // Broadcast the system state
             autonav_msgs::msg::SystemState system_msg;
             system_msg.state = get_system_state();
-            system_msg.mobility = has_mobility();
+            system_msg.mobility = is_mobility();
             system_state_pub->publish(system_msg);
         }
     }

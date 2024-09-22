@@ -72,7 +72,7 @@ namespace AutoNav
         AutoNav::SystemState get_system_state() { return system_state; }
 
         /// @brief Get the mobility
-        bool has_mobility() { return has_mobility; }
+        bool is_mobility() { return has_mobility; }
 
     private:
         // State
