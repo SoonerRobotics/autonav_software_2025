@@ -1,2 +1,2 @@
-uint8 mode
+uint8 state
 bool mobility

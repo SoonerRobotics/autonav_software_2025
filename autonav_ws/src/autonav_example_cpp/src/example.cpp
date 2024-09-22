@@ -3,15 +3,28 @@
 class ExampleCPP : public AutoNav::Node
 {
     public:
-        ExampleCPP() : AutoNav::Node("example_cpp") {}
+        ExampleCPP() : AutoNav::Node("example_cpp") 
+        {
+            log("Hello from ExampleCPP", AutoNav::Logging::DEBUG);
+            log("Hello from ExampleCPP", AutoNav::Logging::INFO);
+            log("Hello from ExampleCPP", AutoNav::Logging::WARN);
+            log("Hello from ExampleCPP", AutoNav::Logging::ERROR);
+            log("Hello from ExampleCPP", AutoNav::Logging::FATAL);
+
+            set_device_state(AutoNav::DeviceState::WARMING);
+            set_mobility(false);
+        }
         ~ExampleCPP() = default;
 };
 
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<ExampleCPP>();
-    rclcpp::spin(node);
-    rclcpp::shutdown(); 
+    std::shared_ptr<ExampleCPP> example_cpp = std::make_shared<ExampleCPP>();
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(example_cpp);
+    executor.spin();
+    executor.remove_node(example_cpp);
+    rclcpp::shutdown();
     return 0;
 }

@@ -21,5 +21,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
+ament_auto_add_executable(synchronizer
+    src/synchronizer.cpp
+)
+
 ament_python_install_package(${PROJECT_NAME})
 ament_auto_package()
