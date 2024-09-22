@@ -1,3 +1,5 @@
+#pragma once
+
 namespace AutoNav
 {
     enum SystemState
@@ -8,6 +10,12 @@ namespace AutoNav
         SHUTDOWN = 3
     };
 
+    const std::map<SystemState, std::string> SYSTEM_STATE_NAMES = {
+        {SystemState::DISABLED, "DISABLED"},
+        {SystemState::MANUAL, "MANUAL"},
+        {SystemState::AUTONOMOUS, "AUTONOMOUS"},
+        {SystemState::SHUTDOWN, "SHUTDOWN"}};
+
     enum DeviceState
     {
         OFF = 0,
@@ -16,6 +24,13 @@ namespace AutoNav
         OPERATING = 3,
         ERROR = 4
     };
+
+    const std::map<DeviceState, std::string> DEVICE_STATE_NAMES = {
+        {DeviceState::OFF, "OFF"},
+        {DeviceState::WARMING, "WARMING"},
+        {DeviceState::READY, "READY"},
+        {DeviceState::OPERATING, "OPERATING"},
+        {DeviceState::ERROR, "ERROR"}};
 
     namespace Logging
     {
