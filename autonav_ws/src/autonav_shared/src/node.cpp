@@ -115,7 +115,23 @@ namespace AutoNav
         {
             log("Received update on our device state from " + AutoNav::DEVICE_STATE_NAMES.at(device_states.at(msg->device)) + " to " + AutoNav::DEVICE_STATE_NAMES.at(static_cast<AutoNav::DeviceState>(msg->state)), Logging::LogLevel::DEBUG);
         }
-        device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));
+
+        if (msg->device != get_name())
+        {
+            device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));
+            return;
+        }
+        
+        // TODO: Unravel this
+        if (device_states.find(msg->device) == device_states.end())
+        {
+            init();
+        } else {
+            if (device_states.at(msg->device) == AutoNav::DeviceState::OFF && static_cast<AutoNav::DeviceState>(msg->state) == AutoNav::DeviceState::WARMING)
+            {
+                init();
+            }
+        }
     }
 
     // TODO: Log to file

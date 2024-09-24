@@ -27,6 +27,12 @@ class Node(RclpyNode):
 
         self.set_device_state(DeviceState.WARMING)
 
+    def init(self) -> None:
+        """
+        Called when the node synchronizes with the system.
+        """
+        pass
+
     def system_state_callback(self, msg: SystemStateMsg) -> None:
         """
         Callback for the system state topic.
@@ -40,8 +46,12 @@ class Node(RclpyNode):
         """
         if msg.device == self.get_name():
             self.log(f"Received update on our own device state from {DeviceState(self.device_states[msg.device])} to {DeviceState(msg.state)}", LogLevel.DEBUG)
-        
+
+        old_state = self.device_states[msg.device]
         self.device_states[msg.device] = DeviceState(msg.state)
+
+        if old_state == None or old_state == DeviceState.OFF and DeviceState(msg.state) == DeviceState.WARMING:
+            self.init()
 
     def set_device_state(self, state: DeviceState) -> None:
         """

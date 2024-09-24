@@ -74,6 +74,9 @@ namespace AutoNav
         /// @brief Get the mobility
         bool is_mobility() { return has_mobility; }
 
+        /// @brief Called when the node synchronizes with the system
+        virtual void init() = 0;
+
     private:
         // State
         AutoNav::SystemState system_state = AutoNav::SystemState::DISABLED;
