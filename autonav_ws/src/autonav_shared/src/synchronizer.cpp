@@ -25,6 +25,8 @@ public:
 
     void set_device_state_callback(const std::shared_ptr<autonav_msgs::srv::SetDeviceState::Request> request, std::shared_ptr<autonav_msgs::srv::SetDeviceState::Response> response)
     {
+        log("Setting device state: " + request->device + " to " + std::to_string(request->state), AutoNav::Logging::DEBUG);
+        
         // Did this device already exist?
         bool did_exist = has_device_state(request->device);
 
@@ -34,24 +36,15 @@ public:
         // Respond
         response->ok = true;
 
-        // Publish the update
-        autonav_msgs::msg::DeviceState msg;
-        msg.device = request->device;
-        msg.state = request->state;
-        device_state_pub->publish(msg);
-
         if (!did_exist)
         {
             // Broadcast all other device states
             for (auto it = device_states_begin(); it != device_states_end(); it++)
             {
-                if (it->first != request->device)
-                {
-                    autonav_msgs::msg::DeviceState msg;
-                    msg.device = it->first;
-                    msg.state = it->second;
-                    device_state_pub->publish(msg);
-                }
+                autonav_msgs::msg::DeviceState msg;
+                msg.device = it->first;
+                msg.state = it->second;
+                device_state_pub->publish(msg);
             }
 
             // Broadcast the system state
@@ -59,6 +52,13 @@ public:
             system_msg.state = get_system_state();
             system_msg.mobility = is_mobility();
             system_state_pub->publish(system_msg);
+            return;
+        } else {
+            // Publish the update
+            autonav_msgs::msg::DeviceState msg;
+            msg.device = request->device;
+            msg.state = request->state;
+            device_state_pub->publish(msg);
         }
     }
 
@@ -75,6 +75,8 @@ public:
         msg.state = request->state;
         msg.mobility = request->mobility;
         system_state_pub->publish(msg);
+
+        log("Setting system state to " + std::to_string(request->state) + " with mobility " + std::to_string(request->mobility), AutoNav::Logging::DEBUG);
     }
 
 private:

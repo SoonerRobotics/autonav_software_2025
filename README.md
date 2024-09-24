@@ -76,8 +76,8 @@ Listed below is a table that compares compability for the C++ and Python version
 | Configuration | ❌ | ❌ |
 | Conbus | ❌ | ❌ |
 | Performance Logging | ❌ | ❌ |
-| System State | ✅ | ❌ |
-| Device State | ✅ | ❌ |
+| System State | ✅ | ✅ |
+| Device State | ✅ | ✅ |
 
 # Shared Node API
 
@@ -86,15 +86,15 @@ Listed below is a table that shows the API for the shared node. This should be u
 | Feature | C++ | Python |
 | ------- | --- | ------ |
 | log(message, level) | ✅ | ✅ |
-| set_system_state(state) | ✅ | ❌ |
+| set_system_state(state) | ✅ | ✅ |
 | set_system_state(state, has_mobility) | ✅ | ❌ |
-| set_mobility(has_mobility) | ✅ | ❌ |
-| set_device_state(state) | ✅ | ❌ |
-| set_device_state(device,te sta) | ✅ | ❌ |
-| get_device_state() | ✅ | ❌ |
-| get_device_state(device) | ✅ | ❌ |
-| get_system_state() | ✅ | ❌ |
-| is_mobility() | ✅ | ❌ |
+| set_mobility(has_mobility) | ✅ | ✅ |
+| set_device_state(state) | ✅ | ✅ |
+| set_device_state(device, state) | ✅ | ❌ |
+| get_device_state() | ✅ | ✅ |
+| get_device_state(device) | ✅ | ✅ |
+| get_system_state() | ✅ | ✅ |
+| is_mobility() | ✅ | ✅ |
 
 ## Style
 All folder names including packages should be in `snake_case`

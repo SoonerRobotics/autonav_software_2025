@@ -17,6 +17,8 @@ namespace AutoNav
 
         set_device_state_client = this->create_client<autonav_msgs::srv::SetDeviceState>("/autonav/shared/set_device_state");
         set_system_state_client = this->create_client<autonav_msgs::srv::SetSystemState>("/autonav/shared/set_system_state");
+    
+        set_device_state(AutoNav::DeviceState::WARMING);
     }
 
     Node::~Node()
@@ -55,6 +57,8 @@ namespace AutoNav
             if (!response->ok)
             {
                 log("Failed to update device state", Logging::LogLevel::ERROR);
+            } else {
+                log("Successfully updated device state", Logging::LogLevel::DEBUG);
             }
         };
 
@@ -106,6 +110,7 @@ namespace AutoNav
 
     void Node::device_state_callback(const autonav_msgs::msg::DeviceState::SharedPtr msg)
     {
+        // Log teh raw message
         if (msg->device == get_name())
         {
             log("Received update on our device state from " + AutoNav::DEVICE_STATE_NAMES.at(device_states.at(msg->device)) + " to " + AutoNav::DEVICE_STATE_NAMES.at(static_cast<AutoNav::DeviceState>(msg->state)), Logging::LogLevel::DEBUG);
