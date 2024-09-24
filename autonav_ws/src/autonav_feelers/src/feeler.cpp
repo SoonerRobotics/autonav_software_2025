@@ -1,6 +1,10 @@
 #pragma once
 
 #include <cmath>
+#include <vector>
+#include "rclcpp/rclcpp.hpp"
+#include "cv_bridge/cv_bridge.hpp"
+#include "sensor_msgs/msg/image.hpp"
 
 //TODO move to a utils.cpp file or something
 int sign(int x) {
@@ -33,10 +37,10 @@ public:
     void update(cv::Mat mask);
     void draw(cv::Mat image); //TODO
 
-    def add(); //TODO
-    def sub(); //TODO
+    Feeler operator+(Feeler const &other);
+    Feeler operator-(Feeler const &other);
 private:
-    int x = 0
+    int x = 0;
     int y = 0;
     double length = 0.0;
 
@@ -75,7 +79,7 @@ std::vector<double> toPolar();
 std::vector<int> centerCoordinates(int x, int y);
 
 double Feeler::dist(int x, int y) {
-    return math.sqrt((x*x) + (y*y));
+    return std::sqrt((x*x) + (y*y));
 }
 
 /**
@@ -196,5 +200,42 @@ void Feeler::draw(cv::Mat image) {
     cv2::line(image, startPt, endPt, this->color, 5); // thickness of 5
 }
 
-// def add(); //TODO
-// def sub(); //TODO
+/**
+ * Add a feeler to another feeler
+ * does basic vector addition of the type <a,b>+<c,d> = <a+c, b+d>
+ * @param the feeler to add to this feeler
+ * @return a new feeler with values copied from the current feeler plus the other feeler
+ */
+Feeler Feeler::operator+(Feeler const &other) {
+    Feeler ret;
+    ret.color = this->color;
+    ret.original_x = this->x;
+    ret.original_y = this->y;
+    ret.original_length = this->original_length;
+    ret.length = this->length;
+
+    ret.x = this->x + other.x;
+    ret.y = this->y + other.y;
+
+    return ret;
+}
+
+/**
+ * Subtract a feeler from another feeler
+ * does basic vector subtraction of the type <a,b>-<c,d> = <a-c, b-d>
+ * @param the feeler to subtract from this feeler
+ * @return a new feeler with values copied from the current feeler minus the other feeler
+ */
+Feeler Feeler::operator-(Feeler const &other) {
+    Feeler ret;
+    ret.color = this->color;
+    ret.original_x = this->x;
+    ret.original_y = this->y;
+    ret.original_length = this->original_length;
+    ret.length = this->length;
+
+    ret.x = this->x - other.x;
+    ret.y = this->y - other.y;
+
+    return ret;
+}

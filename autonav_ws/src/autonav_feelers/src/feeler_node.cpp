@@ -1,6 +1,7 @@
 #pragma once
 
 #include "feeler.cpp" //TODO
+#include "autonav_msgs/msg/position.hpp"
 
 class FeelerNode : public rclcpp::Node {
 public:
@@ -49,8 +50,8 @@ public:
         motorPublisher->publish(msg);
     }
 
-    void on_debug_received(image); //TODO
-    void on_position_received(image); //TODO
+    void on_debug_received(const msg::CompressedImage::SharedPtr image); //TODO
+    void on_position_received(const msg::CompressedImage::SharedPtr image); //TODO
     
     void main();
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(autonav_vision)
+project(autonav_feelers)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,10 +10,11 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
-find_package(autonav_msgs REQUIRED) #TODO
-find_package(scr REQUIRED)
+find_package(autonav_msgs REQUIRED)
+# find_package(scr REQUIRED) #TODO
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
+find_package(OpenCV REQUIRED)
  
 # Install Python programs
 install(PROGRAMS
@@ -23,19 +24,12 @@ install(PROGRAMS
 )
 
 # C++
-add_executable(expandify src/feelers.cpp)
+add_executable(feeler_node src/feeler_node.cpp)
 ament_target_dependencies(expandify rclcpp autonav_msgs cv_bridge image_transport scr) #TODO
 
 install(TARGETS
-  feeler
   feeler_node
+  # feeler
   DESTINATION lib/${PROJECT_NAME}
 )
-
-if(BUILD_TESTING)
-  #find_package(ament_lint_auto REQUIRED)
-  #set(ament_cmake_copyright_FOUND TRUE)
-  #set(ament_cmake_cpplint_FOUND TRUE)
-  #ament_lint_auto_find_test_dependencies()
-endif()
 ament_package()
