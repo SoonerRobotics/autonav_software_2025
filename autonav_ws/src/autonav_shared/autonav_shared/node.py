@@ -45,12 +45,12 @@ class Node(RclpyNode):
         Callback for the device state topic.
         """
         if msg.device == self.get_name():
-            self.log(f"Received update on our own device state from {DeviceState(self.device_states[msg.device])} to {DeviceState(msg.state)}", LogLevel.DEBUG)
+            self.log(f"Received update on our own device state from {DeviceState(self.device_states[msg.device]).name} to {DeviceState(msg.state).name}", LogLevel.DEBUG)
 
-        old_state = self.device_states[msg.device]
+        old_state = self.device_states[msg.device] if msg.device in self.device_states else None
         self.device_states[msg.device] = DeviceState(msg.state)
 
-        if old_state == None or old_state == DeviceState.OFF and DeviceState(msg.state) == DeviceState.WARMING:
+        if (old_state == None or old_state == DeviceState.OFF) and DeviceState(msg.state) == DeviceState.WARMING and msg.device == self.get_name():
             self.init()
 
     def set_device_state(self, state: DeviceState) -> None:
@@ -80,8 +80,8 @@ class Node(RclpyNode):
             result = future.result()
             if result is None or not result.ok:
                 self.log("Failed to set device state", LogLevel.ERROR)
-            else:
-                self.log("Successfully set device state", LogLevel.DEBUG)
+            # else:
+            #     self.log("Successfully set device state", LogLevel.DEBUG)
         except Exception as e:
             self.log(f"Failed to set device state: {e}", LogLevel.ERROR)
         

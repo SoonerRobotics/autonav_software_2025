@@ -10,11 +10,14 @@ class ExampleCPP : public AutoNav::Node
             log("Hello from ExampleCPP", AutoNav::Logging::WARN);
             log("Hello from ExampleCPP", AutoNav::Logging::ERROR);
             log("Hello from ExampleCPP", AutoNav::Logging::FATAL);
-
-            set_device_state(AutoNav::DeviceState::WARMING);
-            set_mobility(false);
         }
         ~ExampleCPP() = default;
+
+        void init() override
+        {
+            log("Initialized");
+            set_device_state(AutoNav::DeviceState::READY);
+        }
 };
 
 int main(int argc, char** argv)

@@ -23,6 +23,11 @@ public:
         set_system_state_srv = this->create_service<autonav_msgs::srv::SetSystemState>("/autonav/shared/set_system_state", std::bind(&Synchronizer::set_system_state_callback, this, std::placeholders::_1, std::placeholders::_2));
     }
 
+    void init() override
+    {
+        
+    }
+
     void set_device_state_callback(const std::shared_ptr<autonav_msgs::srv::SetDeviceState::Request> request, std::shared_ptr<autonav_msgs::srv::SetDeviceState::Response> response)
     {
         log("Setting device state: " + request->device + " to " + std::to_string(request->state), AutoNav::Logging::DEBUG);

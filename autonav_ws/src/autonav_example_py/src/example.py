@@ -14,6 +14,10 @@ class Example(Node):
         self.log("Hello from ExamplePy", LogLevel.WARN)
         self.log("Hello from ExamplePy", LogLevel.ERROR)
         self.log("Hello from ExamplePy", LogLevel.FATAL)
+
+    def init(self):
+        self.log("Initialized")
+        self.set_device_state(DeviceState.READY)
         
 def main():
     rclpy.init()
