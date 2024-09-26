@@ -12,11 +12,16 @@ find_package(builtin_interfaces REQUIRED)
 
 # generate messages
 set(msg_files
-    "msg/MotorInput.msg"
-    "msg/Position.msg"
     "msg/AudibleFeedback.msg"
-    "msg/Ultrasonic.msg"
+    "msg/Conbus.msg"
+    "msg/GPSFeedback.msg"
+    "msg/IMUData.msg"
+    "msg/MotorFeedback.msg"
+    "msg/MotorInput.msg"
     "msg/NUCStatistics.msg"
+    "msg/Position.msg"
+    "msg/SafetyLights.msg"
+    "msg/Ultrasonic.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
