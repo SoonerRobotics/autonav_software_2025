@@ -58,13 +58,13 @@ public:
             system_msg.mobility = is_mobility();
             system_state_pub->publish(system_msg);
             return;
-        } else {
-            // Publish the update
-            autonav_msgs::msg::DeviceState msg;
-            msg.device = request->device;
-            msg.state = request->state;
-            device_state_pub->publish(msg);
         }
+
+        // Publish the update
+        autonav_msgs::msg::DeviceState msg;
+        msg.device = request->device;
+        msg.state = request->state;
+        device_state_pub->publish(msg);
     }
 
     void set_system_state_callback(const std::shared_ptr<autonav_msgs::srv::SetSystemState::Request> request, std::shared_ptr<autonav_msgs::srv::SetSystemState::Response> response)

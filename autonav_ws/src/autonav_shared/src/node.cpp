@@ -158,15 +158,12 @@ namespace AutoNav
             return;
         }
         
-        // TODO: Unravel this
-        if (device_states.find(msg->device) == device_states.end())
+        bool new_device = device_states.find(msg->device) == device_states.end();
+        bool is_warming_up = device_states.at(msg->device) == AutoNav::DeviceState::OFF && static_cast<AutoNav::DeviceState>(msg->state) == AutoNav::DeviceState::WARMING;
+        if (new_device || is_warming_up)
         {
             init();
-        } else {
-            if (device_states.at(msg->device) == AutoNav::DeviceState::OFF && static_cast<AutoNav::DeviceState>(msg->state) == AutoNav::DeviceState::WARMING)
-            {
-                init();
-            }
+            device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));
         }
     }
 

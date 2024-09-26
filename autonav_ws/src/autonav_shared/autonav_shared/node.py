@@ -217,19 +217,21 @@ class Node(RclpyNode):
         msg.line_number = line_number
         msg.message = message
         self.log_pub.publish(msg)
-        
+
+        r, g, b = 0, 0, 0
         match level:
-            case LogLevel.DEBUG: # 61, 117, 157
-                print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.fg(61, 117,157)}{level_str} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.fg(61, 117, 157)}{message}{sty.rs.all}")
-                
-            case LogLevel.INFO: # 255, 255, 255
-                print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.fg(255, 255, 255)}{level_str} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.fg(255, 255, 255)}{message}{sty.rs.all}")
-                
-            case LogLevel.WARN: # 226, 174, 47
-                print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.fg(226, 174, 47)}{level_str} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.fg(226, 174, 47)}{message}{sty.rs.all}")
-                
-            case LogLevel.ERROR: # 195, 59, 91
-                print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.fg(195, 59, 91)}{level_str} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.fg(195, 59, 91)}{message}{sty.rs.all}")
-                
-            case LogLevel.FATAL: # 207, 62, 97
-                print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.bg(207, 62, 97)}{level_str}{sty.bg.rs} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.bg(207, 62, 97)}{message}{sty.rs.all}")
+            case LogLevel.DEBUG:
+                r, g, b = 61, 117, 157
+            case LogLevel.INFO:
+                r, g, b = 255, 255, 255
+            case LogLevel.WARN:
+                r, g, b = 226, 174, 47
+            case LogLevel.ERROR:
+                r, g, b = 195, 59, 91
+
+        # FATAL requires backgroud colors so it gets its own if statement
+        if level == LogLevel.FATAL:
+            print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.bg(207, 62, 97)}{level_str}{sty.bg.rs} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.bg(207, 62, 97)}{message}{sty.rs.all}")
+            return
+        
+        print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.fg(r, g, b)}{level_str} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.fg(r, g, b)}{message}{sty.rs.all}")

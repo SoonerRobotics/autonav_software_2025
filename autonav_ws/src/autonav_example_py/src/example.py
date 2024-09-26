@@ -21,7 +21,6 @@ class Example(Node):
         self.set_device_state(DeviceState.READY)
 
         self.perf_start("example")
-        time.sleep(2.5)
         self.perf_stop("example", True)
         
 def main():
