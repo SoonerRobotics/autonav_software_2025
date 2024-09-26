@@ -25,7 +25,7 @@ install(PROGRAMS
 
 # C++
 add_executable(feeler_node src/feeler_node.cpp)
-ament_target_dependencies(expandify rclcpp autonav_msgs cv_bridge image_transport scr) #TODO
+ament_target_dependencies(feeler_node rclcpp autonav_msgs cv_bridge image_transport) #TODO
 
 install(TARGETS
   feeler_node
