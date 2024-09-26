@@ -2,21 +2,18 @@
 
 #include <cmath>
 #include <vector>
+# include <numbers>
 #include "rclcpp/rclcpp.hpp"
 #include "cv_bridge/cv_bridge.hpp"
 #include "sensor_msgs/msg/image.hpp"
 
-//TODO move to a utils.cpp file or something
-int sign(int x) {
-    if (x < 0) {
-        return -1;
-    }
-    return 1;
-}
-
-//TODO throw this in a utils.cpp too
+/**
+ * Convert degrees to radians
+ * @param degrees the angle in degrees [0, 360] to convert to radians
+ * @return the angle in radians from [0, 2pi]
+ */
 double radians(double degrees) {
-    return degrees * (PI / 180);
+    return degrees * (std::numbers::pi / 180);
 }
 
 class Feeler {
@@ -192,8 +189,8 @@ void Feeler::update(cv::Mat mask) {
     double new_y = 0;
     double new_x = 0;
 
-    int x_dir = sign(this->original_x);
-    int y_dir = sign(this->original_y);
+    int x_dir = this->original_x < 0 ? -1 : 1;
+    int y_dir = this->original_y < 0 ? -1 : 1;
 
     double slope = 0;
     bool slopeIsInfinity = false;
@@ -253,11 +250,11 @@ void Feeler::update(cv::Mat mask) {
  */
 void Feeler::draw(cv::Mat image) {
     cv::Point startPt, endPt;
-    auto startCoords = this->centerCoordinates(0, 0, mask.cols, mask.rows);
+    auto startCoords = this->centerCoordinates(0, 0, image.cols, image.rows);
     startPt.x = startCoords[0];
     startPt.y = startCoords[1];
 
-    auto endCoords = this->centerCoordinates(this->x, this->y, mask.cols, mask.rows);
+    auto endCoords = this->centerCoordinates(this->x, this->y, image.cols, image.rows);
     endPt.x = endCoords[0];
     endPt.y = endCoords[1];
 

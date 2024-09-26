@@ -43,7 +43,7 @@ public:
 
         // === read waypoints from file === (copied and pasted from last year's feat/astar_rewrite_v3)
         std::string line;
-        waypointsFile.open(WAYPOINTS_FILENAME);
+        this->waypointsFile.open(this->WAYPOINTS_FILENAME);
         getline(waypointsFile, line); // skip the first line
         while (getline(waypointsFile, line) ) { 
             std::vector<std::string> tokens; // https://www.geeksforgeeks.org/tokenizing-a-string-cpp/
@@ -81,8 +81,8 @@ public:
         // make the feelers for the ultrasonics
         ultrasonic_feelers = std::vector<Feeler>();
         for (double angle = 0.0; angle < 360; angle += 90) { //TODO make these not originate at the origin?
-            int x = MAX_LENGTH * cos(radians(angle)); //int should truncate these to nice whole numbers
-            int y = MAX_LENGTH * sin(radians(angle));
+            int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers
+            int y = this->config.max_length * sin(radians(angle));
 
             this->feelers.push_back(Feeler(x, y));
             this->feelers.push_back(Feeler(x, y)); // there are 2 ultrasonic distance sensors per side
@@ -103,8 +103,8 @@ public:
     void buildFeelers() {
         this->feelers = std::vector<Feeler>();
         for (double angle = this->config.start_angle; angle < 360; angle += (360 / this->config.num_feelers)) {
-            int x = MAX_LENGTH * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
-            int y = MAX_LENGTH * sin(radians(angle));
+            int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
+            int y = this->config.max_length * sin(radians(angle));
 
             this->feelers.push_back(Feeler(x, y));
         }
