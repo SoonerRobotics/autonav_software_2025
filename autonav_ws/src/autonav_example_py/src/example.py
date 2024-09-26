@@ -3,6 +3,7 @@
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import rclpy
+import time
 
 
 class Example(Node):
@@ -18,6 +19,10 @@ class Example(Node):
     def init(self):
         self.log("Initialized")
         self.set_device_state(DeviceState.READY)
+
+        self.perf_start("example")
+        time.sleep(2.5)
+        self.perf_stop("example", True)
         
 def main():
     rclpy.init()

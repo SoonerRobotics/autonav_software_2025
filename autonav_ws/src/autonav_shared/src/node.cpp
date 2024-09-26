@@ -15,6 +15,8 @@ namespace AutoNav
         system_state_sub = this->create_subscription<autonav_msgs::msg::SystemState>("/autonav/shared/system", 1, std::bind(&Node::system_state_callback, this, std::placeholders::_1));
         device_state_sub = this->create_subscription<autonav_msgs::msg::DeviceState>("/autonav/shared/device", 1, std::bind(&Node::device_state_callback, this, std::placeholders::_1));
 
+        performance_pub = this->create_publisher<autonav_msgs::msg::Performance>("/autonav/shared/performance", 1);
+
         set_device_state_client = this->create_client<autonav_msgs::srv::SetDeviceState>("/autonav/shared/set_device_state");
         set_system_state_client = this->create_client<autonav_msgs::srv::SetSystemState>("/autonav/shared/set_system_state");
     
@@ -24,6 +26,39 @@ namespace AutoNav
     Node::~Node()
     {
         // TODO: Cleanup stuff as required
+    }
+
+    void Node::perf_start(const std::string & name)
+    {
+        start_times.insert_or_assign(name, std::chrono::high_resolution_clock::now());
+    }
+
+    void Node::perf_stop(const std::string & name, const bool print_to_console)
+    {
+        if (start_times.find(name) == start_times.end())
+        {
+            log("Performance timer " + name + " not found", Logging::LogLevel::ERROR);
+            return;
+        }
+
+        // Calculate the duration
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_times.at(name));
+
+        // Publish the performance data
+        auto performance_msg = autonav_msgs::msg::Performance();
+        performance_msg.name = name;
+        performance_msg.duration = duration.count();
+        performance_pub->publish(performance_msg);
+
+        // Log the performance data
+        if (print_to_console)
+        {
+            log("Performance timer " + name + " took " + std::to_string(duration.count()) + "ms", Logging::LogLevel::DEBUG);
+        }
+
+        // Remove the timer
+        start_times.erase(name);
     }
 
     void Node::set_device_state(const std::string & device, AutoNav::DeviceState state)

@@ -14,6 +14,7 @@ find_package(builtin_interfaces REQUIRED)
 set(msg_files
     "msg/SystemState.msg"
     "msg/DeviceState.msg"
+    "msg/Performance.msg"
 )
 
 set(srv_files

@@ -17,6 +17,10 @@ class ExampleCPP : public AutoNav::Node
         {
             log("Initialized");
             set_device_state(AutoNav::DeviceState::READY);
+
+            perf_start("ExampleCPP::init");
+            sleep(2);
+            perf_stop("ExampleCPP::init", true);
         }
 };
 

@@ -6,6 +6,7 @@
 
 #include "autonav_msgs/msg/system_state.hpp"
 #include "autonav_msgs/msg/device_state.hpp"
+#include "autonav_msgs/msg/performance.hpp"
 
 #include "autonav_msgs/srv/set_device_state.hpp"
 #include "autonav_msgs/srv/set_system_state.hpp"
@@ -77,6 +78,10 @@ namespace AutoNav
         /// @brief Called when the node synchronizes with the system
         virtual void init() = 0;
 
+        void perf_start(const std::string &name);
+
+        void perf_stop(const std::string &name, const bool print_to_console = false);
+
     private:
         // State
         AutoNav::SystemState system_state = AutoNav::SystemState::DISABLED;
@@ -88,6 +93,9 @@ namespace AutoNav
         rclcpp::Subscription<autonav_msgs::msg::SystemState>::SharedPtr system_state_sub;
         rclcpp::Subscription<autonav_msgs::msg::DeviceState>::SharedPtr device_state_sub;
 
+        // Publishers
+        rclcpp::Publisher<autonav_msgs::msg::Performance>::SharedPtr performance_pub;
+
         // Clients
         rclcpp::Client<autonav_msgs::srv::SetDeviceState>::SharedPtr set_device_state_client;
         rclcpp::Client<autonav_msgs::srv::SetSystemState>::SharedPtr set_system_state_client;
@@ -95,5 +103,8 @@ namespace AutoNav
         // Functions
         void system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg);
         void device_state_callback(const autonav_msgs::msg::DeviceState::SharedPtr msg);
+
+        // Performance
+        std::map<std::string, std::chrono::time_point<std::chrono::high_resolution_clock>> start_times;
     };
 }

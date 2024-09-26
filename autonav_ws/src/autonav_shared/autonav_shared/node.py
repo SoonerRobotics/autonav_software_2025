@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node as RclpyNode
 from autonav_shared.types import DeviceState, LogLevel, SystemState
-from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg
+from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance
 from autonav_msgs.srv import SetDeviceState, SetSystemState
 import sty
 import time
@@ -16,11 +16,14 @@ class Node(RclpyNode):
         self.system_state = SystemState.DISABLED
         self.mobility = False
         self.device_states = {}
+        self.start_times = {}
         self.device_states[name] = DeviceState.OFF
         
         # TODO: Setup all relevant publishers, subscribers, services, clients, etc
         self.system_state_sub = self.create_subscription(SystemStateMsg, "/autonav/shared/system", self.system_state_callback, 10)
         self.device_state_sub = self.create_subscription(DeviceStateMsg, "/autonav/shared/device", self.device_state_callback, 10)
+
+        self.performance_pub = self.create_publisher(Performance, "/autonav/shared/performance", 10)
         
         self.set_device_state_client = self.create_client(SetDeviceState, "/autonav/shared/set_device_state")
         self.set_system_state_client = self.create_client(SetSystemState, "/autonav/shared/set_system_state")
@@ -32,6 +35,31 @@ class Node(RclpyNode):
         Called when the node synchronizes with the system.
         """
         pass
+
+    def perf_start(self, name: str) -> None:
+        """
+        Start a performance measurement.
+        """
+        self.start_times[name] = time.time_ns() // 1_000_000
+
+    def perf_stop(self, name: str, print_to_console: bool = False) -> None:
+        """
+        End a performance measurement.
+        """
+        if name not in self.start_times:
+            self.log(f"Performance tiemr {name} not found", LogLevel.ERROR)
+            return
+        
+        duration = (time.time_ns() // 1_000_000) - self.start_times[name]
+        self.start_times.pop(name)
+        
+        msg = Performance()
+        msg.name = name
+        msg.duration = duration
+        self.performance_pub.publish(msg)
+        
+        if print_to_console:
+            self.log(f"Performance timer {name} took {duration}ms", LogLevel.DEBUG)
 
     def system_state_callback(self, msg: SystemStateMsg) -> None:
         """
