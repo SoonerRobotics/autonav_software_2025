@@ -7,6 +7,7 @@
 #include "autonav_msgs/msg/system_state.hpp"
 #include "autonav_msgs/msg/device_state.hpp"
 #include "autonav_msgs/msg/performance.hpp"
+#include "autonav_msgs/msg/log.hpp"
 
 #include "autonav_msgs/srv/set_device_state.hpp"
 #include "autonav_msgs/srv/set_system_state.hpp"
@@ -95,6 +96,7 @@ namespace AutoNav
 
         // Publishers
         rclcpp::Publisher<autonav_msgs::msg::Performance>::SharedPtr performance_pub;
+        rclcpp::Publisher<autonav_msgs::msg::Log>::SharedPtr log_pub;
 
         // Clients
         rclcpp::Client<autonav_msgs::srv::SetDeviceState>::SharedPtr set_device_state_client;

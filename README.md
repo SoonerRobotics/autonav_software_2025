@@ -72,7 +72,7 @@ Listed below is a table that compares compability for the C++ and Python version
 | ------- | --- | ------ |
 | Console Logging | ✅ | ✅ |
 | File Logging | ❌ | ❌ |
-| Topic Logging | ❌ | ❌ |
+| Topic Logging | ✅ | ✅ |
 | Configuration | ❌ | ❌ |
 | Conbus | ❌ | ❌ |
 | Performance Logging | ✅ | ✅ |

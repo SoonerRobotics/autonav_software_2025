@@ -15,7 +15,8 @@ namespace AutoNav
         system_state_sub = this->create_subscription<autonav_msgs::msg::SystemState>("/autonav/shared/system", 1, std::bind(&Node::system_state_callback, this, std::placeholders::_1));
         device_state_sub = this->create_subscription<autonav_msgs::msg::DeviceState>("/autonav/shared/device", 1, std::bind(&Node::device_state_callback, this, std::placeholders::_1));
 
-        performance_pub = this->create_publisher<autonav_msgs::msg::Performance>("/autonav/shared/performance", 1);
+        performance_pub = this->create_publisher<autonav_msgs::msg::Performance>("/autonav/shared/performance", 10);
+        log_pub = this->create_publisher<autonav_msgs::msg::Log>("/autonav/shared/log", 10);
 
         set_device_state_client = this->create_client<autonav_msgs::srv::SetDeviceState>("/autonav/shared/set_device_state");
         set_system_state_client = this->create_client<autonav_msgs::srv::SetSystemState>("/autonav/shared/set_system_state");
@@ -184,6 +185,16 @@ namespace AutoNav
         {
             log_level += std::string(5 - log_level.length(), ' ');
         }
+
+        // Log to topic
+        autonav_msgs::msg::Log log_msg;
+        log_msg.timestamp = now_time;
+        log_msg.line_number = line;
+        log_msg.function_caller = function_caller;
+        log_msg.message = message;
+        log_msg.node = get_name();
+        log_msg.level = static_cast<uint8_t>(level);
+        log_pub->publish(log_msg);
 
         switch (level)
         {

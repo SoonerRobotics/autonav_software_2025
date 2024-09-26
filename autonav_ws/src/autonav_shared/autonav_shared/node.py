@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node as RclpyNode
 from autonav_shared.types import DeviceState, LogLevel, SystemState
-from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance
+from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance, Log
 from autonav_msgs.srv import SetDeviceState, SetSystemState
 import sty
 import time
@@ -24,6 +24,7 @@ class Node(RclpyNode):
         self.device_state_sub = self.create_subscription(DeviceStateMsg, "/autonav/shared/device", self.device_state_callback, 10)
 
         self.performance_pub = self.create_publisher(Performance, "/autonav/shared/performance", 10)
+        self.log_pub = self.create_publisher(Log, "/autonav/shared/log", 10)
         
         self.set_device_state_client = self.create_client(SetDeviceState, "/autonav/shared/set_device_state")
         self.set_system_state_client = self.create_client(SetSystemState, "/autonav/shared/set_system_state")
@@ -206,6 +207,16 @@ class Node(RclpyNode):
         # Get the log level as a string
         level_str = LogLevel(level).name
         level_str = level_str + " " * (5 - len(level_str))
+
+        # Log to topic
+        msg = Log()
+        msg.timestamp = time.time_ns() // 1_000_000
+        msg.level = level.value
+        msg.node = self.get_name()
+        msg.function_caller = calling_function
+        msg.line_number = line_number
+        msg.message = message
+        self.log_pub.publish(msg)
         
         match level:
             case LogLevel.DEBUG: # 61, 117, 157
