@@ -75,7 +75,7 @@ Listed below is a table that compares compability for the C++ and Python version
 | Topic Logging | ❌ | ❌ |
 | Configuration | ❌ | ❌ |
 | Conbus | ❌ | ❌ |
-| Performance Logging | ❌ | ❌ |
+| Performance Logging | ✅ | ✅ |
 | System State | ✅ | ✅ |
 | Device State | ✅ | ✅ |
 
@@ -95,6 +95,8 @@ Listed below is a table that shows the API for the shared node. This should be u
 | get_device_state(device) | ✅ | ✅ |
 | get_system_state() | ✅ | ✅ |
 | is_mobility() | ✅ | ✅ |
+| perf_start(name) | ✅ | ✅ |
+| perf_stop(name, print_to_console) | ✅ | ✅ |
 
 ## Style
 All folder names including packages should be in `snake_case`
