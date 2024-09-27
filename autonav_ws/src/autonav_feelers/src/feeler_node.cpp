@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 
+#include "autonav_shared/node.hpp"
 #include "feeler.cpp"
 #include "autonav_msgs/msg/position.hpp"
 #include "autonav_msgs/msg/motor_input.hpp"
@@ -39,7 +40,7 @@ public:
     ~FiltersNode() {}
 
     void init() override {
-        set_device_state(AutoNav::DeviceState::INITIALIZING);
+        set_device_state(AutoNav::DeviceState::WARMING);
 
         // === read waypoints from file === (copied and pasted from last year's feat/astar_rewrite_v3)
         std::string line;
@@ -146,32 +147,29 @@ public:
         set_device_state(AutoNav::DeviceState::OPERATING);
 
         // if we aren't in autonomous
-        if (this->system_state != AutoNav::SystemState::AUTONOMOUS) { //FIXME
+        if (this->get_system_state() != AutoNav::SystemState::AUTONOMOUS) {
             return; // return because we don't need to do anything
         }
 
         // reinitialize the heading arrow (with a bias towards going 'forwards')
-        this->headingArrow = Feeler(0, 25); //TODO this probably won't work
+        this->headingArrow = Feeler(0, 25);
 
         // turn the image into a format we can use
         auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
 
         // calculate new length of every new feeler
         for (Feeler feeler : this->feelers) {
-            // std::thread t(&Feeler::update, feeler, mask); //FIXME
-            feeler.update(mask); //TODO pass this a pointer
-            this->headingArrow = this->headingArrow + feeler; //TODO this wouldn't work multithreaded
+            feeler.update(&mask);
         }
-
-        // wait for the thread to finish
-        // t.join();
 
         // draw debug image (separate from loop because this will modify the image, which wouldn't work multithreaded)
         // also if you drew on the image while modifying it that would mess up some of the feelers
+        // also add all the feelers together
         auto debug_image = cv::Mat(); //FIXME
 
         for (Feeler feeler : this->feelers) {
             feeler.draw(debug_image);
+            this->headingArrow = this->headingArrow + feeler;
         }
 
         // ultrasonics
@@ -192,7 +190,7 @@ public:
         // so we don't trip the watchdog in the motor manager firmware
         
         // if we are allowed to move (earlier check means we are already in auto and operating, so don't have to recheck those)
-        if (this->has_mobility) {
+        if (this->is_mobility()) {
             // make the message
             autonav_msgs::msg::MotorInput msg;
 
@@ -310,7 +308,11 @@ private:
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
-    AutoNav::Node::run_node(std::make_shared<FeelerNode>());
+    std::shared_ptr<FeelerNode> feeler_node = std::make_shared<FeelerNode>();
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(feeler_node);
+    executor.spin();
+    executor.remove_node(feeler_node);
     rclcpp::shutdown();
     return 0;
 }

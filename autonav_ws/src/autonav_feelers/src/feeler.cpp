@@ -2,7 +2,7 @@
 
 #include <cmath>
 #include <vector>
-# include <numbers>
+#include <numbers>
 #include "rclcpp/rclcpp.hpp"
 #include "cv_bridge/cv_bridge.hpp"
 #include "sensor_msgs/msg/image.hpp"
@@ -37,7 +37,7 @@ public:
     void setColor(cv::Scalar c);
 
     void setXY(int x, int y);
-    void update(cv::Mat mask);
+    void update(cv::Mat *mask);
     void draw(cv::Mat image);
 
     Feeler operator+(Feeler const &other);
@@ -177,8 +177,8 @@ void Feeler::setXY(int x, int y) {
  * FIXME TODO we should pass this a pointer not the whole matrix so we can throw it into some threads.
  * @param the thresholded image to perform feeler on
  */
-void Feeler::update(cv::Mat mask) {
-    int channels = mask.channels();
+void Feeler::update(cv::Mat *mask) {
+    int channels = *mask->channels();
 
     int x_ = 0;
     int y_ = 0;
@@ -230,7 +230,7 @@ void Feeler::update(cv::Mat mask) {
         prev_x = x_;
     }
     
-    auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, mask.cols, mask.rows);
+    auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, *mask->cols, *mask->rows);
 
     // if any of the pixel's color values (in RGB I think) are > 0 then
     if (mask[coords[1], coords[0]].any() > 0) {

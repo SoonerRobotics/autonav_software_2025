@@ -12,7 +12,8 @@
   
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
-  <depend>autonav_msgs</depend> <!-- TODO -->
+  <depend>autonav_msgs</depend>
+  <depend>autonav_shared</depend>
   <depend>scr</depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
