@@ -14,10 +14,20 @@ find_package(builtin_interfaces REQUIRED)
 set(msg_files
     "msg/MotorInput.msg"
     "msg/Position.msg"
+    "msg/SystemState.msg"
+    "msg/DeviceState.msg"
+    "msg/Performance.msg"
+    "msg/Log.msg"
+)
+
+set(srv_files
+    "srv/SetDeviceState.srv"
+    "srv/SetSystemState.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     ${msg_files}
+    ${srv_files}
     DEPENDENCIES builtin_interfaces
 )
 

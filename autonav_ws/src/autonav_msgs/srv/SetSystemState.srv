@@ -1,0 +1,4 @@
+uint8 state
+bool mobility
+---
+bool ok

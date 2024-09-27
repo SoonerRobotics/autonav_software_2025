@@ -64,6 +64,40 @@ To edit the software with Visual Studio Code, please install the ros extension a
 }
 ```
 
+# Shared Node Compatability
+
+Listed below is a table that compares compability for the C++ and Python version of the shared node. This should be updated **any** time either version is changed.
+
+| Feature | C++ | Python |
+| ------- | --- | ------ |
+| Console Logging | ✅ | ✅ |
+| File Logging | ❌ | ❌ |
+| Topic Logging | ✅ | ✅ |
+| Configuration | ❌ | ❌ |
+| Conbus | ❌ | ❌ |
+| Performance Logging | ✅ | ✅ |
+| System State | ✅ | ✅ |
+| Device State | ✅ | ✅ |
+
+# Shared Node API
+
+Listed below is a table that shows the API for the shared node. This should be updated **any** time either version is changed.
+
+| Feature | C++ | Python |
+| ------- | --- | ------ |
+| log(message, level) | ✅ | ✅ |
+| set_system_state(state) | ✅ | ✅ |
+| set_system_state(state, has_mobility) | ✅ | ❌ |
+| set_mobility(has_mobility) | ✅ | ✅ |
+| set_device_state(state) | ✅ | ✅ |
+| set_device_state(device, state) | ✅ | ❌ |
+| get_device_state() | ✅ | ✅ |
+| get_device_state(device) | ✅ | ✅ |
+| get_system_state() | ✅ | ✅ |
+| is_mobility() | ✅ | ✅ |
+| perf_start(name) | ✅ | ✅ |
+| perf_stop(name, print_to_console) | ✅ | ✅ |
+
 ## Style
 All folder names including packages should be in `snake_case`
 
