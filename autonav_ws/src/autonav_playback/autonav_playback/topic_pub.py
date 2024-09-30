@@ -5,10 +5,13 @@ from std_msgs.msg import ByteMultiArray
 
 import subprocess
 
-class TopicPublisher(Node):
+class topicListPublisher(Node):
 
     def __init__(self):
-        super().__init__('minimal_publisher')
+        super().__init__('topic_list_publisher')
+        
+        # Publisher For All Topics in case other nodes want to access it?
+        # Make a srv for decoding?
         self.publisher_ = self.create_publisher(ByteMultiArray, 'topicList', 10)
         
         self.topic_list = []
@@ -29,8 +32,11 @@ class TopicPublisher(Node):
         ba = bytearray()
         for s in self.topic_list:
             ba.extend(s.encode('utf-8'))
+            
+        msg = ByteMultiArray()
+        msg.data = ba
         
-        print(self.topic_list)
+        self.publisher_.publish(msg)
         self.get_logger().info(f"Publishing: {ba}")
     
     
@@ -46,21 +52,13 @@ class TopicPublisher(Node):
         
         # Remove empty
         self.topic_list.remove('')
-        
-        # Remove '/'
-        #for i in range(len(self.topic_list)):
-            #self.topic_list[i] = self.topic_list[i].replace('/', '')
     
-    def strToByte(self, string: str) -> bytes:
-        output = string.encode("utf-8")
-        return output
-        
 
 
 def main(args=None):
     rclpy.init(args=args)
 
-    topic_publisher = TopicPublisher()
+    topic_publisher = topicListPublisher()
 
     rclpy.spin(topic_publisher)
 
