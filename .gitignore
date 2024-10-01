@@ -21,3 +21,9 @@ Zone.Identifier
 
 deps/songs
 autonav_ws/src/scr/include/scr/websocketpp/**/*:Zone.Identifier
+/.idea/.gitignore
+/.idea/autonav_software_2025.iml
+/.idea/editor.xml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/vcs.xml
