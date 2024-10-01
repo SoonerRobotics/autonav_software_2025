@@ -1,5 +1,3 @@
-#pragma once
-
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -9,6 +7,9 @@
 #include "feeler.cpp"
 #include "autonav_msgs/msg/position.hpp"
 #include "autonav_msgs/msg/motor_input.hpp"
+#include "autonav_msgs/msg/ultrasonic.hpp"
+#include "autonav_msgs/msg/safety_lights.hpp"
+#include "autonav_msgs/msg/audible_feedback.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/image_transport.hpp"
 
@@ -36,8 +37,8 @@ struct FeelerNodeConfig {
 
 class FeelerNode : public AutoNav::Node {
 public:
-    FiltersNode() : AutoNav::Node("autonav_feelers") {}
-    ~FiltersNode() {}
+    FeelerNode() : AutoNav::Node("autonav_feelers") {}
+    ~FeelerNode() {}
 
     void init() override {
         set_device_state(AutoNav::DeviceState::WARMING);
@@ -68,13 +69,13 @@ public:
         positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
         imageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/filtered", 1, std::bind(&FeelerNode::onImageReceived, this, std::placeholders::_1));
         debugImageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined", 1, std::bind(&FeelerNode::onDebugImageReceived, this, std::placeholders::_1));
-        ultrasonicSubscriber = create_subscription<autonav_msgs::msg::Ultrasonics>("/autonav/ultrasonics", 1, std::bind(&FeelerNode::onUltrasonicsReceived, this, std::placeholders::_1));
+        ultrasonicSubscriber = create_subscription<autonav_msgs::msg::Ultrasonic>("/autonav/ultrasonics", 1, std::bind(&FeelerNode::onUltrasonicsReceived, this, std::placeholders::_1));
         
         // publishers
         motorPublisher = create_publisher<autonav_msgs::msg::MotorInput>("/autonav/motor_input", 1);
         debugPublisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/feelers/debug", 1);
-        safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1); 
-        audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1); 
+        safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
+        audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
 
         // make all the feelers
         this->buildFeelers();
@@ -181,6 +182,7 @@ public:
 
             feeler.draw(debug_image);
         }
+        
         //TODO publish debug image
 
         //TODO safety lights
@@ -212,10 +214,11 @@ public:
             //publish the motor message
             this->motorPublisher->publish(msg);
             // and publish the debug image
-            this->debugPublisher->publish(cv_bridge::CvImage(debug_image).toImageMsg());
+            this->debugPublisher->publish(cv_brige::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
 
             // make the audible feedback message
             autonav_msgs::msg::AudibleFeedback feedback_msg;
+            bool publishAudible = true;
             if (weHitAWaypoint) { //FIXME
                 feedback_msg.filename = "ding.mp3";
             } else if (goingLeft) { //FIXME
@@ -225,11 +228,11 @@ public:
             } else if (goingBackwards) { //FIXME
                 feedback_msg.filename = "beep_beep.mp3";
             } else {
-                // don't publish anything so the music can be heard
+                publishAudible = false;
             }
             
             // if we are actually wanting to play a file
-            if (feedback_msg.filename != nullptr) {
+            if (publishAudible) {
                 this->audibleFeedbackPublisher.publish(feedback_msg);
             }
 
@@ -243,7 +246,7 @@ public:
             this->motorPublisher->publish(msg);
 
             // and publish the debug image
-            this->debugPublisher->publish(debug_image);
+            this->debugPublisher->publish(cv_brige::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
         }
     }
 
@@ -251,7 +254,7 @@ public:
      * Callback to receive and color image from the cameras to draw the feelers on for debug purposes
      * @param image the compressedImage message to draw the feelers on
      */
-    void onDebugReceived(const sensor_msgs::msg::CompressedImage image) {
+    void onDebugImageReceived(const sensor_msgs::msg::CompressedImage image) {
         this->newDebugImage = true;
 
         this->debug_image = cv_bridge.toCvCopy(image); //TODO figure out what encoding we want to use
@@ -270,10 +273,10 @@ public:
      * Callback to get data from the ultrasonic sensors. This message does not contain the data for every sensor,
      * but rather data for one of the sensors (each sensor will get a message sent for it). For more information,
      * see the SCR 2025 AutoNav CAN specification
-     * @param msg an Ultrasonics message from a sensor
+     * @param msg an Ultrasonic message from a sensor
      */
-    void onUltrasonicsReceived(const autonav_msgs::msg::Ultrasonics msg) {
-        this->ultrasonic_feelers[msg.id - 1]->setLength(msg.distance); // minus 1 because the sensors are numbered 1-8
+    void onUltrasonicsReceived(const autonav_msgs::msg::Ultrasonic msg) {
+        this->ultrasonic_feelers[msg.id - 1].setLength(msg.distance); // minus 1 because the sensors are numbered 1-8
     }
 
 private:
@@ -292,7 +295,7 @@ private:
     rclcpp::Subscription<autonav_msgs::msg::Position>::SharedPtr positionSubscriber;
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr imageSubscriber;
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr debugImageSubscriber;
-    rclcpp::Subscription<autonav_msgs::msg::Ultrasonics>::SharedPtr ultrasonicSubscriber;
+    rclcpp::Subscription<autonav_msgs::msg::Ultrasonic>::SharedPtr ultrasonicSubscriber;
     
     // publishers
     rclcpp::Publisher<autonav_msgs::msg::MotorInput>::SharedPtr motorPublisher;

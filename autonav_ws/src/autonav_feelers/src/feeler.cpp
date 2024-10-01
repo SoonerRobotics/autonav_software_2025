@@ -2,10 +2,11 @@
 
 #include <cmath>
 #include <vector>
-#include <numbers>
 #include "rclcpp/rclcpp.hpp"
 #include "cv_bridge/cv_bridge.hpp"
 #include "sensor_msgs/msg/image.hpp"
+
+#define PI 3.141592653
 
 /**
  * Convert degrees to radians
@@ -13,7 +14,7 @@
  * @return the angle in radians from [0, 2pi]
  */
 double radians(double degrees) {
-    return degrees * (std::numbers::pi / 180);
+    return degrees * (PI / 180);
 }
 
 class Feeler {
@@ -178,7 +179,7 @@ void Feeler::setXY(int x, int y) {
  * @param the thresholded image to perform feeler on
  */
 void Feeler::update(cv::Mat *mask) {
-    int channels = *mask->channels();
+    int channels = mask->channels();
 
     int x_ = 0;
     int y_ = 0;
@@ -230,7 +231,7 @@ void Feeler::update(cv::Mat *mask) {
         prev_x = x_;
     }
     
-    auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, *mask->cols, *mask->rows);
+    auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, mask->cols, mask->rows);
 
     // if any of the pixel's color values (in RGB I think) are > 0 then
     if (mask[coords[1], coords[0]].any() > 0) {
