@@ -38,6 +38,7 @@ public:
     void setColor(cv::Scalar c);
 
     void setXY(int x, int y);
+    void setLength(double newLength);
     void update(cv::Mat *mask);
     void draw(cv::Mat image);
 
@@ -171,7 +172,20 @@ void Feeler::setXY(int x, int y) {
 }
 
 /**
- * Update the end of the feeler / its lnegth from the image
+ * Set the length of the feeler (don't call this directly for the vision feelers, they should set their own length via update())
+ * This may or may not work but I think this is how vectors work
+ * @param length the length of the feeler
+ */
+void Feeler::setLength(double newLength) {
+    double scaleFactor = newLength / this->length;
+
+    this->x *= scaleFactor;
+    this->y *= scaleFactor;
+    this->length = dist(this->x, this->y);
+}
+
+/**
+ * Update the end of the feeler / its length from the image
  * It goes pixel by pixel along its length until it reaches a white pixel (obstacle)
  * or until it reaches its original length in which case it stops.
  * This was copied/pasted from feeler.py, see feeler.py for details
