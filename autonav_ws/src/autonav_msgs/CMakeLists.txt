@@ -14,18 +14,28 @@ find_package(builtin_interfaces REQUIRED)
 set(msg_files
     "msg/AudibleFeedback.msg"
     "msg/Conbus.msg"
+    "msg/DeviceState.msg"
     "msg/GPSFeedback.msg"
     "msg/IMUData.msg"
+    "msg/Log.msg"
     "msg/MotorFeedback.msg"
     "msg/MotorInput.msg"
     "msg/NUCStatistics.msg"
     "msg/Position.msg"
     "msg/SafetyLights.msg"
+    "msg/SystemState.msg"
     "msg/Ultrasonic.msg"
+    "msg/Performance.msg"
+)
+
+set(srv_files
+    "srv/SetDeviceState.srv"
+    "srv/SetSystemState.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     ${msg_files}
+    ${srv_files}
     DEPENDENCIES builtin_interfaces
 )
 
