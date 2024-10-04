@@ -41,6 +41,9 @@ Follow the steps in [building](#building) and then run the following command
 ros2 launch autonav_launch simulation.xml
 ```
 
+## Building with Docker
+Run the devcontainer.json (given the absolute path) to setup a prebuilt docker image. 
+
 ## VSCode
 
 To edit the software with Visual Studio Code, please install the ros extension and open VSCode through the command line via `code` after running all steps under [Building](#building). To get proper intellisense for C++, create the following file: `.vscode/c_cpp_properties.json`
