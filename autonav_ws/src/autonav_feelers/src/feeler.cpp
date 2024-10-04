@@ -20,7 +20,7 @@ double radians(double degrees) {
 class Feeler {
 public:
     Feeler(int x, int y);
-    ~Feeler();
+    ~Feeler() {};
 
     int getX();
     int getY();
@@ -44,6 +44,7 @@ public:
 
     Feeler operator+(Feeler const &other);
     Feeler operator-(Feeler const &other);
+    Feeler operator*(int &other);
 private:
     int x = 0;
     int y = 0;
@@ -109,7 +110,12 @@ std::vector<double> Feeler::toPolar() {
     double length = this->dist(this->x, this->y);
     polar.push_back(length);
 
-    double angle = std::tan(static_cast<double>(this->y) / static_cast<double>(this->x)); //FIXME this can ZeroDivisionError
+    double angle;
+    if (this->x != 0) {
+        angle = std::tan(static_cast<double>(this->y) / static_cast<double>(this->x));
+    } else {
+        angle = this->y > 0 ? PI/2 : 3*PI/2;
+    }
     polar.push_back(angle);
 
     return polar;
@@ -275,7 +281,7 @@ void Feeler::draw(cv::Mat image) {
 
     auto endCoords = this->centerCoordinates(this->x, this->y, image.cols, image.rows);
     endPt.x = std::clamp(endCoords[0], 0, image.cols);
-    endPt.y = std::slamp(endCoords[1], 0, image.rows);
+    endPt.y = std::clamp(endCoords[1], 0, image.rows);
 
     cv::line(image, startPt, endPt, this->color, 5); // thickness of 5
 }
@@ -301,6 +307,13 @@ Feeler Feeler::operator+(Feeler const &other) {
  */
 Feeler Feeler::operator-(Feeler const &other) {
     Feeler ret = Feeler(this->x - other.x, this->y - other.y);
+    ret.color = this->color;
+
+    return ret;
+}
+
+Feeler Feeler::operator*(int &other) {
+    Feeler ret = Feeler(this->x * other, this->y * other);
     ret.color = this->color;
 
     return ret;
