@@ -15,17 +15,10 @@ find_package(autonav_shared REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(OpenCV REQUIRED)
- 
-# Install Python programs
-install(PROGRAMS
-  src/feelers.py
-  src/feeler_node.py
-  DESTINATION lib/${PROJECT_NAME}
-)
 
 # C++
 add_executable(feeler_node src/feeler_node.cpp)
-ament_target_dependencies(feeler_node rclcpp autonav_msgs cv_bridge image_transport autonav_shared)
+ament_target_dependencies(feeler_node rclcpp autonav_msgs cv_bridge image_transport autonav_shared OpenCV)
 
 install(TARGETS
   feeler_node

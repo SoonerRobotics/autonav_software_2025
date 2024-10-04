@@ -5,6 +5,7 @@
 
 #include "autonav_shared/node.hpp"
 #include "feeler.cpp"
+#include "cv_bridge/cv_bridge.hpp"
 #include "autonav_msgs/msg/position.hpp"
 #include "autonav_msgs/msg/motor_input.hpp"
 #include "autonav_msgs/msg/ultrasonic.hpp"
@@ -12,6 +13,9 @@
 #include "autonav_msgs/msg/audible_feedback.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/image_transport.hpp"
+
+// #define now() static_cast<unsigned long int>(std::chrono::system_clock::now().time_since_epoch());
+#define now() (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())).count();
 
 // pretty basic gps point struct
 struct GPSPoint {
@@ -32,7 +36,7 @@ struct FeelerNodeConfig {
     double waypointPopDist;
     double ultrasonic_contribution;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers);
+    // NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers);
 };
 
 class FeelerNode : public AutoNav::Node {
@@ -43,7 +47,7 @@ public:
     void init() override {
         set_device_state(AutoNav::DeviceState::WARMING);
 
-        // === read waypoints from file === (copied and pasted from last year's feat/astar_rewrite_v3)
+        // === read waypoints from file === (copied and pasted from last year's feat/astar_rewrite_v3 branch)
         std::string line;
         this->waypointsFile.open(this->WAYPOINTS_FILENAME);
         getline(waypointsFile, line); // skip the first line
@@ -94,9 +98,9 @@ public:
             feeler.setColor(cv::Scalar(0, 200, 0)); // ultrasonic feelers are a different color
         }
 
-        ros::Timer publishTimer = this->createTimer(ros::Duration(0.05), std::bind(&FeelerNode::publishMotorOutput, this));
+        rclcpp::TimerBase::SharedPtr publishTimer = this->createTimer(ros::Duration(0.05), std::bind(&FeelerNode::publishMotorOutput, this));
 
-        lastTime = static_cast<unsigned long int>(std::chrono::system_clock::now().time_since_epoch());
+        lastTime = now();
 
         set_device_state(AutoNav::DeviceState::READY);
     }
@@ -108,7 +112,7 @@ public:
      */
     void buildFeelers() {
         this->feelers = std::vector<Feeler>();
-        for (double angle = this->config.start_angle; angle < 360; angle += (360 / this->config.num_feelers)) {
+        for (double angle = this->config.start_angle; angle < 360; angle += (360 / this->config.number_of_feelers)) {
             int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
             int y = this->config.max_length * sin(radians(angle));
 
@@ -125,8 +129,9 @@ public:
      * Configurable parameters are defined in the FeelerNodeConfig struct.
      * @param newConfig the new configuration for the feeler node
      */
-    void config_updated(json newConfig) override {
-        this->config = newConfig.template get<FeelerNodeConfig>();
+    // void config_updated(FeelerNodeConfig newConfig) override {
+    void config_updated(FeelerNodeConfig newConfig) {
+        // this->config = newConfig.template get<FeelerNodeConfig>();
 
         this->buildFeelers();
     }
@@ -135,13 +140,14 @@ public:
      * Gets the default configuration of the node for populating the UI.
      * @return the default configuration of the node as a json-ified FeelerNodeConfig struct.
      */
-    json get_default_config() override {
-        FeelerConfig newConfig;
+    // FeelerNodeConfig get_default_config() override {
+    FeelerNodeConfig get_default_config() {
+        FeelerNodeConfig newConfig;
         newConfig.max_length = 100;
         newConfig.number_of_feelers = 12;
         newConfig.start_angle = 0.0;
         newConfig.waypointPopDist = 2.0; // 2 meter default
-        ultrasonic_contribution = 2.0; // twice the strength of regular feelers
+        newConfig.ultrasonic_contribution = 2.0; // twice the strength of regular feelers
 
         return newConfig;
     }
@@ -167,10 +173,8 @@ public:
         // draw debug image (separate from loop because this will modify the image, which wouldn't work multithreaded)
         // also if you drew on the image while modifying it that would mess up some of the feelers
         // also add all the feelers together
-        auto debug_image = cv::Mat(); //FIXME
-
         for (Feeler feeler : this->feelers) {
-            feeler.draw(debug_image);
+            feeler.draw(debug_image_ptr->image);
             this->headingArrow = this->headingArrow + feeler;
         }
 
@@ -179,7 +183,7 @@ public:
             // ultrasonic feelers contribute twice as much because there are fewer of them
             this->headingArrow = this->headingArrow + feeler;
 
-            feeler.draw(debug_image);
+            feeler.draw(debug_image_ptr->image);
         }
     }
 
@@ -190,7 +194,7 @@ public:
     void onDebugImageReceived(const sensor_msgs::msg::CompressedImage image) {
         this->newDebugImage = true;
 
-        this->debug_image = cv_bridge.toCvCopy(image); //TODO figure out what encoding we want to use
+        this->debug_image_ptr = cv_bridge::toCvCopy(image); //TODO figure out what encoding we want to use
     }
 
     /**
@@ -216,14 +220,26 @@ public:
      * Publish the motor output messages. Main feeler node function.
      */
     void publishMotorOutput() {
-        //TODO we need to figure out our direction (north or south) for the GPS waypoints
-
         // if we aren't in autonomous
         if (this->get_system_state() != AutoNav::SystemState::AUTONOMOUS && this->get_device_state() != AutoNav::DeviceState::OPERATING) {
             return; // return because we don't need to do anything
         }
 
-        // make the safety lights message for publishing        
+        if (this->gpsTime == 0) {
+            this->gpsTime = now();
+        //TODO do we want this 6 seconds to be a configurable parameter or something?
+        } else if (now() - this->gpsTime > 6 && this->direction == "") { // if it's been 6 seconds and we haven't set the direction yet
+            double heading_degrees = abs(this->position.theta * 180 / PI);
+            if (120 < heading_degrees && heading_degrees < 240) {
+                this->direction = "south";
+                log("PICKING SOUTH WAYPOINTS", AutoNav::Logging::INFO);
+            } else {
+                this->direction = "north";
+                log("PICKING NORTH WAYPOINTS", AutoNav::Logging::INFO);
+            }
+        }
+
+        // make the safety lights message for publishing
         autonav_msgs::msg::SafetyLights safetyLightsMsg;
         safetyLightsMsg.autonomous = true; // if we passed the system state check at the beginning of the function and reach this line of code then we're in auto
         
@@ -237,7 +253,8 @@ public:
 
             // add a bias towards the GPS waypoint
             //FIXME this doesn't account for the rotation of the robot
-            this->headingArrow = this->headingArrow + Feeler(goalPoint.lon - this->position.longitude, goalPoint.lat - this->position.latitude); //FIXME cap the length/contribution of this
+            //FIXME the clamping should be configurable or something
+            this->headingArrow = this->headingArrow + Feeler(std::clamp(goalPoint.lon - this->position.longitude, -200, 200), std::clamp(goalPoint.lat - this->position.latitude, -200, 200));
             double distToWaypoint = std::sqrt(std::pow((goalPoint.lon - this->position.longitude)*this->latitudeLength, 2) + std::pow((goalPoint.lat - this->position.latitude)*this->longitudeLength, 2));
 
             // if we are close enough to the waypoint, and we aren't going to cause an out-of-bounds index error
@@ -245,7 +262,7 @@ public:
                 this->waypointIndex++;
             }
 
-            this->headingArrow.draw(debug_image);
+            this->headingArrow.draw(debug_image_ptr->image);
 
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
@@ -265,19 +282,19 @@ public:
             // and publish the safety lights message
             this->safetyLightsPublisher->publish(safetyLightsMsg);
             // and publish the debug image
-            this->debugPublisher->publish(cv_brige::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
+            this->debugPublisher->publish(debug_image_ptr->toImageMsg());
 
             // make the audible feedback message
             autonav_msgs::msg::AudibleFeedback feedback_msg;
             bool publishAudible = true;
             if (distToWaypoint < config.waypointPopDist) {
                 feedback_msg.filename = "ding.mp3";
-            } else if (goingLeft) { //FIXME
-                feedback_msg.filename = "going_left.mp3";
-            } else if (goingRight) { //FIXME
-                feedback_msg.filename = "going_right.mp3";
-            } else if (goingBackwards) { //FIXME
+            } else if (msg.forward_velocity < -0.5) { //TODO this is all robot-relative movement, so 'left' and 'right' here refer to the robot's POV, and if we end up moving primarily sideways through ex No-man's land then this could get annoying
                 feedback_msg.filename = "beep_beep.mp3";
+            } else if (msg.sideways_velocity < -1) {
+                feedback_msg.filename = "going_left.mp3";
+            } else if (msg.sideways_velocity > 1) {
+                feedback_msg.filename = "going_right.mp3";
             } else {
                 publishAudible = false;
             }
@@ -301,7 +318,7 @@ public:
 
             this->motorPublisher->publish(msg);
             this->safetyLightsPublisher->publish(safetyLightsMsg);
-            this->debugPublisher->publish(cv_brige::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
+            this->debugPublisher->publish(debug_image_ptr->toImageMsg());
         }
     }
 
@@ -312,14 +329,15 @@ private:
     Feeler headingArrow = Feeler(0, 0);
 
     bool newDebugImage = false;
-    cv::Mat debug_image;
+    cv_bridge::CvImagePtr debug_image_ptr;
 
     // GPS
     GPSPoint goalPoint;
     autonav_msgs::msg::Position position;
     unsigned long int lastTime = 0;
+    unsigned long int gpsTime = 0;
 
-    json config;
+    FeelerNodeConfig config;
     
     // subscribers
     rclcpp::Subscription<autonav_msgs::msg::Position>::SharedPtr positionSubscriber;
@@ -338,7 +356,7 @@ private:
     std::ifstream waypointsFile; // actual C++ file object
     std::unordered_map<std::string, std::vector<GPSPoint>> waypointsDict; // dictionairy of lists containing the GPS waypoints we could PID to, choose the waypoints for the correct direction from here
     int waypointIndex = 0;
-    std::string direction = "north";
+    std::string direction = "";
     double latitudeLength = 110944.21;
     double longitudeLength = 81978.2;
 };

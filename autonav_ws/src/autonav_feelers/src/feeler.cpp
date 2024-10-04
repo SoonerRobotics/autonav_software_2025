@@ -194,6 +194,7 @@ void Feeler::setLength(double newLength) {
  */
 void Feeler::update(cv::Mat *mask) {
     int channels = mask->channels();
+    auto pixelPtr = (uint8_t*)mask->data;
 
     int x_ = 0;
     int y_ = 0;
@@ -247,16 +248,19 @@ void Feeler::update(cv::Mat *mask) {
     
     auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, mask->cols, mask->rows);
 
-    // if any of the pixel's color values (in RGB I think) are > 0 then
-    if (mask[coords[1], coords[0]].any() > 0) {
-        //TODO: https://stackoverflow.com/questions/7899108/opencv-get-pixel-channel-value-from-mat-image
-        // that is our new length
-        this->setXY(x_*x_dir, y_*y_dir);
-        return; // and quit so we don't keep looping 'cause we found an obstacle
-    } else if (abs(x_) > abs(this->original_x) || abs(y_) > abs(this->original_y)) { // if we're past our original farthest point
-        this->setXY(this->original_x, this->original_y); // then we found no obstacle, and should stop looping
-        return;
+    // for every one of the pixel's values (out of blue, green, and red as per openCV standard)
+    for (int i = 0; i < 3; i++) {
+        //reference https://stackoverflow.com/questions/7899108/opencv-get-pixel-channel-value-from-mat-image
+        if (pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + i] > 0) {
+            // that is our new length
+            this->setXY(x_*x_dir, y_*y_dir);
+            return; // and quit so we don't keep looping 'cause we found an obstacle
+        } else if (abs(x_) > abs(this->original_x) || abs(y_) > abs(this->original_y)) { // if we're past our original farthest point
+            this->setXY(this->original_x, this->original_y); // then we found no obstacle, and should stop looping
+            return;
+        }
     }
+
 }
 
 /**
@@ -270,8 +274,8 @@ void Feeler::draw(cv::Mat image) {
     startPt.y = startCoords[1];
 
     auto endCoords = this->centerCoordinates(this->x, this->y, image.cols, image.rows);
-    endPt.x = endCoords[0];
-    endPt.y = endCoords[1];
+    endPt.x = std::clamp(endCoords[0], 0, image.cols);
+    endPt.y = std::slamp(endCoords[1], 0, image.rows);
 
     cv::line(image, startPt, endPt, this->color, 5); // thickness of 5
 }
