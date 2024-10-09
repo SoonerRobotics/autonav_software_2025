@@ -21,11 +21,11 @@ set(msg_files
     "msg/MotorFeedback.msg"
     "msg/MotorInput.msg"
     "msg/NUCStatistics.msg"
+    "msg/Performance.msg"
     "msg/Position.msg"
     "msg/SafetyLights.msg"
     "msg/SystemState.msg"
     "msg/Ultrasonic.msg"
-    "msg/Performance.msg"
 )
 
 set(srv_files
