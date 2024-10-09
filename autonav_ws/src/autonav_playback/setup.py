@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'spam = autonav_playback.testTopicsSpam:main',
             'master = autonav_playback.topic_pub:main',
+            'playback = autonav_playback.playback:main',
         ],
     },
 )
