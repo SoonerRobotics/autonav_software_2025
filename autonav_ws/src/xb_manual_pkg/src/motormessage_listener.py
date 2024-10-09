@@ -22,7 +22,7 @@ class ControllerListener(Node):
 
 
     def listener_callback(self, msg):
-        self.get_logger().info(f"I heard: {msg.forward_velocity}, {msg.angular_velocity}")
+        self.get_logger().info(f"I heard: {msg.forward_velocity}, {msg.sideways_velocity}, {msg.angular_velocity}")
 
 
     def deserialize_controller_state(self, msg):

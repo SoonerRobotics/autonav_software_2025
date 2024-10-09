@@ -1,15 +1,14 @@
 <launch>
+  <include file="$(find-pkg-share rosbridge_server)/launch/rosbridge_websocket_launch.xml" />
+
   <!-- Core -->
   <node pkg="autonav_shared" exec="synchronizer" output="screen" emulate_tty="true" />
-  
-  <!-- Manual controller -->
+
+  <!-- xbox manual control -->
   <node pkg="xb_manual_pkg" exec="controller_input.py"/>
-  <node pkg="xb_manual_pkg" exec="manual_24.py"/>
+  <node pkg="xb_manual_pkg" exec="manual_25.py"/>
   <node pkg="xb_manual_pkg" exec="motormessage_listener.py"/>
 
-  <!-- Serial Nodes -->
-  <!-- <node pkg="autonav_serial" exec="serial_node.py" /> -->
-  
   <!-- Other -->
-  <node pkg="autonav_display" exec="display.py" />
+  <!-- <node pkg="autonav_display" exec="display.py" /> -->
 </launch>

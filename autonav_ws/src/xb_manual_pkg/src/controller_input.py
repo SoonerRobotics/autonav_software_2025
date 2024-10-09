@@ -2,10 +2,10 @@
 
 import rclpy
 import evdev
-import time
-from scr.node import Node
-from scr.states import DeviceStateEnum, SystemStateEnum
 from evdev import ecodes
+import time
+from autonav_shared.node import Node
+from autonav_shared.types import LogLevel, DeviceState, SystemState
 from std_msgs.msg import String
 from autonav_msgs.msg import ControllerInput
 
@@ -28,7 +28,7 @@ class ControllerInputNode(Node):
     def init(self):
         self.get_logger().info("HERE")
 
-        self.set_device_state(DeviceStateEnum.STANDBY)
+        self.set_device_state(DeviceState.WARMING)
 
         self.get_logger().info("HERE")
 
@@ -76,7 +76,7 @@ class ControllerInputNode(Node):
                                        f"\nController state will be published on update and every {self.timer_period_s} seconds")
         
         if controller is not None:
-            self.set_device_state(DeviceStateEnum.OPERATING)
+            self.set_device_state(DeviceState.OPERATING)
 
         return controller
     
@@ -203,10 +203,10 @@ class ControllerInputNode(Node):
 
 
     def reconnect(self, last_callback_time_s):
-        self.set_device_state(DeviceStateEnum.ERRORED)
+        self.set_device_state(DeviceState.ERROR)
 
-        if self.system_state != SystemStateEnum.AUTONOMOUS:
-            self.set_system_state(SystemStateEnum.DISABLED)
+        if self.system_state != SystemState.AUTONOMOUS:
+            self.set_system_state(SystemState.DISABLED)
              
         self.controller_state = dict.fromkeys(self.controller_state, 0.0)
         last_callback_time_s = self.clock_routine(last_callback_time_s)
@@ -233,16 +233,9 @@ class ControllerInputNode(Node):
         
 
 def main():
-    # rclpy.init()
-    # controller_input = ControllerInputNode()
-
-    # rclpy.spin(controller_input)
-
-    # controller_input.destroy_node() 
-    # rclpy.shutdown()
     rclpy.init()
     node = ControllerInputNode()
-    Node.run_node(node)
+    rclpy.spin(node)
     rclpy.shutdown()
 
 

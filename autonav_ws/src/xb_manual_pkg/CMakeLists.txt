@@ -12,6 +12,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(autonav_msgs REQUIRED)
+find_package(autonav_shared REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -51,6 +52,7 @@ install(TARGETS
    src/controller_input.py
    src/controller_listener.py
    src/manual_24.py
+   src/manual_25.py
    src/motormessage_listener.py
    DESTINATION lib/${PROJECT_NAME}
 )
