@@ -42,17 +42,20 @@ struct FeelerNodeConfig {
 
 class FeelerNode : public AutoNav::Node {
 public:
-    FeelerNode() : AutoNav::Node("autonav_feelers") {}
-    ~FeelerNode() {}
+    FeelerNode() : AutoNav::Node("autonav_feelers") {
+        log("TESTING 1 2 TESTING", AutoNav::Logging::ERROR);
+    }
+    ~FeelerNode() = default;
 
     void init() override {
-        set_device_state(AutoNav::DeviceState::WARMING);
+        log("Feelers node initializing", AutoNav::Logging::LogLevel::ERROR);
 
         // === read waypoints from file === (copied and pasted from last year's feat/astar_rewrite_v3 branch)
         std::string line;
         this->waypointsFile.open(this->WAYPOINTS_FILENAME);
         getline(waypointsFile, line); // skip the first line
-        while (getline(waypointsFile, line) ) { 
+        int numWaypoints = 0;
+        while (getline(waypointsFile, line)) { 
             std::vector<std::string> tokens; // https://www.geeksforgeeks.org/tokenizing-a-string-cpp/
             std::stringstream strstream(line);
             std::string intermediate;
@@ -66,9 +69,16 @@ public:
 
             // waypoints are stored like {"north":[GPSPoint, GPSPoint]}
             waypointsDict[tokens[0]].push_back(point);
+            numWaypoints++;
         }
         waypointsFile.close();
         // === /read waypoints ===
+
+        log("Number of waypoints read: " + std::to_string(numWaypoints), AutoNav::Logging::INFO);
+
+        if (numWaypoints < 1) {
+            log("No waypoints read! GPS Feeler will not work", AutoNav::Logging::WARN);
+        }
 
         // subscribers
         positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
@@ -84,6 +94,8 @@ public:
 
         // make all the feelers
         this->buildFeelers();
+
+        log("Feelers built", AutoNav::Logging::INFO);
 
         // make the feelers for the ultrasonics
         ultrasonic_feelers = std::vector<Feeler>();
