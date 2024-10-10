@@ -97,10 +97,8 @@ namespace AutoNav
         // Publishers
         rclcpp::Publisher<autonav_msgs::msg::Performance>::SharedPtr performance_pub;
         rclcpp::Publisher<autonav_msgs::msg::Log>::SharedPtr log_pub;
-
-        // Clients
-        rclcpp::Client<autonav_msgs::srv::SetDeviceState>::SharedPtr set_device_state_client;
-        rclcpp::Client<autonav_msgs::srv::SetSystemState>::SharedPtr set_system_state_client;
+        rclcpp::Publisher<autonav_msgs::msg::DeviceState>::SharedPtr device_state_pub;
+        rclcpp::Publisher<autonav_msgs::msg::SystemState>::SharedPtr system_state_pub;
 
         // Functions
         void system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg);
