@@ -16,7 +16,7 @@ add_executable(vectornav_node src/vectornav_node.cpp)
 ament_target_dependencies(vectornav_node rclcpp autonav_shared autonav_mgs)
 
 install(TARGETS
-vectornav_node
+  vectornav_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
