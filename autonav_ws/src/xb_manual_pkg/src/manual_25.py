@@ -72,17 +72,18 @@ class Manual25Node(Node):
 
 
     def input_callback(self, msg):
-        self.new_time = time.clock()
+        self.new_time = time.time()
         self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
-        self.get_logger().info(f"I heard: {str(self.controller_state)}")
+        # self.get_logger().info(f"I heard: {str(self.controller_state)}")
 
-        self.changed_controller_mode()
+        self.change_controller_mode()
         self.change_system_state()
 
         # local vs. global toggle
         
         self.delta_t = self.new_time - self.last_time
+
         if self.mode == ControllerMode.LOCAL:
             self.compose_motorinput_message_local()
         elif self.mode == ControllerMode.GLOBAL:
@@ -102,10 +103,14 @@ class Manual25Node(Node):
         return output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start)
     
     
-    def changed_controller_mode(self):
-        new_controller_mode = ControllerMode.GLOBAL if self.controller_state["btn_select"] == 1.0 else ControllerMode.LOCAL
-        self.mode = new_controller_mode
-
+    def change_controller_mode(self):
+        if self.controller_state["btn_north"] == 1.0:
+            self.mode = ControllerMode.GLOBAL
+            self.get_logger().info(f'changed controller mode to {self.mode}')
+        elif self.controller_state["btn_south"] == 1.0:
+            self.mode = ControllerMode.LOCAL
+            self.get_logger().info(f'changed controller mode to {self.mode}')
+            
 
     def change_system_state(self):
         new_system_state = self.system_state
@@ -139,7 +144,7 @@ class Manual25Node(Node):
         self.motorPublisher.publish(motor_msg)
         self.orientation += angular_velocity * self.delta_t
     
-
+    # https://math.stackexchange.com/questions/2895880/inversion-of-rotation-matrix
     def compose_motorinput_message_global(self):
         forward_velocity = 0.0
         sideways_velocity = 0.0
@@ -150,8 +155,8 @@ class Manual25Node(Node):
             angular_velocity = self.normalize(self.controller_state["abs_z"], -self.max_angular_speed, self.max_angular_speed, -1.0, 1.0)
 
         motor_msg = MotorInput()
-        motor_msg.forward_velocity = forward_velocity * abs(np.cos(self.orientation)) + sideways_velocity * abs(np.sin(self.orientation))
-        motor_msg.sideways_velocity = sideways_velocity * abs(np.cos(self.orientation)) - forward_velocity * abs(np.sin(self.orientation))
+        motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
+        motor_msg.sideways_velocity = -1 * sideways_velocity * np.cos(self.orientation) + forward_velocity * np.sin(self.orientation)
         motor_msg.angular_velocity = angular_velocity
 
         self.motorPublisher.publish(motor_msg)
