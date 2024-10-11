@@ -71,8 +71,8 @@ Feeler::Feeler(int x, int y) {
     this->length = this->dist(x, y);
 
     // this is necessary so we can remember our original size and grow back up to it in the absence of an obstacle
-    this->original_x = original_x;
-    this->original_y = original_y;
+    this->original_x = x;
+    this->original_y = y;
     this->original_length = this->length;
 
     this->color = cv::Scalar(200, 0, 0);

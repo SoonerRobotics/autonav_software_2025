@@ -42,13 +42,12 @@ struct FeelerNodeConfig {
 
 class FeelerNode : public AutoNav::Node {
 public:
-    FeelerNode() : AutoNav::Node("autonav_feelers") {
-        log("TESTING 1 2 TESTING", AutoNav::Logging::ERROR);
-    }
+    FeelerNode() : AutoNav::Node("autonav_feelers") {}
     ~FeelerNode() = default;
 
     void init() override {
-        log("Feelers node initializing", AutoNav::Logging::LogLevel::ERROR);
+        //TODO FIXME TEMP this is here until a proper config system is in place
+        this->config = this->get_default_config();
 
         // === read waypoints from file === (copied and pasted from last year's feat/astar_rewrite_v3 branch)
         std::string line;
@@ -94,8 +93,6 @@ public:
 
         // make all the feelers
         this->buildFeelers();
-
-        log("Feelers built", AutoNav::Logging::INFO);
 
         // make the feelers for the ultrasonics
         ultrasonic_feelers = std::vector<Feeler>();
