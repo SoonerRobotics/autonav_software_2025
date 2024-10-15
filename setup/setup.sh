@@ -18,6 +18,8 @@ bash ./vnav.sh
 
 # Python deps
 sudo apt install python3-pip -y
+python3 -m pip config set global.break-system-packages true
+sudo python3 -m pip config set global.break-system-packages true
 pip3 install python-can[serial]
 pip3 install websockets
 
