@@ -1,4 +1,8 @@
+#include <chrono>
+
 #include "autonav_shared/node.hpp"
+#include "autonav_msgs/msg/position.hpp"
+#include "autonav_msgs/msg/gps_feedback.hpp"
 
 class VectorNavNode : public AutoNav::Node {
 public:
@@ -17,6 +21,8 @@ public:
         // if the sensor didn't connect, log it
         if (e != VN::Error::None) {
             log("VectorNav Error: " + std::to_string(e), AutoNav::Logging::ERROR);
+
+            set_device_state(AutoNav::DeviceState::ERROR);
         }
 
         // while the sensor is not connected
@@ -44,55 +50,81 @@ public:
 
             //NOTE: this can take anywhere from 500 to 1000ms according to the ICD
             this->sensor.writeSettings();
+            log("Writing VectorNav settings, this could take a second", AutoNav::Logging::WARN);
+
             wait(2);
             this->sensor.reset(); // and so reset the Kalman filter
             wait(2);
 
             needToWriteSettings = false;
+            log("VectorNav settings burned to flash", AutoNav::Logging::INFO);
         }
 
         // set the initial heading of the robot
         this->sensor.setInitialHeading(0.0); //FIXME should be in degrees, north-oriented
 
-        //TODO: publish the message from the data or whatever
-        //TODO: publish debug data to UI or something
-        //TODO: log data
-
-
-
-        // GPS is critical information and should be top priority
-        // heading is really nice to have too
-        // don't care as much about linear acceleration but that'd be cool to
-        // maybe velocity?
-        // don't need anything else
-        // kill the magnetometer
-
-/**
-        ImuStatus
-        *gyro status
-        *accel status
-        AngularRate
-        *gyroX
-        *gyroY
-        *gyroZ
-        NumSats
-        GnssFix
-        GnssPosLla
-        GnssStatus
-        Ypr
-        LinBodyAcc
-
-*/
-
         // turn the data streams back on
         this->sensor.asyncOutputEnable(VN::asyncOutputEnable::State::Enable);
 
+        //TODO we need to like, have an INS status thing and like on the UI or robot audible feedback or safety lights or whatever make sure it's in aligned mode,
+        // because it needs to warm up for like 30 seconds, then drive over 5 m/s and then other stuff to be fully working right with the kalman filter and everything
+
+        // configure the binary output register
+        this->outputRegister.rateDivisor = 200;
+        this->outputRegister.asyncMode.serial1 = true;
+        this->outputRegister.gnss.GnssSolLla = true;
+
+        // publishers
+        gpsPublisher = create_publisher<autonav_msgs::msg::GPSFeedback>("/autonav/gps", 1);
+
+        // timers
+        publishTimer = this->create_wall_timer(std::chrono::milliseconds(this->gpsRate), std::bind(&VectorNavNode::publishGps, this));
+
         set_device_state(AutoNav::DeviceState::READY);
     }
+
+    /**
+     * TODO
+     */
+    void publishGps() {
+        // get the next measurement from the queue
+        VN::Sensor::CompositeDataQueueReturn compositeData = this->sensor.getNextMeasurement();
+
+        // if there is not a measurement on the queue for us to read
+        if (!compositeData) {
+            return;
+        }
+
+        if (this->get_device_state != AutoNav::DeviceState::OPERATING) {
+            // if we actually have data then we should be operating just fine
+            set_device_state(AutoNav::DeviceState::OPERATING);
+        }
+
+
+        // if the binary output matches the message we configured it to give
+        if (compositeData->matchesMessage(outputRegister)) {
+            // make the message
+            autonav_msgs::msg::GPSFeedback msg;
+            msg.latitude = compositeData->gnss.GnssSolLla.latitude;
+            msg.longitude = compositeData->gnss.GnssSolLla.longitude;
+            //TODO num_sats and status and stuff
+
+            this->gpsPubliser->publish(msg);
+        } else {
+            log("Unrecognized VectorNav message", AutoNav::Logging::ERROR);
+        }
+    }
 private:
+    // vectornav stuff
     VN::Sensor sensor; // the actual vectornav object (we have a VN200 rugged)
     std::string port = "COM3"; //FIXME
     VN::Sensor::BaudRate baudRate = VN::Sensor::BaudRate::115200;
+    VN::Registers::System::BinaryOutput1 outputRegister;
+
+    // publishers
+    rclcpp::Publisher<autonav_msgs::msg::GPSFeedback>::SharedPtr gpsPublisher;
+    rclcpp::TimerBase::SharedPtr publishTimer;
+    double gpsRate = 1/5 * 1000; // 5 Hz in milliseconds
 };
 
 int main(int argc, char** argv) {
