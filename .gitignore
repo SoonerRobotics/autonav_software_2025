@@ -21,3 +21,10 @@ Zone.Identifier
 
 deps/songs
 autonav_ws/src/scr/include/scr/websocketpp/**/*:Zone.Identifier
+
+# pf
+autonav_ws/src/autonav_filters/include/testing_feedback
+autonav_ws/src/autonav_filters/include/testing_feedback.cpp
+autonav_ws/src/autonav_filters/include/testing_gps
+autonav_ws/src/autonav_filters/include/testing_gps.cpp
+autonav_ws/src/autonav_filters/include/position_graph.py
