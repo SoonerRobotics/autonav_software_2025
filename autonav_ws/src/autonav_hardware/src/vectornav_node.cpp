@@ -29,15 +29,18 @@ public:
 
         // if the sensor didn't connect, log it
         if (e != VN::Error::None) {
-            log("VectorNav Error: " + *VN::errorCodeToString(e), AutoNav::Logging::ERROR);
+            // log("VectorNav Error: " + *VN::errorCodeToString(e), AutoNav::Logging::ERROR);
+            log("VectorNav Connection Error!", AutoNav::Logging::ERROR);
 
             set_device_state(AutoNav::DeviceState::ERROR);
         }
 
         // while the sensor is not connected
         while (!sensor.verifySensorConnectivity()) {
-            sleep(2); // wait 2 seconds
+            std::this_thread::sleep_for(std::chrono::seconds(2)); // wait 2 seconds
             sensor.autoConnect(this->port); // and try again
+
+            log("Connecting...", AutoNav::Logging::WARN);
         }
 
         log("VectorNav Connected!", AutoNav::Logging::INFO);
@@ -46,6 +49,16 @@ public:
 
         // turn off the stream of data while we're configuring everything
         this->sensor.asyncOutputEnable(VN::AsyncOutputEnable::State::Disable);
+
+        // configure the binary output register
+        this->outputRegister.rateDivisor = 200;
+        this->outputRegister.asyncMode.serial1 = true;
+        this->outputRegister.gnss.gnss1PosLla = true;
+
+        auto latestError = sensor.writeRegister(&this->outputRegister);
+        if (latestError != VN::Error::None) {
+            log("Register writing error!", AutoNav::Logging::ERROR);
+        }
 
         //TODO: read the settings from the vectornav registers and stuff
         //TODO: if the settings aren't right then change them to be correct
@@ -78,16 +91,13 @@ public:
         //TODO we need to like, have an INS status thing and like on the UI or robot audible feedback or safety lights or whatever make sure it's in aligned mode,
         // because it needs to warm up for like 30 seconds, then drive over 5 m/s and then other stuff to be fully working right with the kalman filter and everything
 
-        // configure the binary output register
-        this->outputRegister.rateDivisor = 200;
-        this->outputRegister.asyncMode.serial1 = true;
-        this->outputRegister.gnss.gnss1PosLla = true;
-
         // publishers
         gpsPublisher = create_publisher<autonav_msgs::msg::GPSFeedback>("/autonav/gps", 1);
 
         // timers
         publishTimer = this->create_wall_timer(std::chrono::milliseconds(this->gpsRate), std::bind(&VectorNavNode::publishGps, this));
+
+        log("VectorNav Node Init Finished!", AutoNav::Logging::INFO);
 
         set_device_state(AutoNav::DeviceState::READY);
     }
@@ -107,11 +117,13 @@ public:
         if (this->get_device_state() != AutoNav::DeviceState::OPERATING) {
             // if we actually have data then we should be operating just fine
             set_device_state(AutoNav::DeviceState::OPERATING);
+
+            log("DATA RECEIVED!!!!", AutoNav::Logging::INFO);
         }
 
 
         // if the binary output matches the message we configured it to give
-        if (compositeData->matchesMessage(outputRegister)) {
+        if (compositeData->matchesMessage(this->outputRegister)) {
             // make the message
             autonav_msgs::msg::GPSFeedback msg;
 
@@ -122,6 +134,7 @@ public:
             //Gnss1Fix, gnss1NumSats
 
             this->gpsPublisher->publish(msg);
+            log("PUBLISHING!!!!!!", AutoNav::Logging::INFO);
         } else {
             log("Unrecognized VectorNav message", AutoNav::Logging::ERROR);
         }
@@ -129,7 +142,7 @@ public:
 private:
     // vectornav stuff
     VN::Sensor sensor; // the actual vectornav object (we have a VN200 rugged)
-    std::string port = "COM3"; //FIXME
+    std::string port = "/dev/ttyUSB0"; //FIXME
     VN::Sensor::BaudRate baudRate = VN::Sensor::BaudRate::Baud115200;
     VN::Registers::System::BinaryOutput1 outputRegister;
 

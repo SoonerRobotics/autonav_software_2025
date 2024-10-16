@@ -1,5 +1,4 @@
 <launch>
     <node pkg="autonav_shared" exec="synchronizer" output="screen" emulate_tty="true" />
-    <node pkg="autonav_example_py" exec="example.py" output="screen" emulate_tty="true" />
-    <node pkg="autonav_example_cpp" exec="autonav_example_cpp" output="screen" emulate_tty="true" />
+    <node pkg="autonav_hardware" exec="vectornav_node" output="screen" emulate_tty="true" />
 </launch>
