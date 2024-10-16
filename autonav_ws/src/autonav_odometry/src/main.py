@@ -1,70 +1,65 @@
 #!/usr/bin/env python3
-# filters.py from last year
+# filters.py from last year for the most part
 
 import json
 from types import SimpleNamespace
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, Position, IMUData
-from scr.states import DeviceStateEnum, SystemStateEnum, SystemModeEnum
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, Position
+from autonav_shared.types import DeviceState, SystemState, LogLevel # i am goig to beat pylance with a rock
 from particlefilter import ParticleFilter
 from scr_msgs.msg import SystemState
-from autonav_shared import Node
+from autonav_shared.node import Node
 from enum import IntEnum
 import rclpy
-import math
 
 class FilterType(IntEnum):
-    DEAD_RECKONING = 0,
     PARTICLE_FILTER = 1
-
+    # ADD NEW FILTERS HERE
 
 class FiltersNodeConfig:
     def __init__(self):
         self.filter_type = FilterType.PARTICLE_FILTER
 
-
 class FiltersNode(Node):
     def __init__(self):
         super().__init__("autonav_filters")
-
+        # init gps and position
         self.first_gps = None
         self.last_gps = None
-
         self.latitude_length = self.declare_parameter("latitude_length", 111086.2).get_parameter_value().double_value
         self.longitude_length = self.declare_parameter("longitude_length", 81978.2).get_parameter_value().double_value
-
+        # init filters
+        # IF WE IMPLEMENT MORE FILTERS ADD THEM HERE (AND ANYWHERE THAT COMES UP WHEN YOU CTRL-F "NEW FILTERS")!
         self.pf = ParticleFilter(self.latitude_length, self.longitude_length)
-        self.dr = DeadReckoningFilter()
-        self.config = self.get_default_config()
-
+        self.config = FiltersNodeConfig()
         self.onReset()
 
     def config_updated(self, jsonObject):
         self.config = json.loads(self.jdump(jsonObject), object_hook=lambda d: SimpleNamespace(**d))
+        # reinit filters after getting new config
         self.onReset()
 
-    def get_default_config(self):
-        return FiltersNodeConfig()
-
     def init(self):
+        # [melee announcer voice] ready...
         self.create_subscription(GPSFeedback, "/autonav/gps", self.onGPSReceived, 20)
         self.create_subscription(MotorFeedback, "/autonav/MotorFeedback", self.onMotorFeedbackReceived, 20)
         self.position_publisher = self.create_publisher(Position, "/autonav/position", 20)
-
-        self.set_device_state(DeviceStateEnum.OPERATING)
+        # go!
+        self.set_device_state(DeviceState.OPERATING)
 
     def onReset(self):
         self.first_gps = None
         self.last_gps = None
-        self.dr.reset()
         self.pf.init_particles()
+        # INIT NEW FILTERS HERE
 
     def system_state_transition(self, old: SystemState, updated: SystemState):
-        if old.state != SystemStateEnum.AUTONOMOUS and updated.state == SystemStateEnum.AUTONOMOUS:
+        # reinit filters when robot changes modes
+        if old.state != SystemState.AUTONOMOUS and updated.state == SystemState.AUTONOMOUS:
             self.onReset()
 
-        if old.state != SystemStateEnum.MANUAL and updated.state == SystemStateEnum.MANUAL:
+        if old.state != SystemState.MANUAL and updated.state == SystemState.MANUAL:
             self.onReset()
-
+        # or gets going
         if old.mobility == False and updated.mobility == True:
             self.onReset()
 
@@ -76,21 +71,23 @@ class FiltersNode(Node):
             self.first_gps = msg
 
         self.last_gps = msg
+        # USE NEW FILTERS HERE
         if self.config.filter_type == FilterType.PARTICLE_FILTER:
             self.pf.gps(msg)
         else:
-            self.dr.gps(msg)
+            self.log(f"{self.config.filter_type} isn't a valid FilterType! Did you implement a new filter and forget to use it?", LogLevel.FATAL)
 
     def onMotorFeedbackReceived(self, msg: MotorFeedback):
         averages = None
+        # USE NEW FILTERS HERE
         if self.config.filter_type == FilterType.PARTICLE_FILTER:
             averages = self.pf.feedback(msg)
         else:
-            averages = self.dr.feedback(msg)
+            self.log(f"{self.config.filter_type} isn't a valid FilterType! Did you implement a new filter and forget to use it?", LogLevel.FATAL)
 
         if averages is None:
             return
-
+        # unpack what the filter just returned
         position = Position()
         position.x = averages[0]
         position.y = averages[1]
@@ -104,13 +101,11 @@ class FiltersNode(Node):
 
         self.position_publisher.publish(position)
 
-
 def main():
     rclpy.init()
     node = FiltersNode()
     Node.run_node(node)
     rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()
