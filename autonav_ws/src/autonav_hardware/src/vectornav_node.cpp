@@ -50,19 +50,84 @@ public:
         // turn off the stream of data while we're configuring everything
         this->sensor.asyncOutputEnable(VN::AsyncOutputEnable::State::Disable);
 
+        //TODO read settings from the registers and check if they're correct
+        // ascii async data 1: OFF
+        // ascii async data 2: OFF
+        // binaryOutput 2: OFF
+        // binary output 1: matches what we have
+        // baudrate = 115200
+        // user tag = "danger zone" or "TBD"
+        // legacy compatability settings = all off
+        // vpe basic control heading mode = relative
+        // vpe filtering mode = adaptively filtered
+        // vpe tuning mode = adaptive
+        // vpe magnetometer basic tuning X, Y, Z confidence level = 0
+        // delta theta + delta velocity configuration integration frame = body
+        // dt+dv config gyro comp = bias
+        // dtdv config accel compensation = gravity
+        // dtdv config earth rate comp = gyro rate
+        // imu filtering config:
+        //  mag filter mode = comp
+        //  all others = comp??
+        //  window size = ???
+        //   mag convergence rate = 3???
+        // velocity aiding = 0 / off
+        // gnss config
+        //  receiver enable = internal gnss reeiv
+        //  gnss rate = 5 hz
+        //  gnss internal A antenna offset x, y, z = TODO
+        //  systems = GPS, SBAS, and none others?
+        //  sbas mode = integrity
+        //  minCN0 = -32 dB or something idk
+        //  minElev = 10 deg or something idk
+        //  maxSats = 32 or something idk
+        // ins config
+        //  scenario = GnssInsWithPressure
+        //  ahrsAiding = disable
+        // world/gravity model: TODO page 115
+
+        // for each of the configuration registers we want to check
+        for (VN::Registers r : this->registers) {
+            // read the register
+            VN::Error readError = sensor.readRegister(&r);
+
+            // if there's an error
+            if (readError != VN::Error::None) {
+                // report it and skip this register
+                log("Register reading error! " + *VN::errorCodeToString(readError), AutoNav::Logging::ERROR);
+                this->set_device_state(AutoNav::DeviceState::ERROR);
+            } else {
+                // otherwise check if it has the right settings in it
+                if (r != r) { //TODO FIXME this is wrong and bad also probably won't compile
+                    writeSettings = true; // so we need to update the settings
+
+                    // which means we don't need to check the rest of the settings (if we're writing them all)
+                    break;
+                }
+            }
+        }
+
         // configure the binary output register
         this->outputRegister.rateDivisor = 200;
         this->outputRegister.asyncMode.serial1 = true;
-        this->outputRegister.gnss.gnss1PosLla = true;
+
+        this->outputRegister.imu.temperature = true;
+
+        this->outputRegister.gnss.numSats = true;
+        this->outputRegister.gnss.gnssFix = true;
+        this->outputRegister.gnss.gnss1PosLla = true; // TODO do we want gps pos LLA or INS fused pos LLA?
+        this->outputRegister.gnss.gnssDop = true;
+        this->outputRegister.gnss.gnssStatus = true;
+
+        this->outputRegister.ins.insStatus = true;
+        this->outputRegister.ins.posLla = true;
+
+        //TODO need to check if current binary register matches the code and if not then a writeSettings() is needed
 
         auto latestError = sensor.writeRegister(&this->outputRegister);
         if (latestError != VN::Error::None) {
             log("Register writing error!", AutoNav::Logging::ERROR);
         }
-
-        //TODO: read the settings from the vectornav registers and stuff
-        //TODO: if the settings aren't right then change them to be correct
-        //TODO: save the settings to flash and power cycle?
 
         // if we need to write the settings to flash
         while (needToWriteSettings) {
@@ -75,7 +140,7 @@ public:
             log("Writing VectorNav settings, this could take a second", AutoNav::Logging::WARN);
 
             std::this_thread::sleep_for(std::chrono::seconds(2));
-            this->sensor.reset(); // and so reset the Kalman filter
+            this->sensor.reset(); // and so reset the on-sensor Kalman filter
             std::this_thread::sleep_for(std::chrono::seconds(2));
 
             needToWriteSettings = false;
@@ -83,7 +148,7 @@ public:
         }
 
         // set the initial heading of the robot
-        this->sensor.setInitialHeading(0.0); //FIXME should be in degrees, north-oriented
+        // this->sensor.setInitialHeading(0.0); //FIXME should be in degrees, north-oriented TODO
 
         // turn the data streams back on
         this->sensor.asyncOutputEnable(VN::AsyncOutputEnable::State::Enable);
@@ -150,6 +215,10 @@ private:
     rclcpp::Publisher<autonav_msgs::msg::GPSFeedback>::SharedPtr gpsPublisher;
     rclcpp::TimerBase::SharedPtr publishTimer;
     int gpsRate = 1/5 * 1000; // 5 Hz in milliseconds
+
+    VN::Registers registers[] = {
+
+    };
 };
 
 int main(int argc, char** argv) {
