@@ -26,6 +26,8 @@ set(msg_files
     "msg/SystemState.msg"
     "msg/Ultrasonic.msg"
     "msg/Performance.msg"
+    "msg/ConfigurationBroadcast.msg"
+    "msg/ConfigurationUpdate.msg"
 )
 
 set(srv_files
