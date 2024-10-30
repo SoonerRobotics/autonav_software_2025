@@ -38,7 +38,7 @@ class Node(RclpyNode):
 
     def init(self) -> None:
         """
-        Called when the node synchronizes with the sys`tem.
+        Called when the node synchronizes with the system.
         """
         pass
 
