@@ -14,19 +14,71 @@ namespace AutoNav
         // TODO: Setup all relevant publishers, subscribers, services, clients, etc
         system_state_sub = this->create_subscription<autonav_msgs::msg::SystemState>("/autonav/shared/system", 1, std::bind(&Node::system_state_callback, this, std::placeholders::_1));
         device_state_sub = this->create_subscription<autonav_msgs::msg::DeviceState>("/autonav/shared/device", 1, std::bind(&Node::device_state_callback, this, std::placeholders::_1));
+        configuration_broadcast_sub = this->create_subscription<autonav_msgs::msg::ConfigurationBroadcast>("/autonav/shared/config/requests", 1, std::bind(&Node::config_broadcast_callback, this, std::placeholders::_1));
+        configuration_update_sub = this->create_subscription<autonav_msgs::msg::ConfigurationUpdate>("/autonav/shared/config/updates", 1, std::bind(&Node::config_updated_callback, this, std::placeholders::_1));
 
         performance_pub = this->create_publisher<autonav_msgs::msg::Performance>("/autonav/shared/performance", 10);
         log_pub = this->create_publisher<autonav_msgs::msg::Log>("/autonav/shared/log", 10);
+        device_state_pub = this->create_publisher<autonav_msgs::msg::DeviceState>("/autonav/shared/device", 10);
+        system_state_pub = this->create_publisher<autonav_msgs::msg::SystemState>("/autonav/shared/system", 10);
+        configuration_broadcast_pub = this->create_publisher<autonav_msgs::msg::ConfigurationBroadcast>("/autonav/shared/config/requests", 10);
+        configuration_update_pub = this->create_publisher<autonav_msgs::msg::ConfigurationUpdate>("/autonav/shared/config/updates", 10);
 
-        set_device_state_client = this->create_client<autonav_msgs::srv::SetDeviceState>("/autonav/shared/set_device_state");
-        set_system_state_client = this->create_client<autonav_msgs::srv::SetSystemState>("/autonav/shared/set_system_state");
-    
         set_device_state(AutoNav::DeviceState::WARMING);
     }
 
     Node::~Node()
     {
         // TODO: Cleanup stuff as required
+    }
+
+    void Node::config_updated_callback(const autonav_msgs::msg::ConfigurationUpdate::SharedPtr msg)
+    {
+        if (msg->device == get_name())
+        {
+            log("Received update on our own configuration", Logging::LogLevel::DEBUG);
+            this->config = json::parse(msg->json);
+        } else {
+            log("Received update on " + msg->device + "'s configuration", Logging::LogLevel::DEBUG);
+        }
+
+        other_cfgs.insert_or_assign(msg->device, json::parse(msg->json));
+    }
+
+    void Node::config_broadcast_callback(const autonav_msgs::msg::ConfigurationBroadcast::SharedPtr msg)
+    {
+        if (msg->target_nodes.size() == 0 || std::find(msg->target_nodes.begin(), msg->target_nodes.end(), get_name()) != msg->target_nodes.end())
+        {
+            log("Received request for our own configuration to be broadcasted", Logging::LogLevel::DEBUG);
+            broadcast_config();
+        };
+    }
+
+    void Node::broadcast_config()
+    {
+        autonav_msgs::msg::ConfigurationUpdate msg;
+        msg.device = get_name();
+        msg.json = config.dump();
+        configuration_update_pub->publish(msg);
+    }
+
+    void Node::request_all_configs()
+    {
+        autonav_msgs::msg::ConfigurationBroadcast msg;
+        configuration_broadcast_pub->publish(msg);
+    }
+
+    void Node::request_config(const std::string & device)
+    {
+        autonav_msgs::msg::ConfigurationBroadcast msg;
+        msg.target_nodes.push_back(device);
+        configuration_broadcast_pub->publish(msg);
+    }
+
+    void Node::write_config(const json & config)
+    {
+        this->config = config;
+        broadcast_config();
     }
 
     void Node::perf_start(const std::string & name)
@@ -64,78 +116,20 @@ namespace AutoNav
 
     void Node::set_device_state(const std::string & device, AutoNav::DeviceState state)
     {
-        if (has_ownership)
-        {
-            // Assign the new state
-            device_states.insert_or_assign(device, state);
-            return;
-        }
-
-        auto request = std::make_shared<autonav_msgs::srv::SetDeviceState::Request>();
-        request->device = device;
-        request->state = static_cast<uint8_t>(state);
-
-        // Wait for the service to be available
-        while (!set_device_state_client->wait_for_service(std::chrono::seconds(1)))
-        {
-            if (!rclcpp::ok())
-            {
-                log("Interrupted while waiting for the set_device_state service", Logging::LogLevel::FATAL);
-                return;
-            }
-
-            log("Service set_device_state not available, waiting again...", Logging::LogLevel::WARN);
-        }
-
-        using ServiceResponseFuture = rclcpp::Client<autonav_msgs::srv::SetDeviceState>::SharedFuture;
-        auto response_received_callback = [this](ServiceResponseFuture future) {
-            auto response = future.get();
-            if (!response->ok)
-            {
-                log("Failed to update device state", Logging::LogLevel::ERROR);
-            } else {
-                log("Successfully updated device state", Logging::LogLevel::DEBUG);
-            }
-        };
-
-        auto future_result = set_device_state_client->async_send_request(request, response_received_callback);
+        // Publish the update
+        autonav_msgs::msg::DeviceState msg;
+        msg.device = device;
+        msg.state = static_cast<uint8_t>(state);
+        device_state_pub->publish(msg);
     }
 
     void Node::set_system_state(AutoNav::SystemState state, bool has_mobility)
     {
-        if (has_ownership)
-        {
-            system_state = state;
-            this->has_mobility = has_mobility;
-            return;
-        }
-
-        auto request = std::make_shared<autonav_msgs::srv::SetSystemState::Request>();
-        request->state = static_cast<uint8_t>(state);
-        request->mobility = has_mobility;
-
-        // Wait for the service to be available
-        while (!set_system_state_client->wait_for_service(std::chrono::seconds(1)))
-        {
-            if (!rclcpp::ok())
-            {
-                log("Interrupted while waiting for the set_system_state service", Logging::LogLevel::FATAL);
-                return;
-            }
-
-            log("Service set_system_state not available, waiting again...", Logging::LogLevel::WARN);
-        }
-
-        using ServiceResponseFuture = rclcpp::Client<autonav_msgs::srv::SetSystemState>::SharedFuture;
-        auto response_received_callback = [this](ServiceResponseFuture future) {
-            auto response = future.get();
-            if (!response->ok)
-            {
-                log("Failed to update system state", Logging::LogLevel::ERROR);
-            }
-        };
-
-        auto future_result = set_system_state_client->async_send_request(request, response_received_callback);
+        // Publish the update
+        autonav_msgs::msg::SystemState msg;
+        msg.state = static_cast<uint8_t>(state);
+        msg.mobility = has_mobility;
+        system_state_pub->publish(msg);
     }
 
     void Node::system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg)
@@ -163,8 +157,8 @@ namespace AutoNav
         if (new_device || is_warming_up)
         {
             init();
-            device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));
         }
+        device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));
     }
 
     // TODO: Log to file

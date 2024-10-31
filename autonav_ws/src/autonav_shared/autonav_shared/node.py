@@ -1,11 +1,11 @@
 import rclpy
 from rclpy.node import Node as RclpyNode
 from autonav_shared.types import DeviceState, LogLevel, SystemState
-from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance, Log
-from autonav_msgs.srv import SetDeviceState, SetSystemState
+from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance, Log, ConfigurationBroadcast, ConfigurationUpdate
 import sty
 import time
 import inspect
+import json
 
 
 class Node(RclpyNode):
@@ -17,17 +17,22 @@ class Node(RclpyNode):
         self.mobility = False
         self.device_states = {}
         self.start_times = {}
+        self.config = {}
+        self.other_cfgs = {}
         self.device_states[name] = DeviceState.OFF
         
         # TODO: Setup all relevant publishers, subscribers, services, clients, etc
         self.system_state_sub = self.create_subscription(SystemStateMsg, "/autonav/shared/system", self.system_state_callback, 10)
         self.device_state_sub = self.create_subscription(DeviceStateMsg, "/autonav/shared/device", self.device_state_callback, 10)
+        self.system_state_pub = self.create_publisher(SystemStateMsg, "/autonav/shared/system", 10)
+        self.device_state_pub = self.create_publisher(DeviceStateMsg, "/autonav/shared/device", 10)
+        self.config_sub = self.create_subscription(ConfigurationUpdate, "/autonav/shared/config/updates", self.config_callback, 10)
+        self.config_pub = self.create_publisher(ConfigurationUpdate, "/autonav/shared/config/updates", 10)
+        self.config_broadcast_sub = self.create_subscription(ConfigurationBroadcast, "/autonav/shared/config/requests", self.config_broadcast_callback, 10)
+        self.config_broadcast_pub = self.create_publisher(ConfigurationBroadcast, "/autonav/shared/config/requests", 10)
 
         self.performance_pub = self.create_publisher(Performance, "/autonav/shared/performance", 10)
         self.log_pub = self.create_publisher(Log, "/autonav/shared/log", 10)
-        
-        self.set_device_state_client = self.create_client(SetDeviceState, "/autonav/shared/set_device_state")
-        self.set_system_state_client = self.create_client(SetSystemState, "/autonav/shared/set_system_state")
 
         self.set_device_state(DeviceState.WARMING)
 
@@ -36,6 +41,68 @@ class Node(RclpyNode):
         Called when the node synchronizes with the system.
         """
         pass
+
+    def _smart_dump_config(self, config) -> str:
+        if isinstance(config, dict):
+            return json.dumps(config)
+        else:
+            try:
+                return json.dumps(config.__dict__)
+            except:
+                return str(config)
+
+    def config_callback(self, msg: ConfigurationUpdate) -> None:
+        """
+        Callback for the configuration update topic.
+        """
+        if msg.device == self.get_name():
+            self.log(f"Received update on our own configuration", LogLevel.DEBUG)
+            self.config = json.loads(msg.json)
+        else:
+            self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
+        
+        self.other_cfgs[msg.device] = json.loads(msg.json)
+
+    def config_broadcast_callback(self, msg: ConfigurationBroadcast) -> None:
+        """
+        Callback for the configuration broadcast topic.
+        """
+        if msg.target_nodes == [] or self.get_name() in msg.target_nodes:
+            self.log(f"Received request for our own configuration to be broadcasted", LogLevel.DEBUG)
+            self.broadcast_config()
+
+    def broadcast_config(self) -> None:
+        """
+        Broadcast our configuration to the system.
+        """
+        msg = ConfigurationUpdate()
+        msg.device = self.get_name()
+        msg.json = self._smart_dump_config(self.config)
+        self.config_pub.publish(msg)
+
+    def request_all_configs(self) -> None:
+        """
+        Request the configuration of all devices.
+        """
+        self.request_config(None)
+
+    def request_config(self, device: str) -> None:
+        """
+        Request the configuration of a specific device.
+        """
+        msg = ConfigurationBroadcast()
+        if device != None:
+            msg.target_nodes = [device]
+        else:
+            msg.target_nodes = []
+        self.config_broadcast_pub.publish(msg)
+
+    def write_config(self, config) -> None:
+        """
+        Register a configuration object.
+        """
+        self.config = config
+        self.broadcast_config()
 
     def perf_start(self, name: str) -> None:
         """
@@ -86,84 +153,26 @@ class Node(RclpyNode):
         """
         Set the state of our device.
         """
-        msg = SetDeviceState.Request()
+        msg = DeviceStateMsg()
         msg.device = self.get_name()
         msg.state = state.value
-
-        while not self.set_device_state_client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                self.log("Interrupted while waiting for the set_device_state service", LogLevel.FATAL)
-                return
-            
-            self.log("Service set_device_state not available, waiting again...", LogLevel.WARN)
-
-        # Send the request, use the callback to handle the response
-        future = self.set_device_state_client.call_async(msg)
-        future.add_done_callback(self.set_device_state_callback)
-
-    def set_device_state_callback(self, future) -> None:
-        """
-        Callback for the set_device_state service.
-        """
-        try:
-            result = future.result()
-            if result is None or not result.ok:
-                self.log("Failed to set device state", LogLevel.ERROR)
-            # else:
-            #     self.log("Successfully set device state", LogLevel.DEBUG)
-        except Exception as e:
-            self.log(f"Failed to set device state: {e}", LogLevel.ERROR)
+        self.device_state_pub.publish(msg)
         
     def set_system_state(self, state: SystemState) -> None:
         """
         Set the state of the system.
         """
-        msg = SetSystemState.Request()
+        msg = SystemStateMsg()
         msg.state = state.value
         msg.mobility = self.mobility
-
-        while not self.set_system_state_client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                self.log("Interrupted while waiting for the set_system_state service", LogLevel.FATAL)
-                return
-            
-            self.log("Service set_system_state not available, waiting again...", LogLevel.WARN)
-
-        # Send the request, use the callback to handle the response
-        future = self.set_system_state_client.call_async(msg)
-        future.add_done_callback(self.set_system_state_callback)
+        self.system_state_pub.publish(msg)
 
     def set_mobility(self, mobility: bool) -> None:
         """
         Set the mobility of the system.
         """
-        msg = SetSystemState.Request()
-        msg.state = self.system_state.value
-        msg.mobility = mobility
-
-        while not self.set_system_state_client.wait_for_service(timeout_sec=1.0):
-            if not rclpy.ok():
-                self.log("Interrupted while waiting for the set_system_state service", LogLevel.FATAL)
-                return
-            
-            self.log("Service set_system_state not available, waiting again...", LogLevel.WARN)
-
-        # Send the request, use the callback to handle the response
-        future = self.set_system_state_client.call_async(msg)
-        future.add_done_callback(self.set_system_state_callback)
-        
-    def set_system_state_callback(self, future) -> None:
-        """
-        Callback for the set_system_state service.
-        """
-        try:
-            result = future.result()
-            if result is None or not result.ok:
-                self.log("Failed to set system state", LogLevel.ERROR)
-            else:
-                self.log("Successfully set system state", LogLevel.DEBUG)
-        except Exception as e:
-            self.log(f"Failed to set system state: {e}", LogLevel.ERROR)
+        self.mobility = mobility
+        self.set_system_state(self.system_state)
 
     def get_device_state(self, device: str = None) -> DeviceState:
         """

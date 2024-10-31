@@ -9,8 +9,11 @@
 #include "autonav_msgs/msg/performance.hpp"
 #include "autonav_msgs/msg/log.hpp"
 
-#include "autonav_msgs/srv/set_device_state.hpp"
-#include "autonav_msgs/srv/set_system_state.hpp"
+#include "autonav_msgs/msg/configuration_broadcast.hpp"
+#include "autonav_msgs/msg/configuration_update.hpp"
+
+#include "external/json.hpp"
+using json = nlohmann::json;
 
 namespace AutoNav
 {
@@ -53,6 +56,18 @@ namespace AutoNav
         /// @param state 
         void set_device_state(const std::string &device, const AutoNav::DeviceState state);
 
+        void config_updated_callback(const autonav_msgs::msg::ConfigurationUpdate::SharedPtr msg);
+
+        void config_broadcast_callback(const autonav_msgs::msg::ConfigurationBroadcast::SharedPtr msg);
+
+        void broadcast_config();
+
+        void request_all_configs();
+
+        void request_config(const std::string &device);
+
+        void write_config(const json &config);
+
         /// @brief Get the system state
         AutoNav::DeviceState get_device_state() { return get_device_state(this->get_name()); }
 
@@ -83,6 +98,10 @@ namespace AutoNav
 
         void perf_stop(const std::string &name, const bool print_to_console = false);
 
+        // Configuration
+        json config;
+        std::map<std::string, json> other_cfgs;
+
     private:
         // State
         AutoNav::SystemState system_state = AutoNav::SystemState::DISABLED;
@@ -93,14 +112,16 @@ namespace AutoNav
         // Subscribers
         rclcpp::Subscription<autonav_msgs::msg::SystemState>::SharedPtr system_state_sub;
         rclcpp::Subscription<autonav_msgs::msg::DeviceState>::SharedPtr device_state_sub;
+        rclcpp::Subscription<autonav_msgs::msg::ConfigurationBroadcast>::SharedPtr configuration_broadcast_sub;
+        rclcpp::Subscription<autonav_msgs::msg::ConfigurationUpdate>::SharedPtr configuration_update_sub;
 
         // Publishers
         rclcpp::Publisher<autonav_msgs::msg::Performance>::SharedPtr performance_pub;
         rclcpp::Publisher<autonav_msgs::msg::Log>::SharedPtr log_pub;
-
-        // Clients
-        rclcpp::Client<autonav_msgs::srv::SetDeviceState>::SharedPtr set_device_state_client;
-        rclcpp::Client<autonav_msgs::srv::SetSystemState>::SharedPtr set_system_state_client;
+        rclcpp::Publisher<autonav_msgs::msg::DeviceState>::SharedPtr device_state_pub;
+        rclcpp::Publisher<autonav_msgs::msg::SystemState>::SharedPtr system_state_pub;
+        rclcpp::Publisher<autonav_msgs::msg::ConfigurationBroadcast>::SharedPtr configuration_broadcast_pub;
+        rclcpp::Publisher<autonav_msgs::msg::ConfigurationUpdate>::SharedPtr configuration_update_pub;
 
         // Functions
         void system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg);
