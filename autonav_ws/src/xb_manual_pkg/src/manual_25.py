@@ -2,7 +2,7 @@
 
 import rclpy
 import json
-from autonav_msgs.msg import ControllerInput, MotorInput
+from autonav_msgs.msg import ControllerInput, MotorInput, MotorFeedback
 from types import SimpleNamespace
 import numpy as np
 from autonav_shared.node import Node
@@ -21,36 +21,47 @@ class Manual25Config:
         self.max_forward_speed = 3
         self.max_sideways_speed = 3
         self.max_angular_speed = np.pi
+        self.odom_fudge_factor = 1
 
 
 class Manual25Node(Node):
     def __init__(self):
-        super().__init__('manual_25')
+        super().__init__('manual25_node')
+        self.write_config(Manual25Config())
 
 
     def init(self):
-        self.config = self.get_default_config()
         self.mode = ControllerMode.LOCAL
         self.orientation = 0
         self.last_time = 0
         self.delta_t = 0
-
+        self.new_time = time.time()
         # self.max_forward_speed = 1
         self.max_forward_speed = self.config.max_forward_speed
         self.max_sideways_speed = self.config.max_sideways_speed
         # self.max_angular_speed = np.pi/4
         self.max_angular_speed = self.config.max_angular_speed
+        self.odom_fudge_factor = self.config.odom_fudge_factor
 
         self.controller_state = {}
 
         self.set_device_state(DeviceState.WARMING)
-        
+
+        self.request_all_configs()
+
         self.get_logger().info("HERE")
 
         self.controllerSubscriber = self.create_subscription(
             ControllerInput,
             '/autonav/controller_input',
             self.input_callback,
+            10
+        )
+
+        self.motorSubscription = self.create_subscription(
+            MotorFeedback,
+            '/autonav/MotorFeedback',
+            self.on_motor_feedback,
             10
         )
         
@@ -63,16 +74,7 @@ class Manual25Node(Node):
         self.controllerSubscriber  # prevent unused variable warning
 
 
-    def config_updated(self, jsonObject):
-        self.config = json.loads(self.jdump(jsonObject), object_hook=lambda d: SimpleNamespace(**d))
-
-
-    def get_default_config(self):
-        return Manual25Config()
-
-
     def input_callback(self, msg):
-        self.new_time = time.time()
         self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
         # self.get_logger().info(f"I heard: {str(self.controller_state)}")
@@ -80,16 +82,15 @@ class Manual25Node(Node):
         self.change_controller_mode()
         self.change_system_state()
 
+        self.get_logger().info(f"orientation: {self.orientation}")
         # local vs. global toggle
-        
-        self.delta_t = self.new_time - self.last_time
 
         if self.mode == ControllerMode.LOCAL:
             self.compose_motorinput_message_local()
         elif self.mode == ControllerMode.GLOBAL:
             self.compose_motorinput_message_global()
 
-        self.last_time = self.new_time
+        
 
     def deserialize_controller_state(self, msg):
         attributes = [n for n in dir(msg) if not (n.startswith('__') or n.startswith('_'))]
@@ -105,9 +106,11 @@ class Manual25Node(Node):
     
     def change_controller_mode(self):
         if self.controller_state["btn_north"] == 1.0:
+            self.orientation = 0
             self.mode = ControllerMode.GLOBAL
             self.get_logger().info(f'changed controller mode to {self.mode}')
         elif self.controller_state["btn_south"] == 1.0:
+            self.orientation = 0
             self.mode = ControllerMode.LOCAL
             self.get_logger().info(f'changed controller mode to {self.mode}')
             
@@ -116,15 +119,18 @@ class Manual25Node(Node):
         new_system_state = self.system_state
         if self.controller_state['btn_east'] == 1.0:
             new_system_state = SystemState.SHUTDOWN
+            self.get_logger().info(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
             
         elif self.controller_state['btn_start'] == 1.0:
             new_system_state = SystemState.MANUAL
+            self.get_logger().info(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
 
         elif self.controller_state['btn_select'] == 1.0:
             new_system_state = SystemState.DISABLED
-
-        self.get_logger().info(f'Setting system state to {new_system_state}')
-        self.set_system_state(new_system_state)
+            self.get_logger().info(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
 
 
     def compose_motorinput_message_local(self):
@@ -132,9 +138,9 @@ class Manual25Node(Node):
         sideways_velocity = 0.0
         angular_velocity = 0.0
         if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.max_forward_speed, self.max_forward_speed, -1.0, 1.0)
+            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.max_forward_speed, self.max_forward_speed, 1.0, -1.0)
             sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.max_sideways_speed, self.max_sideways_speed, -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.max_angular_speed, self.max_angular_speed, -1.0, 1.0)
+            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.max_angular_speed, self.max_angular_speed, 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity
@@ -142,7 +148,6 @@ class Manual25Node(Node):
         motor_msg.angular_velocity = angular_velocity
 
         self.motorPublisher.publish(motor_msg)
-        self.orientation += angular_velocity * self.delta_t
     
     # https://math.stackexchange.com/questions/2895880/inversion-of-rotation-matrix
     def compose_motorinput_message_global(self):
@@ -150,9 +155,9 @@ class Manual25Node(Node):
         sideways_velocity = 0.0
         angular_velocity = 0.0
         if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.max_forward_speed, self.max_forward_speed, -1.0, 1.0)
+            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.max_forward_speed, self.max_forward_speed, 1.0, -1.0)
             sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.max_sideways_speed, self.max_sideways_speed, -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.max_angular_speed, self.max_angular_speed, -1.0, 1.0)
+            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.max_angular_speed, self.max_angular_speed, 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
@@ -160,8 +165,11 @@ class Manual25Node(Node):
         motor_msg.angular_velocity = angular_velocity
 
         self.motorPublisher.publish(motor_msg)
-        self.orientation += angular_velocity * self.delta_t
 
+
+    def on_motor_feedback(self, msg:MotorFeedback):
+        delta_theta = msg.delta_theta * self.odom_fudge_factor
+        self.orientation += delta_theta
 
 def main(args=None):
     rclpy.init()
