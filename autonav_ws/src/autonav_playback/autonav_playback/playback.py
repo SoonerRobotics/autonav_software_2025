@@ -11,6 +11,18 @@ import os
 
 import subprocess
 
+class LogConfig:
+    def __init__(self):
+        self.record_imu = True
+        self.record_gps = True
+        self.record_motor = True
+        self.record_position = True
+        self.record_nuc = True
+        self.record_ultrasonic = True
+        self.record_conbus = True
+        self.record_safetylights = True
+        self.record_performance = True
+
 class playback(Node):
     """
     This Node does some stuff :)
@@ -24,6 +36,7 @@ class playback(Node):
         self.QOS = 10
         self.home_dir = os.path.expanduser("~")
         self.system_state = 0
+        self.config = LogConfig()
         
         # Topic Listeners
         self.systemStateSub = self.create_subscription(SystemState, 'autonav/shared/system', self.systemStateCallback, self.QOS)
@@ -57,6 +70,9 @@ class playback(Node):
         # FFmpeg record video
         # ffmpeg -f avfoundation -framerate 30 -i "0:1" output.mp4
         # Might need to change avfoundation, framerate and -i
+        # Use Pipe? Might need to change codec?
+        # ffmpeg -f image2pipe -vcodec mjpec -framerate 30 -i - output.mp4
+        
         
         
         # Silly Goofy Code
@@ -136,30 +152,57 @@ class playback(Node):
         self.file = None
         
     def imu_feedback(self, msg):
+        if not self.config.record_imu:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_IMU, {msg.yaw}, {msg.pitch}, {msg.roll}, {msg.accel_x}, {msg.accel_y}, {msg.accel_z}, {msg.angular_x}, {msg.angular_y}, {msg.angular_z}")
     
     def gps_feedback(self, msg):
+        if not self.config.record_gps:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_GPS, {msg.latitude}, {msg.longitude}, {msg.altitude}, {msg.gps_fix}, {msg.is_locked}, {msg.satellites}")
     
     def motor_feedback(self, msg):
+        if not self.config.record_motor:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_FEEDBACK, {msg.delta_x}, {msg.delta_y}, {msg.delta_theta}")
     
     def position_feedback(self, msg):
+        if not self.config.record_position:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_POSITION, {msg.x}, {msg.y}, {msg.theta}, {msg.latitude}, {msg.longitude}")
         
     def nuc_feedback(self, msg):
+        if not self.config.record_nuc:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_PERFORMACE", {msg.timestamp}, {msg.cpu_percentage}, {msg.ram_usage}, {msg.disk_usage}, {msg.gpu_usage})
     
     def ultrasonic_feedback(self, msg):
+        if not self.config.record_ultrasonic:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_ULTRASONIC, {msg.id}, {msg.distance}")
         
     def conbus_feedback(self, msg):
+        if not self.config.record_conbus:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_CONBUS, {msg.id}, {msg.data}, {msg.iterator}")
     
     def safetylight_feedback(self, msg):
+        if not self.config.record_safetylights:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_SAFETYLIGHT, {msg.autonomous}, {msg.red}, {msg.green}, {msg.blue}")
     
     def performance_feedback(self, msg):
+        if not self.config.record_performance:
+            return
+        
         self.write_file(f"{self.makeTimestamp}, ENTRY_PERFORMANCE, {msg.name}, {msg.duration}")
     
     
