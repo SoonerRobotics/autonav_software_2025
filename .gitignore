@@ -21,3 +21,6 @@ Zone.Identifier
 
 deps/songs
 autonav_ws/src/scr/include/scr/websocketpp/**/*:Zone.Identifier
+
+# python
+**/venv
