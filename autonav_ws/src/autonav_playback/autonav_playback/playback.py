@@ -4,12 +4,15 @@ from rclpy.node import Node
 from std_msgs.msg import *
 from sensor_msgs.msg import CompressedImage
 from autonav_msgs.msg import *
-
+from cv_bridge import CvBridge
 
 from datetime import datetime
 import os
 
 import subprocess
+import cv2
+
+bridge = CvBridge()
 
 class LogConfig:
     def __init__(self):
@@ -73,6 +76,9 @@ class playback(Node):
         # Use Pipe? Might need to change codec?
         # ffmpeg -f image2pipe -vcodec mjpec -framerate 30 -i - output.mp4
         
+        # Dev Video Subscriber
+        self.dev_vid_sub = self.create_subscription(CompressedImage, 'dev_vid', self.dev_vid_feedback, self.QOS)
+        self.process = None
         
         
         # Silly Goofy Code
@@ -82,6 +88,24 @@ class playback(Node):
         print(len(self.topicDict))
         
         self.topicList_sub = self.create_subscription(String, 'topicList', self.topicListenerCallback, self.QOS)
+    
+    def __del__(self):
+        self.close_proc()
+    
+    def dev_vid_feedback(self, msg):
+        if self.process == None:
+            self.pipe_open = True
+            command = ['ffmpeg','-y', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '30', '-s', '1280x720', '-i', '-', 'output.mp4']
+            self.process = subprocess.Popen(command, stdin=subprocess.PIPE)
+            image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
+            self.process.stdin.write(image)
+        else:
+            image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
+            self.process.stdin.write(image)
+    
+    def close_proc(self):
+        self.process.stdin.close()
+        self.process.wait()
     
     # Silly Goofy Method
     def topicListenerCallback(self, msg):
@@ -214,6 +238,7 @@ def main(args=None):
     playback_sub = playback()
 
     rclpy.spin(playback_sub)
+    playback_sub.close_proc()
     playback_sub.destroy_node()
     rclpy.shutdown()
 
