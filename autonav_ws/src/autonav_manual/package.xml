@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>xb_manual_pkg</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <name>autonav_manual</name>
+  <version>2025.0.1</version>
+  <description>Contains nodes for reading, using, and debugging controller input</description>
   <maintainer email="antonioc@email.here">tony</maintainer>
   <license>MIT</license>
 

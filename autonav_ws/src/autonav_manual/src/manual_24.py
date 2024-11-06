@@ -14,12 +14,13 @@ class Manual24Config:
         self.max_forward_speed = 3
         self.max_angular_speed = np.pi
 
+
 class Manual24Node(Node):
     def __init__(self):
         super().__init__('manual_24')
+        self.write_config(Manual24Config())
 
     def init(self):
-        self.config = self.get_default_config()
         # self.max_forward_speed = 1
         self.max_forward_speed = self.config.max_forward_speed
         # self.max_angular_speed = np.pi/4
@@ -28,8 +29,8 @@ class Manual24Node(Node):
         self.controller_state = {}
 
         self.set_device_state(DeviceState.WARMING)
-        
-        self.get_logger().info("HERE")
+
+        self.request_all_configs()
 
         self.controllerSubscriber = self.create_subscription(
             ControllerInput,
@@ -46,10 +47,6 @@ class Manual24Node(Node):
         self.controllerSubscriber  # prevent unused variable warning
 
 
-    def config_updated(self, jsonObject):
-        self.config = json.loads(self.jdump(jsonObject), object_hook=lambda d: SimpleNamespace(**d))
-
-
     def get_default_config(self):
         return Manual24Config()
 
@@ -57,7 +54,7 @@ class Manual24Node(Node):
     def input_callback(self, msg):
         self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
-        self.get_logger().info(f"I heard: {str(self.controller_state)}")
+        # self.log(f"I heard: {str(self.controller_state)}")
 
         self.change_system_state()
         self.compose_motorinput_message()
@@ -79,15 +76,18 @@ class Manual24Node(Node):
         new_system_state = self.system_state
         if self.controller_state['btn_east'] == 1.0:
             new_system_state = SystemState.SHUTDOWN
+            self.log(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
             
         elif self.controller_state['btn_start'] == 1.0:
             new_system_state = SystemState.MANUAL
+            self.log(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
 
         elif self.controller_state['btn_select'] == 1.0:
             new_system_state = SystemState.DISABLED
-
-        self.get_logger().info(f'Setting system state to {new_system_state}')
-        self.set_system_state(new_system_state)
+            self.log(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
 
 
     def compose_motorinput_message(self):

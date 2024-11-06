@@ -49,8 +49,6 @@ class Manual25Node(Node):
 
         self.request_all_configs()
 
-        self.get_logger().info("HERE")
-
         self.controllerSubscriber = self.create_subscription(
             ControllerInput,
             '/autonav/controller_input',
@@ -77,12 +75,12 @@ class Manual25Node(Node):
     def input_callback(self, msg):
         self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
-        # self.get_logger().info(f"I heard: {str(self.controller_state)}")
+        # self.log(f"I heard: {str(self.controller_state)}")
 
         self.change_controller_mode()
         self.change_system_state()
 
-        self.get_logger().info(f"orientation: {self.orientation}")
+        self.log(f"orientation: {self.orientation}")
         # local vs. global toggle
 
         if self.mode == ControllerMode.LOCAL:
@@ -108,28 +106,28 @@ class Manual25Node(Node):
         if self.controller_state["btn_north"] == 1.0:
             self.orientation = 0
             self.mode = ControllerMode.GLOBAL
-            self.get_logger().info(f'changed controller mode to {self.mode}')
+            self.log(f'changed controller mode to {self.mode}')
         elif self.controller_state["btn_south"] == 1.0:
             self.orientation = 0
             self.mode = ControllerMode.LOCAL
-            self.get_logger().info(f'changed controller mode to {self.mode}')
+            self.log(f'changed controller mode to {self.mode}')
             
 
     def change_system_state(self):
         new_system_state = self.system_state
         if self.controller_state['btn_east'] == 1.0:
             new_system_state = SystemState.SHUTDOWN
-            self.get_logger().info(f'Setting system state to {new_system_state}')
+            self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
             
         elif self.controller_state['btn_start'] == 1.0:
             new_system_state = SystemState.MANUAL
-            self.get_logger().info(f'Setting system state to {new_system_state}')
+            self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
 
         elif self.controller_state['btn_select'] == 1.0:
             new_system_state = SystemState.DISABLED
-            self.get_logger().info(f'Setting system state to {new_system_state}')
+            self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
 
 

@@ -26,11 +26,7 @@ class ControllerInputNode(Node):
 
 
     def init(self):
-        self.get_logger().info("HERE")
-
         self.set_device_state(DeviceState.WARMING)
-
-        self.get_logger().info("HERE")
 
         self.timer_period_s = 0.1
         self.publisher = self.create_publisher(ControllerInput, '/autonav/controller_input', 10)
