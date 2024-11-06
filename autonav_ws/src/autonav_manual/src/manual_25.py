@@ -47,8 +47,6 @@ class Manual25Node(Node):
 
         self.set_device_state(DeviceState.WARMING)
 
-        self.request_all_configs()
-
         self.controllerSubscriber = self.create_subscription(
             ControllerInput,
             '/autonav/controller_input',
