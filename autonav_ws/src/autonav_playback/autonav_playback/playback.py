@@ -75,10 +75,13 @@ class playback(Node):
         # Might need to change avfoundation, framerate and -i
         # Use Pipe? Might need to change codec?
         # ffmpeg -f image2pipe -vcodec mjpec -framerate 30 -i - output.mp4
+        # command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '30', '-s', '1920x1080', '-i', '-', 'output.mp4']
         
         # Dev Video Subscriber
         self.dev_vid_sub = self.create_subscription(CompressedImage, 'dev_vid', self.dev_vid_feedback, self.QOS)
+        self.dev_vid_status_sub = self.create_subscription(Bool, 'vid_status', self.close_proc, self.QOS)
         self.process = None
+        self.closed = False
         
         
         # Silly Goofy Code
@@ -89,23 +92,38 @@ class playback(Node):
         
         self.topicList_sub = self.create_subscription(String, 'topicList', self.topicListenerCallback, self.QOS)
     
-    def __del__(self):
-        self.close_proc()
     
     def dev_vid_feedback(self, msg):
-        if self.process == None:
-            self.pipe_open = True
-            command = ['ffmpeg','-y', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '30', '-s', '1280x720', '-i', '-', 'output.mp4']
+        if self.process == None and self.closed == False:
+            
+            self.get_logger().info('Opening New Process')
+            command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '8', '-s', '1280x720', '-i', '-', 'output.mp4']
             self.process = subprocess.Popen(command, stdin=subprocess.PIPE)
+            
             image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
-            self.process.stdin.write(image)
-        else:
+            success, encoded_image = cv2.imencode('.jpg', image)
+            
+            if success:
+                self.process.stdin.write(encoded_image.tobytes())
+                self.get_logger().info('Writing Frame')
+            else:
+                print("Image Encoding Failed")        
+        elif self.closed == False:
             image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
-            self.process.stdin.write(image)
+            success, encoded_image = cv2.imencode('.jpg', image)
+            if success:
+                self.process.stdin.write(encoded_image.tobytes())
+                self.get_logger().info('Writing Frame')
+            else:
+                print("Image Encoding Failed")
     
-    def close_proc(self):
-        self.process.stdin.close()
-        self.process.wait()
+    def close_proc(self, msg):
+        if not self.process == None:
+            self.get_logger().info('Closing Process')
+            self.process.stdin.close()
+            self.process.wait()
+            self.process = None
+            self.closed = True
     
     # Silly Goofy Method
     def topicListenerCallback(self, msg):
@@ -238,7 +256,6 @@ def main(args=None):
     playback_sub = playback()
 
     rclpy.spin(playback_sub)
-    playback_sub.close_proc()
     playback_sub.destroy_node()
     rclpy.shutdown()
 

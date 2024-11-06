@@ -19,9 +19,13 @@ bridge = CvBridge()
 class DevVidPublisher(Node):
 
     def __init__(self):
-        super().__init__('minimal_publisher')
+        super().__init__('dev_vid')
+        
+        # Vid Publisher
         self.vid_publisher = self.create_publisher(CompressedImage, 'dev_vid', 10)
-        timer_period =  0.033 # seconds
+        # Status Pub
+        self.vid_status_publisher = self.create_publisher(Bool, 'vid_status', 10)
+        timer_period =  0.0125 # seconds = 8fps
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
         
@@ -30,23 +34,38 @@ class DevVidPublisher(Node):
         self.cap = cv2.VideoCapture(self.video_path)
         
         
+        # Dev Trackers
+        self.cap_none_count = 0
+        
+        
 
     def timer_callback(self):
+        self.get_logger().info(f"Capture: {self.cap}, Count: {self.cap_none_count}")
+        if self.cap == None:
+            return
         
         if not self.cap.isOpened():
             print("Error: Could not open video")
             return
         
         ret, frame = self.cap.read()
-        print('Frame has been read')
         if ret:
             image = bridge.cv2_to_compressed_imgmsg(frame)
             msg = image
+            self.vid_publisher.publish(msg)
+            self.get_logger().info('Publishing frame')
+            self.i += 1
+            return
+        else:
+            # Send Vid Over MSG
+            msg = Bool()
+            msg.data = ret
+            self.vid_status_publisher.publish(msg)
+            self.cap = None
+            self.cap_none_count += 1
+            return
         
         
-        self.vid_publisher.publish(msg)
-        self.get_logger().info('Publishing frame')
-        self.i += 1
 
 
 def main(args=None):
