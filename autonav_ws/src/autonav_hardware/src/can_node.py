@@ -7,6 +7,7 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
 import struct
+from ctypes import Structure, c_bool, c_uint8
 
 arbitration_ids = {
     "EStop": 0,
@@ -24,6 +25,16 @@ arbitration_ids = {
     "ConbusUpperBound": 1400
 }
 
+class SafetyLightsPacket(Structure):
+    _fields_ = [
+        ("autonomous", c_bool, 1),
+        ("mode", c_uint8, 7),
+        ("brightness", c_uint8, 8),
+        ("red", c_uint8, 8),
+        ("green", c_uint8, 8),
+        ("blue", c_uint8, 8),
+        ("blink_period", c_uint8, 8)
+    ]
 
 class CanConfig:
     def __init__(self):
@@ -38,7 +49,21 @@ class can_node(Node):
         # can
         self.can = None
 
+        # safety lights
+        self.safetyLightsSubscriber = self.create_subscription(
+            SafetyLights,
+            "autonav/safety_lights",
+            self.on_safety_lights_received(),
+            20
+        )
+
         # motor messages
+        self.motorInputSubscriber = self.create_subscription(
+            MotorInput,
+            "autonav/motor_feedback",
+            self.on_motor_input_received(),
+            20
+        )
         self.motorFeedbackPublisher = self.create_publisher(
             MotorFeedback,
             "/autonav/MotorFeedback", 
@@ -49,7 +74,7 @@ class can_node(Node):
         self.conbusSubscriber = self.create_subscription(
             Conbus,
             "/autonav/conbus/instruction", 
-            self.onConbusReceived(), 
+            self.on_conbus_received(), 
             20
         )
         self.conbusPublisher = self.create_publisher(
@@ -60,6 +85,7 @@ class can_node(Node):
 
 
     def init(self):
+        # can threading
         self.canTimer = self.create_timer(0.5, self.can_worker)
         self.canReadThread = threading.Thread(target=self.can_thread_worker)
         self.canReadThread.daemon = True
@@ -109,7 +135,7 @@ class can_node(Node):
             self.set_mobility(False)
 
         if arbitration_id == arbitration_ids["OdometryFeedback"]:
-            self.odom_feedback(msg)
+            self.publish_odom_feedback(msg)
 
         if arbitration_id == arbitration_ids["LinearPIDStatistics"]:
             pass
@@ -118,7 +144,7 @@ class can_node(Node):
             self.publish_conbus(msg)
 
 
-    def odom_feedback(self, msg):
+    def publish_odom_feedback(self, msg):
         delta_x, delta_y, delta_theta = struct.unpack('hhh', msg.data)
         motor_feedback_msg = MotorFeedback()
         motor_feedback_msg.delta_x = delta_x / self.config.odom_feedback_scaler
@@ -135,9 +161,50 @@ class can_node(Node):
         self.conbusPublisher.publish(conbus)
 
 
+    # subscriber callbacks
+    def on_safety_lights_received(self, msg:SafetyLights):
+        safety_lights_packet = SafetyLightsPacket()
+        safety_lights_packet.autonomous = msg.autonomous
+        safety_lights_packet.mode = msg.mode
+        safety_lights_packet.red = msg.red
+        safety_lights_packet.green = msg.green
+        safety_lights_packet.blue = msg.blue
+        safety_lights_packet.blink_period = msg.blink_period
+
+        data = bytes(safety_lights_packet)
+        can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
+
+        try:
+            self.can.send(can_msg)
+        except can.CanError:
+            pass
+
+    def on_motor_input_received(self, msg:MotorInput):
+        if self.device_state != DeviceState.OPERATING:
+            return
+        data = struct.pack("hhh", int(msg.forward_velocity * 10000), int(msg.sideways_velocity * 10000), int(msg.angular_velocity * 10000))
+        can_msg = can.message(arbitration_id = arbitration_ids["MotorsCommand"], data = data)
+        try:
+            self.can.send(can_msg)
+        except can.CanError:
+            pass
+
+
     def on_conbus_received(self, msg:Conbus):
         if self.device_state != DeviceState.OPERATING:
             return
+        try:
+            data = bytes(msg.data)
+            arbitration_id = msg.id
+
+            can_msg = can.message(arbitration_id = arbitration_id, data = data)
+            
+            try:
+                self.can.send(can_msg)
+            except can.CanError:
+                pass
+        except:
+            pass
     
 
 
