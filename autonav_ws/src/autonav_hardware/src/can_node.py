@@ -2,7 +2,8 @@
 
 import rclpy
 from autonav_shared.node import Node
-from autonav_msgs.msg import MotorInput, MotorFeedback, MotorControllerDebug, SafetyLights, Conbus
+from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Conbus
+from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatisticsFrontMotors, MotorStatisticsBackMotors
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
@@ -39,6 +40,8 @@ class SafetyLightsPacket(Structure):
 class CanConfig:
     def __init__(self):
         self.odom_feedback_scaler = 10000
+        self.linear_pid_scaling_factor = 1000
+        self.angular_pid_scaling_factor = 1000
 
 
 class can_node(Node):
@@ -60,13 +63,14 @@ class can_node(Node):
         # motor messages
         self.motorInputSubscriber = self.create_subscription(
             MotorInput,
-            "autonav/motor_feedback",
+            "autonav/motor_input",
             self.on_motor_input_received(),
             20
         )
+
         self.motorFeedbackPublisher = self.create_publisher(
             MotorFeedback,
-            "/autonav/MotorFeedback", 
+            "/autonav/motor_feedback", 
             20
         )
 
@@ -77,9 +81,32 @@ class can_node(Node):
             self.on_conbus_received(), 
             20
         )
+
         self.conbusPublisher = self.create_publisher(
             Conbus, 
             "/autonav/conbus/data", 
+            20
+        )
+
+        # motor statistics and PID tuning
+        self.linearPIDStatisticsPublisher = self.create_publisher(
+            LinearPIDStatistics,
+            "autonav/linear_pid_statistics",
+            20
+        )
+        self.angularPIDStatisticsPublisher = self.create_publisher(
+            AngularPIDStatistics,
+            "autonav/angular_pid_statistics",
+            20
+        )
+        self.motorStatisticsFrontMotorsPublisher = self.create_publisher(
+            MotorStatisticsFrontMotors,
+            "autonav/motor_statistics_front_motors",
+            20
+        )
+        self.motorStatisticsBackMotorsPublisher = self.create_publisher(
+            MotorStatisticsBackMotors,
+            "autonav/motor_statistics_back_motors",
             20
         )
 
@@ -138,7 +165,16 @@ class can_node(Node):
             self.publish_odom_feedback(msg)
 
         if arbitration_id == arbitration_ids["LinearPIDStatistics"]:
-            pass
+            self.publish_linear_pid_statistics(msg)
+    
+        if arbitration_id == arbitration_ids["AngularPIDStatistics"]:
+            self.publish_angular_pid_statistics(msg)
+
+        if arbitration_id == arbitration_ids["MotorStatisticsFrontMotors"]:
+            self.publish_motor_statistics_front_motors(msg)
+        
+        if arbitration_id == arbitration_ids["MotorStatisticsBackMotors"]:
+            self.publish_motor_statistics_back_motors(msg)
 
         if arbitration_id >= arbitration_ids["ConbusLowerBound"] and arbitration_id < arbitration_ids["ConbusUpperBound"]:
             self.publish_conbus(msg)
@@ -152,6 +188,48 @@ class can_node(Node):
         motor_feedback_msg.delta_theta = delta_theta / self.config.odom_feedback_scaler
 
         self.motorFeedbackPublisher.publish(motor_feedback_msg)
+
+
+    def publish_linear_pid_statistics(self, msg):
+        forward_velocity, forward_velocity_setpoint, sideways_velocity, sideways_velocity_setpoint = struct.unpack("hhhh", msg.data)
+        linear_pid_statistics_msg = LinearPIDStatistics()
+        linear_pid_statistics_msg.forward_velocity = forward_velocity
+        linear_pid_statistics_msg.forward_velocity_setpoint - forward_velocity_setpoint
+        linear_pid_statistics_msg.sideways_velocity = sideways_velocity
+        linear_pid_statistics_msg.sideways_velocity_setpoint = sideways_velocity_setpoint
+
+        self.linearPIDStatisticsPublisher.publish(linear_pid_statistics_msg)
+
+
+    def publish_angular_pid_statistics(self, msg):
+        angular_velocity, angular_velocity_setpoint = struct.unpack("hh", msg.data)
+        angular_pid_statistics_msg = AngularPIDStatistics()
+        angular_pid_statistics_msg.angular_velocity = angular_velocity
+        angular_pid_statistics_msg.angular_velocity_setpoint = angular_velocity_setpoint
+
+        self.angularPIDStatisticsPublisher.publish(angular_pid_statistics_msg)
+
+
+    def publish_motor_statistics_front_motors(self, msg):
+        left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack("hh", msg.data)
+        motor_statistics_front_motors = MotorStatisticsFrontMotors()
+        motor_statistics_front_motors.left_drive_motor_output = left_drive_motor_output
+        motor_statistics_front_motors.left_steer_motor_output = left_steer_motor_output
+        motor_statistics_front_motors.right_drive_motor_output = right_drive_motor_output
+        motor_statistics_front_motors.right_steer_motor_output = right_steer_motor_output
+
+        self.motorStatisticsFrontMotorsPublisher.publish(motor_statistics_front_motors)
+
+
+    def publish_motor_statistics_back_motors(self, msg):
+        left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack("hh", msg.data)
+        motor_statistics_back_motors = MotorStatisticsFrontMotors()
+        motor_statistics_back_motors.left_drive_motor_output = left_drive_motor_output
+        motor_statistics_back_motors.left_steer_motor_output = left_steer_motor_output
+        motor_statistics_back_motors.right_drive_motor_output = right_drive_motor_output
+        motor_statistics_back_motors.right_steer_motor_output = right_steer_motor_output
+
+        self.motorStatisticsFrontMotorsPublisher.publish(motor_statistics_back_motors)
 
 
     def publish_conbus(self, msg):
@@ -178,6 +256,7 @@ class can_node(Node):
             self.can.send(can_msg)
         except can.CanError:
             pass
+
 
     def on_motor_input_received(self, msg:MotorInput):
         if self.device_state != DeviceState.OPERATING:
