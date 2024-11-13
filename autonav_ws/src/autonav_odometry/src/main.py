@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from autonav_msgs.msg import MotorFeedback, GPSFeedback, Position
 from autonav_shared.types import DeviceState, SystemState, LogLevel # i am goig to beat pylance with a rock
 from particlefilter import ParticleFilter
-from scr_msgs.msg import SystemState
+# from scr_msgs.msg import SystemState
 from autonav_shared.node import Node
 from enum import IntEnum
 import rclpy
@@ -21,7 +21,7 @@ class FiltersNodeConfig:
 
 class FiltersNode(Node):
     def __init__(self):
-        super().__init__("autonav_filters")
+        super().__init__("autonav_odometry")
         # init gps and position
         self.first_gps = None
         self.last_gps = None
@@ -104,7 +104,7 @@ class FiltersNode(Node):
 def main():
     rclpy.init()
     node = FiltersNode()
-    Node.run_node(node)
+    rclpy.spin(node)
     rclpy.shutdown()
 
 if __name__ == "__main__":
