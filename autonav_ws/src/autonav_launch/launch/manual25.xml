@@ -1,0 +1,9 @@
+<launch>
+  <!-- Manual controller -->
+  <node pkg="autonav_manual" exec="controller_input.py"/>
+  <node pkg="autonav_manual" exec="manual_25.py"/>
+  <!-- <node pkg="autonav_manual" exec="motormessage_listener.py"/> -->
+
+  <!-- Other -->
+  <!-- <node pkg="autonav_display" exec="display.py" /> -->
+</launch>

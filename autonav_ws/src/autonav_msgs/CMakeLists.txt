@@ -15,6 +15,7 @@ set(msg_files
     "msg/AngularPIDStatistics.msg"
     "msg/AudibleFeedback.msg"
     "msg/Conbus.msg"
+    "msg/ControllerInput.msg"
     "msg/DeviceState.msg"
     "msg/GPSFeedback.msg"
     "msg/IMUData.msg"
