@@ -78,7 +78,8 @@ class ParticleFilter:
         for particle in self.particles:
             dist_sqrt = np.sqrt((particle.x - gps_x) ** 2 + (particle.y - gps_y) ** 2) # root mean square error
             particle.weight = math.exp(-dist_sqrt / (2 * self.gps_noise ** 2)) # less accurate gps = weights decrease smoother further from reading
-
+            if particle.weight <= 0.00001 / len(self.particles): # prevent resample() from blowing up if bot teleports 100 km away
+                particle.weight = 0.00001 / len(self.particles)
         self.resample()
         return (gps_x, gps_y) 
 

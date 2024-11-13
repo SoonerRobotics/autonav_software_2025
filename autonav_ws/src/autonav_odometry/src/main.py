@@ -73,7 +73,8 @@ class FiltersNode(Node):
         self.last_gps = msg
         # USE NEW FILTERS HERE
         if self.config.filter_type == FilterType.PARTICLE_FILTER:
-            self.pf.gps(msg)
+            gps_x, gps_y = self.pf.gps(msg)
+            self.log(f"PF back from GPS ping w/ X={gps_x}, Y={gps_y}", LogLevel.DEBUG)
         else:
             self.log(f"{self.config.filter_type} isn't a valid FilterType! Did you implement a new filter and forget to use it?", LogLevel.FATAL)
 
@@ -81,7 +82,8 @@ class FiltersNode(Node):
         averages = None
         # USE NEW FILTERS HERE
         if self.config.filter_type == FilterType.PARTICLE_FILTER:
-            averages = self.pf.feedback(msg)
+            avg_x, avg_y, avg_theta = self.pf.feedback(msg)
+            self.log(f"PF back from motor odom w/ X={avg_x}, Y={avg_y}, θ={avg_theta}", LogLevel.DEBUG)
         else:
             self.log(f"{self.config.filter_type} isn't a valid FilterType! Did you implement a new filter and forget to use it?", LogLevel.FATAL)
 
