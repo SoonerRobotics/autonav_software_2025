@@ -1,1 +1,2 @@
 string filename
+bool main_song

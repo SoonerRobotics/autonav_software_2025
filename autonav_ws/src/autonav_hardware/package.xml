@@ -7,6 +7,8 @@
   <maintainer email="antoniochappell@protonmail.com">tony</maintainer>
   <license>MIT</license>
 
+  <build_depend>rosidl_default_generators</build_depend>
+
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 

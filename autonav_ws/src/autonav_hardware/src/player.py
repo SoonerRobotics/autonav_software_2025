@@ -9,6 +9,7 @@ class Player:
 
     def play_file(self, filename, duration_seconds):
         with wave.open(filename, 'rb') as wf:
+
             p = pyaudio.PyAudio()
 
             stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
@@ -21,6 +22,8 @@ class Player:
 
             while time.time() - start_time < duration_seconds:
                 data = wf.readframes(self.chunk_size)
+                nbytes = wf.getsampwidth()
+                print(nbytes)
                 if not data:
                     break
                 stream.write(data)
@@ -33,4 +36,4 @@ class Player:
 
 if __name__ == "__main__":
     player = Player()
-    player.play_file("./Documents/metal-pipe.wav", 1)
+    player.play_file("./Documents/metal-pipe.wav", 4)
