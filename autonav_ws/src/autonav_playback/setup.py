@@ -20,10 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'spam = autonav_playback.testTopicsSpam:main',
-            'master = autonav_playback.topic_pub:main',
             'playback = autonav_playback.playback:main',
             'dev_vid = autonav_playback.dev_vid:main',
+            'tester = autonav_playback.tester:main',
         ],
     },
 )

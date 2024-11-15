@@ -59,15 +59,15 @@ class playback(Node):
         
         
         # TO-DO
-        # Prolly even more camera stuff
-        #self.camera_subscriber_left 
-        #self.camera_subscriber_right
-        #self.astar_subscriber
+        self.record_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '8', '-s', '1280x720', '-i', '-', 'output.mp4']
+        # self.camera1 = self.create_subscription(CompressedImg, 'autonav/camera/left, self.cameraCallback, self.QOS)
+        # self.camera2 = self.create_subscription(CompressedImg, 'autonav/camera/right, self.cameraCallback, self.QOS)
+        # self.camera3 = self.create_subscription(CompressedImg, 'autonav/camera/front, self.cameraCallback, self.QOS)
+        # self.camera4 = self.create_subscription(CompressedImg, 'autonav/camera/back, self.cameraCallback, self.QOS)
         
-        # self.camera1 = self.create_subscription(CompressedImg, 'autonav/camera/1, self.cameraCallback, self.QOS)
-        # self.camera2 = self.create_subscription(CompressedImg, 'autonav/camera/2, self.cameraCallback, self.QOS)
-        # self.camera3 = self.create_subscription(CompressedImg, 'autonav/camera/3, self.cameraCallback, self.QOS)
-        # self.camera4 = self.create_subscription(CompressedImg, 'autonav/camera/4, self.cameraCallback, self.QOS)
+        # FFmpeg Process Dict
+        # self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None}
+        
         
         
         # FFmpeg record video
@@ -83,14 +83,6 @@ class playback(Node):
         self.process = None
         self.closed = False
         
-        
-        # Silly Goofy Code
-        self.__topicList = []
-        self.__typeList = []
-        self.topicDict = {}
-        print(len(self.topicDict))
-        
-        self.topicList_sub = self.create_subscription(String, 'topicList', self.topicListenerCallback, self.QOS)
     
     
     def dev_vid_feedback(self, msg):
@@ -125,8 +117,6 @@ class playback(Node):
             self.process = None
             self.closed = True
     
-    # Silly Goofy Method
-    def topicListenerCallback(self, msg):
         
         msgdata = []
         
@@ -152,16 +142,23 @@ class playback(Node):
         for i in range(len(self.__topicList)):
             self.topicDict.update({self.__topicList[i]: self.__typeList[i]})
     
-    # Serious Stuff below ->
+    
     def systemStateCallback(self, msg):
         # ?
         print(msg.state)
         
         self.system_state = msg.state
+        if self.file == None and self.system_state == 1:
+            self.create_entry()
+        elif self.system_state == 3:
+            self.close_entry()
         
     
     def deviceStateCallback(self, msg):
-        self.write_file(f"{self.makeTimestamp}, ENTRY_DEVICE, {msg.device}, {msg.state}")
+        if self.file == None:
+            return
+        
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_DEVICE, {msg.device}, {msg.state}")
     
     
     def makeTimestamp(self) -> str:
@@ -173,16 +170,18 @@ class playback(Node):
         if self.file == None:
             return
         
+        self.get_logger().info("Writing")
         self.file.write(msg + "\n")
     
     
     def create_entry(self):
-        stateFrmt = "autonomous" if self.system_state == 0 else "manual"
+        stateFrmt = "autonomous" if self.system_state == 1 else "manual"
         filename = f"{stateFrmt}_{self.makeTimestamp()}"
         
         BASE_PATH = os.path.join(self.home_dir, "Documents", "AutoNav", "Logs", filename)
         os.makedirs(BASE_PATH, exist_ok=True)
         
+        self.get_logger().info("Creating Entry")
         self.file = open(os.path.join(BASE_PATH, "log.csv"), "w")
         self.file.write("timestamp, type\n")
     
@@ -190,6 +189,7 @@ class playback(Node):
         if self.file is None:
             return
         
+        self.get_logger().info("Closing Entry")
         self.file.close()
         self.file = None
         
@@ -197,55 +197,55 @@ class playback(Node):
         if not self.config.record_imu:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_IMU, {msg.yaw}, {msg.pitch}, {msg.roll}, {msg.accel_x}, {msg.accel_y}, {msg.accel_z}, {msg.angular_x}, {msg.angular_y}, {msg.angular_z}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_IMU, {msg.yaw}, {msg.pitch}, {msg.roll}, {msg.accel_x}, {msg.accel_y}, {msg.accel_z}, {msg.angular_x}, {msg.angular_y}, {msg.angular_z}")
     
     def gps_feedback(self, msg):
         if not self.config.record_gps:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_GPS, {msg.latitude}, {msg.longitude}, {msg.altitude}, {msg.gps_fix}, {msg.is_locked}, {msg.satellites}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_GPS, {msg.latitude}, {msg.longitude}, {msg.altitude}, {msg.gps_fix}, {msg.is_locked}, {msg.satellites}")
     
     def motor_feedback(self, msg):
         if not self.config.record_motor:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_FEEDBACK, {msg.delta_x}, {msg.delta_y}, {msg.delta_theta}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_FEEDBACK, {msg.delta_x}, {msg.delta_y}, {msg.delta_theta}")
     
     def position_feedback(self, msg):
         if not self.config.record_position:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_POSITION, {msg.x}, {msg.y}, {msg.theta}, {msg.latitude}, {msg.longitude}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_POSITION, {msg.x}, {msg.y}, {msg.theta}, {msg.latitude}, {msg.longitude}")
         
     def nuc_feedback(self, msg):
         if not self.config.record_nuc:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_PERFORMACE", {msg.timestamp}, {msg.cpu_percentage}, {msg.ram_usage}, {msg.disk_usage}, {msg.gpu_usage})
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_PERFORMACE, {msg.timestamp}, {msg.cpu_percentage}, {msg.ram_usage}, {msg.disk_usage}, {msg.gpu_usage}")
     
     def ultrasonic_feedback(self, msg):
         if not self.config.record_ultrasonic:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_ULTRASONIC, {msg.id}, {msg.distance}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_ULTRASONIC, {msg.id}, {msg.distance}")
         
     def conbus_feedback(self, msg):
         if not self.config.record_conbus:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_CONBUS, {msg.id}, {msg.data}, {msg.iterator}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_CONBUS, {msg.id}, {msg.data}, {msg.iterator}")
     
     def safetylight_feedback(self, msg):
         if not self.config.record_safetylights:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_SAFETYLIGHT, {msg.autonomous}, {msg.red}, {msg.green}, {msg.blue}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_SAFETYLIGHT, {msg.autonomous}, {msg.red}, {msg.green}, {msg.blue}")
     
     def performance_feedback(self, msg):
         if not self.config.record_performance:
             return
         
-        self.write_file(f"{self.makeTimestamp}, ENTRY_PERFORMANCE, {msg.name}, {msg.duration}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_PERFORMANCE, {msg.name}, {msg.duration}")
     
     
     
