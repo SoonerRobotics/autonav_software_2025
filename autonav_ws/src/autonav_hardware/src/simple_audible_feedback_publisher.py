@@ -17,14 +17,21 @@ class MinimalAudibleFeedbackPublisher(Node):
             20
             )
         
-        timer_period = 10 # seconds
+        timer_period = 3 # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
 
     def timer_callback(self):
         msg = AudibleFeedback()
-        msg.filename = os.path.expanduser("~/Documents/vivalavida.wav")
-        msg.main_song = True
+        if self.i == 0:
+            msg.filename = os.path.expanduser("~/Documents/vivalavida.wav")
+
+        elif self.i % 3 == 0:
+            msg.stop_all = True
+
+        else:
+            msg.filename = os.path.expanduser("~/Documents/metal-pipe.wav")
+
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: "%s"' % msg.filename)
         self.i += 1

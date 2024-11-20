@@ -5,11 +5,14 @@ import rclpy
 from autonav_msgs.msg import AudibleFeedback
 
 import pydub
+import simpleaudio
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import time
 import threading
+import multiprocessing
+import kthread
 import os
 
 class AudibleFeedbackConfig:
@@ -21,8 +24,8 @@ class AudibleFeedbackNode(Node):
     def __init__(self):
         super().__init__("audible_feedback_node")
         self.write_config(AudibleFeedbackConfig())
-        self.main_sound_head_ms = 0 # milliseconds
         self.current_playing_thread = None
+        self.tracks = []
 
         # 
         self.audible_feedback_subscriber = self.create_subscription(
@@ -34,45 +37,35 @@ class AudibleFeedbackNode(Node):
 
 
     def on_audible_feedback_received(self, msg:AudibleFeedback):
-        self.log(f"playing {msg.filename}")
-        filename = str(msg.filename)
-        if self.current_playing_thread is not None:
-            self.current_playing_thread.kill()
-            self.log("setting do run to false")
-            self.current_playing_thread.do_run = False
-        
-        if msg.main_song == True:
-            self.log(f"playing main song")
-            self.current_playing_thread = threading.Thread(target=self.play_main_sound, args=[filename])
-            self.current_playing_thread.start()
-            self.log("other thread continuing")
+        if msg.stop_all:
+            self.stop_all()
+
         else:
-            self.current_playing_thread = threading.Thread(target=self.play_secondary_sound, args=[filename])
-            self.current_playing_thread.start()
-            self.log("other thread continuing")
+            self.log(f"playing {msg.filename}")
+            filename = str(msg.filename)
+            filetype = str(msg.filetype)
+
+            self.log(f"heard request to play {msg.filename}")
+            current_playing_process = threading.Thread(target=self.play_sound, args=[filename, filetype])
+            self.tracks.append(current_playing_process)
+            current_playing_process.start()
 
 
-    def play_main_sound(self, filename):
-        sound = pydub.AudioSegment.from_wav(filename)
-        self.log(f"created sound {sound}")
-        sound_at_start = sound[self.main_sound_head_ms:]
-        t = threading.current_thread()
+    def play_sound(self, filename, filetype):
+        if filetype == "wav":
+            sound = pydub.AudioSegment.from_wav(filename)
+        elif filetype == "mp3":
+            sound = pydub.AudioSegment.from_mp3(filename)
+        else:
+            sound = pydub.AudioSegment.from_file(filename)
 
-        while getattr(t, "do_run", True):
-            start_time = time.time()
-            playback = pydub.playback.play(sound_at_start)
-            print("playback thread continuing")
-
-        self.log("INTERRUPT")
-        playback.stop()
-        end_time = time.time()
-        time_elapsed_ms = (end_time - start_time) * 1000
-        self.main_sound_head_ms += time_elapsed_ms
-        self.log("interrupt")
+        playback = pydub.playback._play_with_ffplay(sound)
 
 
-    def play_secondary_sound(self, filename):
-        pass
+    def stop_all(self):
+        for track in self.tracks:
+            self.log(f"{track}")
+
 
 def main():
     rclpy.init()

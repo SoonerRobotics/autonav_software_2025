@@ -1,2 +1,3 @@
 string filename
-bool main_song
+string filetype
+bool stop_all
