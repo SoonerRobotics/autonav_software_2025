@@ -37,20 +37,66 @@ class TestPublisher(Node):
         self.pub.append(self.create_publisher(Performance, '/autonav/performance', 10))
         
         
-        timer_period =  0.5
+        timer_period =  0.033 # ~30 fps | Also way faster
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
         
+        self.left_publisher = self.create_publisher(CompressedImage, 'autonav/camera/left', 10)
+        self.right_publisher = self.create_publisher(CompressedImage, 'autonav/camera/right', 10)
+        self.front_publisher = self.create_publisher(CompressedImage, 'autonav/camera/front', 10)
+        self.back_publisher = self.create_publisher(CompressedImage, 'autonav/camera/back', 10)
         
+        # Open the video file
+        self.video_path = '/root/robo/autonav_software_2025/autonav_ws/src/autonav_playback/autonav_playback/kitten.mp4'
+        self.cap = cv2.VideoCapture(self.video_path)
+    
+    
+    def video_thingy(self):
         
+        if self.cap == None:
+            return
+        
+        if not self.cap.isOpened():
+            print("Error: Could not open video")
+            return
+        
+        ret, frame = self.cap.read()
+        if ret:
+            image = bridge.cv2_to_compressed_imgmsg(frame)
+            msg = image
+            self.left_publisher.publish(msg)
+            self.right_publisher.publish(msg)
+            self.front_publisher.publish(msg)
+            self.back_publisher.publish(msg)
+            self.get_logger().info('Publishing frame')
+            self.i += 1
+            return
+        else:
+            # Send Vid Over MSG
+            msg = Bool()
+            msg.data = ret
+            self.left_publisher.publish(msg)
+            self.right_publisher.publish(msg)
+            self.front_publisher.publish(msg)
+            self.back_publisher.publish(msg)
+            self.cap = None
+            self.cap_none_count += 1
+            return
 
     def timer_callback(self):
         
-        if self.i >= 50:
+        # The cutoff is greater than The Video length which is 360 frames at 30fps
+        if self.i >= 360:
             msg = SystemState()
             msg.state = 3
             self.pub[0].publish(msg)
             return
+        
+        # video thingys
+        
+        self.video_thingy()
+        
+        
         
         self.get_logger().info('Preparing Test Publish')
         # Cancer Ahead!!!

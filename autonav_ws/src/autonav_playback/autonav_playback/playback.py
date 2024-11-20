@@ -59,14 +59,20 @@ class playback(Node):
         
         
         # TO-DO
-        self.record_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '8', '-s', '1280x720', '-i', '-', 'output.mp4']
-        # self.camera1 = self.create_subscription(CompressedImg, 'autonav/camera/left, self.cameraCallback, self.QOS)
-        # self.camera2 = self.create_subscription(CompressedImg, 'autonav/camera/right, self.cameraCallback, self.QOS)
-        # self.camera3 = self.create_subscription(CompressedImg, 'autonav/camera/front, self.cameraCallback, self.QOS)
-        # self.camera4 = self.create_subscription(CompressedImg, 'autonav/camera/back, self.cameraCallback, self.QOS)
+        # Raw Camera Record Settings
+        self.record_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '15', '-s', '640x480', '-i', '-']
+        # Vision Pipeline record Settings
+        self.vis_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '15', '-s', '640x480', '-i', '-', 'output.mp4']
+        
+        # Raw Camera Topics
+        self.camera1 = self.create_subscription(CompressedImage, 'autonav/camera/left', lambda msg: self.cameraCallback(msg, 'left'), self.QOS)
+        self.camera2 = self.create_subscription(CompressedImage, 'autonav/camera/right', lambda msg: self.cameraCallback(msg, 'right'), self.QOS)
+        self.camera3 = self.create_subscription(CompressedImage, 'autonav/camera/front', lambda msg: self.cameraCallback(msg, 'front'), self.QOS)
+        self.camera4 = self.create_subscription(CompressedImage, 'autonav/camera/back', lambda msg: self.cameraCallback(msg, 'back'), self.QOS)
         
         # FFmpeg Process Dict
-        # self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None}
+        self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None}
+        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False}
         
         
         
@@ -83,6 +89,90 @@ class playback(Node):
         self.process = None
         self.closed = False
         
+    
+    def cameraCallback(self, msg, id):
+        
+        if id == 'left' and self.process_dict["left"] == None and not self.closed_dict['left']:
+            self.get_logger().info('Opening New Process')
+            
+            # Adjust the command output filename
+            c = self.record_command
+            c.append('left.mp4')
+            self.process_dict["left"] = subprocess.Popen(c, stdin=subprocess.PIPE)
+            
+            self.process_img(msg, self.process_dict["left"])
+        elif id == 'right' and self.process_dict["right"] == None and not self.closed_dict['right']:
+            self.get_logger().info('Opening New Process')
+            
+            # Adjust the command output filename
+            c = self.record_command
+            c.append('right.mp4')
+            self.process_dict["right"] = subprocess.Popen(c, stdin=subprocess.PIPE)
+            
+            self.process_img(msg, self.process_dict["right"])
+        elif id == "front" and self.process_dict["front"] == None and not self.closed_dict['front']:
+            self.get_logger().info('Opening New Process')
+            
+            # Adjust the command output filename
+            c = self.record_command
+            c.append('front.mp4')
+            self.process_dict["front"] = subprocess.Popen(c, stdin=subprocess.PIPE)
+            
+            self.process_img(msg, self.process_dict["front"])  
+        elif id == "back" and self.process_dict["back"] == None and not self.closed_dict['back']:
+            self.get_logger().info('Opening New Process')
+            
+            # Adjust the command output filename
+            c = self.record_command
+            c.append('back.mp4')
+            self.process_dict["back"] = subprocess.Popen(c, stdin=subprocess.PIPE)
+            
+            self.process_img(msg, self.process_dict["back"])
+        
+        if id == 'left' and not self.closed_dict['left']:
+            self.process_img(msg, self.process_dict["left"])
+        elif id == 'right' and not self.closed_dict['right']:
+            self.process_img(msg, self.process_dict["right"])
+        elif id == 'front' and not self.closed_dict['front']:
+            self.process_img(msg, self.process_dict["front"])
+        elif id == 'back' and not self.closed_dict['back']:
+            self.process_img(msg, self.process_dict["back"])
+    
+    def process_img(self, msg, process):
+        
+        image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
+        success, encoded_image = cv2.imencode('.jpg', image)
+            
+        if success:
+            process.stdin.write(encoded_image.tobytes())
+            self.get_logger().info('Writing Frame')
+        else:
+            print("Image Encoding Failed")
+    
+    def close_recording(self):
+        self.get_logger().info('Closing Recordings')
+        if not self.process_dict['left'] == None:
+            self.process_dict['left'].stdin.close()
+            self.process_dict['left'].wait()
+        if not self.process_dict['right'] == None:
+            self.process_dict['right'].stdin.close()
+            self.process_dict['right'].wait()
+        if not self.process_dict['front'] == None:
+            self.process_dict['front'].stdin.close()
+            self.process_dict['front'].wait()
+        if not self.process_dict['back'] == None:
+            self.process_dict['back'].stdin.close()
+            self.process_dict['back'].wait()
+        
+        self.process_dict['left'] = None
+        self.process_dict['right'] = None
+        self.process_dict['front'] = None
+        self.process_dict['back'] = None
+        
+        self.closed_dict['left'] = True
+        self.closed_dict['right'] = True
+        self.closed_dict['front'] = True
+        self.closed_dict['back'] = True
     
     
     def dev_vid_feedback(self, msg):
@@ -117,31 +207,6 @@ class playback(Node):
             self.process = None
             self.closed = True
     
-        
-        msgdata = []
-        
-        # Parse Topic List
-        for s in msg.data.split(' '):
-            msgdata.append(s)
-        
-        # Topics
-        for s in msgdata[0].split('/'):
-            if s in self.__topicList or s == '':
-                continue
-            self.__topicList.append(s)
-        
-        # Types
-        for s in msgdata[1].split('/'):
-            if s in self.__typeList or s == '':
-                continue
-            self.__typeList.append(s)
-        
-        if not len(self.__topicList) == len(self.__typeList):
-            return
-        
-        for i in range(len(self.__topicList)):
-            self.topicDict.update({self.__topicList[i]: self.__typeList[i]})
-    
     
     def systemStateCallback(self, msg):
         # ?
@@ -152,6 +217,7 @@ class playback(Node):
             self.create_entry()
         elif self.system_state == 3:
             self.close_entry()
+            self.close_recording()
         
     
     def deviceStateCallback(self, msg):
