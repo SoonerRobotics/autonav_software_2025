@@ -11,9 +11,10 @@ from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import time
 import threading
-import multiprocessing
-import kthread
+import just_playback
 import os
+
+# TODO: rewrite with just_playback
 
 class AudibleFeedbackConfig:
     def __init__(self):
