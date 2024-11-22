@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 
-import pydub.playback
+
 import rclpy
 from autonav_msgs.msg import AudibleFeedback
-
-import pydub
-import simpleaudio
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
@@ -13,6 +10,7 @@ import time
 import threading
 import just_playback
 import os
+from just_playback import Playback
 
 # TODO: rewrite with just_playback
 
@@ -44,28 +42,27 @@ class AudibleFeedbackNode(Node):
         else:
             self.log(f"playing {msg.filename}")
             filename = str(msg.filename)
-            filetype = str(msg.filetype)
 
             self.log(f"heard request to play {msg.filename}")
-            current_playing_process = threading.Thread(target=self.play_sound, args=[filename, filetype])
-            self.tracks.append(current_playing_process)
-            current_playing_process.start()
+            # current_playing_process = threading.Thread(target=self.play_sound, args=[filename])
+            # self.tracks.append(current_playing_process)
+            # current_playing_process.start()
+            self.play_sound(filename)
 
 
-    def play_sound(self, filename, filetype):
-        if filetype == "wav":
-            sound = pydub.AudioSegment.from_wav(filename)
-        elif filetype == "mp3":
-            sound = pydub.AudioSegment.from_mp3(filename)
-        else:
-            sound = pydub.AudioSegment.from_file(filename)
+    def play_sound(self, filename):
+        playback = Playback()
+        playback.load_file(filename)
+        playback.play()
 
-        playback = pydub.playback._play_with_ffplay(sound)
-
+        self.tracks.append(playback)
 
     def stop_all(self):
         for track in self.tracks:
             self.log(f"{track}")
+
+        for track in self.tracks:
+            track.stop()
 
 
 def main():
