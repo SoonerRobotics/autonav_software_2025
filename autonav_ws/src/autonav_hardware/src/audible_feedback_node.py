@@ -40,13 +40,10 @@ class AudibleFeedbackNode(Node):
             self.stop_all()
 
         else:
-            self.log(f"playing {msg.filename}")
+            # self.log(f"playing {msg.filename}")
             filename = str(msg.filename)
 
-            self.log(f"heard request to play {msg.filename}")
-            # current_playing_process = threading.Thread(target=self.play_sound, args=[filename])
-            # self.tracks.append(current_playing_process)
-            # current_playing_process.start()
+            # self.log(f"heard request to play {msg.filename}")
             self.play_sound(filename)
 
 
@@ -56,6 +53,7 @@ class AudibleFeedbackNode(Node):
         playback.play()
 
         self.tracks.append(playback)
+
 
     def stop_all(self):
         for track in self.tracks:

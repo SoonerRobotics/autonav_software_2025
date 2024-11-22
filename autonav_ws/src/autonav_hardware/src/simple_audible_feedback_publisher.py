@@ -21,6 +21,7 @@ class MinimalAudibleFeedbackPublisher(Node):
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
 
+
     def timer_callback(self):
         msg = AudibleFeedback()
         if self.i == 0:
