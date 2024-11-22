@@ -43,7 +43,7 @@ install(TARGETS
  install(PROGRAMS
    # add programs in format:
    #/path_to_program/program.py
-   src/audible_feedback_node.py
+   src/audible_feedback.py
    src/simple_audible_feedback_publisher.py
    DESTINATION lib/${PROJECT_NAME}
 )

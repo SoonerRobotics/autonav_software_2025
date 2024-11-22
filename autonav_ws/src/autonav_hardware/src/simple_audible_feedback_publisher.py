@@ -13,7 +13,7 @@ class MinimalAudibleFeedbackPublisher(Node):
         super().__init__('minimal_publisher')
         self.publisher_ = self.create_publisher(
             AudibleFeedback,
-            'autonav/audible_feedback',
+            '/autonav/audible_feedback',
             20
             )
         

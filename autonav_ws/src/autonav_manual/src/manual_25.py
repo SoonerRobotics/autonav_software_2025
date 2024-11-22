@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import rclpy
-import json
 from autonav_msgs.msg import ControllerInput, MotorInput, MotorFeedback
-from types import SimpleNamespace
 import numpy as np
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import ControllerInput
+from autonav_msgs.msg import AudibleFeedback, ControllerInput
 from enum import IntEnum
 import time
+import json
+import os
 
 class ControllerMode(IntEnum):
     LOCAL = 0
@@ -22,12 +22,14 @@ class Manual25Config:
         self.max_sideways_speed = 3
         self.max_angular_speed = np.pi
         self.odom_fudge_factor = 1
+        self.sound_buffer = 0.1 # seconds
 
 
 class Manual25Node(Node):
     def __init__(self):
         super().__init__('manual25_node')
         self.write_config(Manual25Config())
+        self.log("bigger pepe")
 
 
     def init(self):
@@ -37,11 +39,7 @@ class Manual25Node(Node):
         self.delta_t = 0
         self.new_time = time.time()
         # self.max_forward_speed = 1
-        self.max_forward_speed = self.config.max_forward_speed
-        self.max_sideways_speed = self.config.max_sideways_speed
         # self.max_angular_speed = np.pi/4
-        self.max_angular_speed = self.config.max_angular_speed
-        self.odom_fudge_factor = self.config.odom_fudge_factor
 
         self.controller_state = {}
 
@@ -67,16 +65,30 @@ class Manual25Node(Node):
             10
         )
 
+        self.audibleFeedbackPublisher = self.create_publisher(
+            AudibleFeedback,
+            '/autonav/audible_feedback',
+            10
+        )
+
         self.controllerSubscriber  # prevent unused variable warning
 
 
     def input_callback(self, msg):
+        self.new_time = time.time()
+        self.delta_t = self.new_time - self.last_time
+
         self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
         # self.log(f"I heard: {str(self.controller_state)}")
 
         self.change_controller_mode()
         self.change_system_state()
+
+        if self.delta_t > self.config.get("sound_buffer"):
+            self.play_sound()
+            self.last_time = time.time()
+
 
         self.log(f"orientation: {self.orientation}")
         # local vs. global toggle
@@ -87,7 +99,6 @@ class Manual25Node(Node):
             self.compose_motorinput_message_global()
 
         
-
     def deserialize_controller_state(self, msg):
         attributes = [n for n in dir(msg) if not (n.startswith('__') or n.startswith('_'))]
         attributes.remove('SLOT_TYPES')
@@ -139,9 +150,9 @@ class Manual25Node(Node):
         sideways_velocity = 0.0
         angular_velocity = 0.0
         if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.max_forward_speed, self.max_forward_speed, 1.0, -1.0)
-            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.max_sideways_speed, self.max_sideways_speed, -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.max_angular_speed, self.max_angular_speed, 1.0, -1.0)
+            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
+            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
+            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity
@@ -150,15 +161,16 @@ class Manual25Node(Node):
 
         self.motorPublisher.publish(motor_msg)
     
+
     # https://math.stackexchange.com/questions/2895880/inversion-of-rotation-matrix
     def compose_motorinput_message_global(self):
         forward_velocity = 0.0
         sideways_velocity = 0.0
         angular_velocity = 0.0
         if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.max_forward_speed, self.max_forward_speed, 1.0, -1.0)
-            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.max_sideways_speed, self.max_sideways_speed, -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.max_angular_speed, self.max_angular_speed, 1.0, -1.0)
+            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
+            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
+            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
@@ -169,8 +181,17 @@ class Manual25Node(Node):
 
 
     def on_motor_feedback(self, msg:MotorFeedback):
-        delta_theta = msg.delta_theta * self.odom_fudge_factor
+        delta_theta = msg.delta_theta * self.config.get("odom_fudge_factor")
         self.orientation += delta_theta
+
+
+    def play_sound(self):
+        if self.controller_state['btn_west'] == 1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.filename = os.path.expanduser('~/Documents/vine-boom.mp3')
+            audible_feedback.stop_all = False
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+
 
 def main(args=None):
     rclpy.init()
