@@ -48,13 +48,15 @@ class playback(Node):
         # IMU is still TBD
         self.imu_subscriber  = self.create_subscription(IMUData, '/autonav/imu', self.imu_feedback, self.QOS)
         self.gps_subscriber = self.create_subscription(GPSFeedback, '/autonav/gps', self.gps_feedback, self.QOS)
-        self.feedback_subscriber = self.create_subscription(MotorFeedback, '/autonav/motorfeedback', self.motor_feedback, self.QOS)
+        self.input_subscriber = self.create_subscription(MotorInput, '/autonav/motor_input', self.minput_feedback, self.QOS)
+        self.feedback_subscriber = self.create_subscription(MotorFeedback, '/autonav/motor_feedback', self.mfeedback_feedback, self.QOS)
         self.position_subscriber = self.create_subscription(Position, '/autonav/position', self.position_feedback, self.QOS)
         self.nuc_subscriber = self.create_subscription(NUCStatistics, '/autonav/statistics', self.nuc_feedback, self.QOS)
         self.ultrasonics_subscriber = self.create_subscription(Ultrasonic, '/autonav/ultrasonics', self.ultrasonic_feedback, self.QOS)
         self.conbus_subscriber = self.create_subscription(Conbus, '/autonav/CONbus', self.conbus_feedback, self.QOS)
         self.safetylight_subscriber = self.create_subscription(SafetyLights, '/autonav/safety_lights', self.safetylight_feedback, self.QOS)
         self.performance_subscriber = self.create_subscription(Performance, '/autonav/performance', self.performance_feedback, self.QOS)
+
         
         
         
@@ -271,11 +273,17 @@ class playback(Node):
         
         self.write_file(f"{self.makeTimestamp()}, ENTRY_GPS, {msg.latitude}, {msg.longitude}, {msg.altitude}, {msg.gps_fix}, {msg.is_locked}, {msg.satellites}")
     
-    def motor_feedback(self, msg):
+    def mfeedback_feedback(self, msg):
         if not self.config.record_motor:
             return
         
         self.write_file(f"{self.makeTimestamp()}, ENTRY_FEEDBACK, {msg.delta_x}, {msg.delta_y}, {msg.delta_theta}")
+        
+    def minput_feedback(self, msg):
+        if not self.config.record_motor:
+            return
+        
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_INPUT, {msg.forward_velocity}, {msg.sideways_velocity}, {msg.angluar_velocity}")
     
     def position_feedback(self, msg):
         if not self.config.record_position:
