@@ -8,8 +8,8 @@ import rclpy.qos
 from sensor_msgs.msg import CompressedImage
 from geometry_msgs.msg import Pose
 from cv_bridge import CvBridge
-
 import json
+
 
 
 
@@ -45,7 +45,18 @@ class FrameTransformerConfig:
         pts1 = np.float32([[80, 200], [400, 220], [480, 640], [0, 640]])
         pts2 = np.float32([[80, 220], [400, 220], [480, 640], [0, 640]])
 
-  
+        # Hough Transform
+        self.edge_thresholdOne = 50
+        self.edge_thresholdTwo = 150
+        self.theta_resolution = 1
+        self.rho_resolution = 1
+        self.line_threshold = 100
+        self.min_line_length = 50
+        self.max_line_gap = 10
+        
+        # ROI
+        self.reduction_percentage = 10
+        
         # Disabling
         self.disable_blur = False
         self.disable_hsv = False
@@ -73,7 +84,7 @@ class FrameTransformer(Node):
     # (1) auto hsv color picking
     # (2) Otsu's ?
     def onCalibrate(self, msg: CameraCalibration):
-
+        return
     def config_updated(self, jsonobject):
         self.config = json.loads(self.jdump(jsonobject), object_hook = lambda d: SimpleNamespace(**d))
 
@@ -113,11 +124,28 @@ class FrameTransformer(Node):
         return maxWidth, maxheight
 
     # Hough Transform(detect any shape in the image/frame, if the shape can be expressed in a math form)
-    def hough_transform(self, pts):
-        
-        return
+    def hough_transform(self, image):
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+        edges = cv.Canny(gray, self.config.edge_thresholdOne, self.config.edge_thresholdTwo)
+        lines = cv.HoughLines(edges, self.config.rho_resolution, np.deg2rad(self.config.theta_resolution), self.config.line_threshold)
+        return lines
 
-        
+    def draw_detected_lines(image, lines):
+        image_with_lines = image.copy()
+        if lines is not None:
+            for line in lines:
+                rho, theta = line[0]
+                a = np.cos(theta)
+                b = np.sin(theta)
+                x0 = a * rho
+                y0 = b * rho
+                x1 = int(x0 + 1000 * (-b))
+                y1 = int(y0 + 1000 * (a))
+                x2 = int(x0 - 1000 * (-b))
+                y2 = int(y0 - 1000 * (a))
+                cv.line(image_with_lines, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        return image_with_lines
+
     # Four point transform for bird view of the frame
     def four_point_transform(self, image, pts):
         if pts.shape != (4, 2):
@@ -153,15 +181,19 @@ class FrameTransformer(Node):
         
         return
     
-    # Define the max ROI, should return the bounding box size 
-    def roi_max(self, img):
-        img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        ret, thresh = cv.threshold(img_gray, 127, 255, 0)
+    # Define the max ROI, should return the bounding box size(slightly smaller than the input image)
+    def roi_max(self, image):
+        height, width = image.shape[0]
+        reduction_width = int(width * (self.config.reduction_percentage / 100) / 2)
+        reduction_height = int(height * (self.config.reduction_percentage / 100) / 2)
+        # define the max ROI
+        x = reduction_width
+        y = reduction_height
+        roi_width = width - 2 * reduction_width
+        roi_height = height - 2 * reduction_height
 
+        return (x, y, roi_width, roi_height)
 
-
-        return
-    
     # Define the reference ROI, should return the bounding box size
     def roi_reference():
     
@@ -171,7 +203,11 @@ class FrameTransformer(Node):
     def random_roi():
         
         return
+    
+    # draw the bounding box for max, reference and random roi
+    def roi_draw():
 
+        
     # Compare the similarity of colors(with picked hsv color) with detected objects'
     def hsv_calculation():
 
