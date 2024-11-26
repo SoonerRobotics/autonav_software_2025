@@ -19,11 +19,15 @@ class CameraLoggerNode(Node):
     def init(self):
         self.log("Starting camera logger: " + self.id)
 
-        self.create_subscription(CompressedImage, "/autonav/camera/" + self.id, self.camera_callback)
+        self.create_subscription(CompressedImage, "/autonav/camera/" + self.id, self.camera_callback, 1)
 
         self.video_writer = cv2.VideoWriter(self.filename, cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (640, 480)) #TODO
 
+        self.set_device_state(DeviceState.WARMING)
+
     def camera_callback(self, msg):
+        # self.set_device_state(DeviceState.OPERATING)
+
         img = bridge.compressed_imgmsg_to_cv2(msg)
 
         if self.frame < 100:
