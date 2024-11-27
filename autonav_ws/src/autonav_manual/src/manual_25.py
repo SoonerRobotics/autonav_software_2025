@@ -22,7 +22,7 @@ class Manual25Config:
         self.max_sideways_speed = 3
         self.max_angular_speed = np.pi
         self.odom_fudge_factor = 1
-        self.sound_buffer = 0.1 # seconds
+        self.sound_buffer = 0.5 # seconds
 
 
 class Manual25Node(Node):
@@ -88,6 +88,8 @@ class Manual25Node(Node):
         if self.delta_t > self.config.get("sound_buffer"):
             self.play_sound()
             self.last_time = time.time()
+        
+        self.manage_audio()
 
 
         self.log(f"orientation: {self.orientation}")
@@ -189,7 +191,29 @@ class Manual25Node(Node):
         if self.controller_state['btn_west'] == 1:
             audible_feedback = AudibleFeedback()
             audible_feedback.filename = os.path.expanduser('~/Documents/vine-boom.mp3')
-            audible_feedback.stop_all = False
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+
+        if self.controller_state['abs_hat0y'] == -1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.filename= os.path.expanduser('~/Documents/vivalavida.wav')
+            audible_feedback.main_track = True
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+
+
+    def manage_audio(self):
+        if self.controller_state['abs_hat0y'] == 1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.stop_all = True
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+
+        if self.controller_state['abs_hat0x'] == -1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.pause_all = True
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+
+        if self.controller_state['abs_hat0x'] == 1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.unpause_all = True
             self.audibleFeedbackPublisher.publish(audible_feedback)
 
 

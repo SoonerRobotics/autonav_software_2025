@@ -9,12 +9,12 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 import time
 import os
 from just_playback import Playback
+import PySoundSphere
 
-# TODO: rewrite with just_playback
 
 class AudibleFeedbackConfig:
     def __init__(self):
-        self.volume = 100
+        self.volume = 1.0
         
 
 class AudibleFeedbackNode(Node):
@@ -22,7 +22,8 @@ class AudibleFeedbackNode(Node):
         super().__init__("audible_feedback_node")
         self.write_config(AudibleFeedbackConfig())
         self.current_playing_thread = None
-        self.tracks = []
+        self.secondary_tracks = []
+        self.main_track = None
         self.old_system_state = self.system_state
 
         # 
@@ -39,54 +40,87 @@ class AudibleFeedbackNode(Node):
     def on_audible_feedback_received(self, msg:AudibleFeedback):
         self.monitor_tracks()
 
-        self.log(f"{len(self.tracks)}", LogLevel.ERROR)
+        self.log(f"{len(self.secondary_tracks)}", LogLevel.ERROR)
         if msg.stop_all:
             self.stop_all()
+            return
+
+        if msg.pause_all:
+            self.pause_main_track()
+            return
+
+        if msg.unpause_all:
+            self.unpause_main_track()
+            return
 
         else:
             # self.log(f"playing {msg.filename}")
             filename = str(msg.filename)
+            main_track = msg.main_track
 
             # self.log(f"heard request to play {msg.filename}")
-            self.play_sound(filename)
+            self.play_sound(filename, main_track)
 
 
-    def play_sound(self, filename):
-        playback = Playback()
-        playback.load_file(filename)
+    def play_sound(self, filename, main_track: bool):
+        playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks=False)
+        playback.load(filename)
+        playback.volume = self.config.get('volume')
         playback.play()
 
-        self.tracks.append(playback)
+        if main_track:
+            self.main_track = playback
+        else:
+            self.secondary_tracks.append(playback)
 
 
     def stop_all(self):
-        for track in self.tracks:
+        for track in self.secondary_tracks:
             self.log(f"{track}")
 
-        for track in self.tracks:
+        for track in self.secondary_tracks:
             track.stop()
+
+        self.secondary_tracks = []
+        self.main_track.stop()
+        self.main_track = None
+
+
+    def pause_main_track(self):
+        try:
+            self.main_track.pause()
+        except: # main track is paused or doesn't exist
+            pass
+
+
+    def unpause_main_track(self):
+            try:
+                self.main_track.play()
+
+            except: # main track is playing or doesn't exist
+                pass
 
 
     def monitor_tracks(self):
-        for track in self.tracks:
-            self.log(f"{track.playing}")
-            if track.playing == False:
-                track.stop()
-                self.tracks.remove(track)
+        if len(self.secondary_tracks) > 16:
+            self.secondary_tracks.pop()
 
 
     def monitor_system_state(self):
         self.monitor_tracks()
         if self.system_state == SystemState.AUTONOMOUS and self.old_system_state != SystemState.AUTONOMOUS:
-            playback = Playback()
+            playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
             filename = os.path.expanduser('~/Documents/imposter.mp3')
-            playback.load_file(filename)
+            playback.load(filename)
+            playback.volume = self.config.get('volume')
             playback.play()
-            self.tracks.append(playback)
+            
+            self.secondary_tracks.append(playback)
             self.old_system_state = SystemState.AUTONOMOUS
 
         else:
             self.old_system_state = self.system_state
+
 
 def main():
     rclpy.init()

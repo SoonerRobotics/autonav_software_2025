@@ -1,2 +1,5 @@
 string filename
-bool stop_all
+bool main_track false
+bool pause_all false
+bool unpause_all false
+bool stop_all false
