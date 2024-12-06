@@ -47,7 +47,7 @@ class CanConfig:
 class CanNode(Node):
     def __init__(self):
         super().__init__("CAN_node")
-        self.write_config(CanConfig)
+        self.write_config(CanConfig())
 
         # can
         self.can = None
@@ -55,7 +55,7 @@ class CanNode(Node):
         # safety lights
         self.safetyLightsSubscriber = self.create_subscription(
             SafetyLights,
-            "autonav/safety_lights",
+            "/autonav/safety_lights",
             self.on_safety_lights_received,
             20
         )
@@ -63,7 +63,7 @@ class CanNode(Node):
         # motor messages
         self.motorInputSubscriber = self.create_subscription(
             MotorInput,
-            "autonav/motor_input",
+            "/autonav/motor_input",
             self.on_motor_input_received,
             20
         )
@@ -91,22 +91,22 @@ class CanNode(Node):
         # motor statistics and PID tuning
         self.linearPIDStatisticsPublisher = self.create_publisher(
             LinearPIDStatistics,
-            "autonav/linear_pid_statistics",
+            "/autonav/linear_pid_statistics",
             20
         )
         self.angularPIDStatisticsPublisher = self.create_publisher(
             AngularPIDStatistics,
-            "autonav/angular_pid_statistics",
+            "/autonav/angular_pid_statistics",
             20
         )
         self.motorStatisticsFrontMotorsPublisher = self.create_publisher(
             MotorStatisticsFrontMotors,
-            "autonav/motor_statistics_front_motors",
+            "/autonav/motor_statistics_front_motors",
             20
         )
         self.motorStatisticsBackMotorsPublisher = self.create_publisher(
             MotorStatisticsBackMotors,
-            "autonav/motor_statistics_back_motors",
+            "/autonav/motor_statistics_back_motors",
             20
         )
 
@@ -133,13 +133,13 @@ class CanNode(Node):
             if self.can is not None:
                 self.can = None
 
-            if self.device_state != DeviceState.WARMING:
+            if self.get_device_state() != DeviceState.WARMING:
                 self.set_device_state(DeviceState.WARMING)
 
 
     def can_thread_worker(self):
         while rclpy.ok():
-            if self.device_state != DeviceState.READY and self.device_state != DeviceState.OPERATING:
+            if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
                 continue
             if self.can is not None:
                 try:
@@ -259,7 +259,7 @@ class CanNode(Node):
 
 
     def on_motor_input_received(self, msg:MotorInput):
-        if self.device_state != DeviceState.OPERATING:
+        if self.get_device_state() != DeviceState.OPERATING:
             return
         data = struct.pack("hhh", int(msg.forward_velocity * 10000), int(msg.sideways_velocity * 10000), int(msg.angular_velocity * 10000))
         can_msg = can.message(arbitration_id = arbitration_ids["MotorsCommand"], data = data)
@@ -270,7 +270,7 @@ class CanNode(Node):
 
 
     def on_conbus_received(self, msg:Conbus):
-        if self.device_state != DeviceState.OPERATING:
+        if self.get_device_state() != DeviceState.OPERATING:
             return
         try:
             data = bytes(msg.data)
