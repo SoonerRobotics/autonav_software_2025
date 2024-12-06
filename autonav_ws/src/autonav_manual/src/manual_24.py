@@ -38,7 +38,7 @@ class Manual24Node(Node):
         
         self.motorPublisher = self.create_publisher(
             MotorInput,
-            '/autonav/MotorInput',
+            '/autonav/motor_input',
             10
         )
 
@@ -79,6 +79,11 @@ class Manual24Node(Node):
             
         elif self.controller_state['btn_start'] == 1.0:
             new_system_state = SystemState.MANUAL
+            self.log(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
+
+        elif self.controller_state['btn_mode'] == 1.0:
+            new_system_state = SystemState.AUTONOMOUS
             self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
 
