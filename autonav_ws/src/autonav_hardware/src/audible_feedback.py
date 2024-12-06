@@ -15,6 +15,7 @@ import PySoundSphere
 class AudibleFeedbackConfig:
     def __init__(self):
         self.volume = 1.0
+        self.autonomous_transition_filepath = os.path.expanduser('~/Documents/imposter.mp3')
         
 
 class AudibleFeedbackNode(Node):
@@ -40,7 +41,7 @@ class AudibleFeedbackNode(Node):
     def on_audible_feedback_received(self, msg:AudibleFeedback):
         self.monitor_tracks()
 
-        self.log(f"{len(self.secondary_tracks)}", LogLevel.ERROR)
+        # self.log(f"{len(self.secondary_tracks)}", LogLevel.DEBUG)
         if msg.stop_all:
             self.stop_all()
             return
@@ -63,18 +64,30 @@ class AudibleFeedbackNode(Node):
 
 
     def play_sound(self, filename, main_track: bool):
+        if main_track and self.main_track is not None:
+            return
+        
         playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks=False)
-        playback.load(filename)
+        try:
+            playback.load(filename)
+        except:
+            self.log("invalid filename", LogLevel.ERROR)
+            return
+        
         playback.volume = self.config.get('volume')
         playback.play()
 
         if main_track:
             self.main_track = playback
+
         else:
             self.secondary_tracks.append(playback)
 
 
     def stop_all(self):
+        if self.main_track is not None:
+            self.log(f"{self.main_track}")
+
         for track in self.secondary_tracks:
             self.log(f"{track}")
 
@@ -82,7 +95,11 @@ class AudibleFeedbackNode(Node):
             track.stop()
 
         self.secondary_tracks = []
-        self.main_track.stop()
+        try:
+            self.main_track.stop()
+        except:
+            self.log("No main track", LogLevel.ERROR)
+
         self.main_track = None
 
 
@@ -110,7 +127,13 @@ class AudibleFeedbackNode(Node):
         self.monitor_tracks()
         if self.system_state == SystemState.AUTONOMOUS and self.old_system_state != SystemState.AUTONOMOUS:
             playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
-            filename = os.path.expanduser('~/Documents/imposter.mp3')
+
+            try:
+                filename = self.config.get('autonomous_transition_filepath')
+            except:
+                self.log("invalid autonomous transition filepath")
+                return
+            
             playback.load(filename)
             playback.volume = self.config.get('volume')
             playback.play()
