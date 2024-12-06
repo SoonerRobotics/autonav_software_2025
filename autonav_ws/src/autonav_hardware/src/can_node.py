@@ -44,9 +44,9 @@ class CanConfig:
         self.angular_pid_scaling_factor = 1000
 
 
-class can_node(Node):
+class CanNode(Node):
     def __init__(self):
-        super.__init__("CAN_node")
+        super().__init__("CAN_node")
         self.write_config(CanConfig)
 
         # can
@@ -56,7 +56,7 @@ class can_node(Node):
         self.safetyLightsSubscriber = self.create_subscription(
             SafetyLights,
             "autonav/safety_lights",
-            self.on_safety_lights_received(),
+            self.on_safety_lights_received,
             20
         )
 
@@ -64,7 +64,7 @@ class can_node(Node):
         self.motorInputSubscriber = self.create_subscription(
             MotorInput,
             "autonav/motor_input",
-            self.on_motor_input_received(),
+            self.on_motor_input_received,
             20
         )
 
@@ -78,7 +78,7 @@ class can_node(Node):
         self.conbusSubscriber = self.create_subscription(
             Conbus,
             "/autonav/conbus/instruction", 
-            self.on_conbus_received(), 
+            self.on_conbus_received, 
             20
         )
 
@@ -183,9 +183,9 @@ class can_node(Node):
     def publish_odom_feedback(self, msg):
         delta_x, delta_y, delta_theta = struct.unpack('hhh', msg.data)
         motor_feedback_msg = MotorFeedback()
-        motor_feedback_msg.delta_x = delta_x / self.config.odom_feedback_scaler
-        motor_feedback_msg.delta_y = delta_y / self.config.odom_feedback_scaler
-        motor_feedback_msg.delta_theta = delta_theta / self.config.odom_feedback_scaler
+        motor_feedback_msg.delta_x = delta_x / self.config.get("odom_feedback_scaler")
+        motor_feedback_msg.delta_y = delta_y / self.config.get("odom_feedback_scaler")
+        motor_feedback_msg.delta_theta = delta_theta / self.config.get("odom_feedback_scaler")
 
         self.motorFeedbackPublisher.publish(motor_feedback_msg)
 
@@ -285,5 +285,12 @@ class can_node(Node):
         except:
             pass
     
+def main():
+    rclpy.init()
+    can_node = CanNode()
+    rclpy.spin(can_node)
+    rclpy.shutdown()
 
+if __name__ == "__main__":
+    main()
 
