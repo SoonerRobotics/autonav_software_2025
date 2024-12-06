@@ -1,0 +1,2 @@
+uint8 angular_velocity
+uint8 angular_velocity_setpoint
