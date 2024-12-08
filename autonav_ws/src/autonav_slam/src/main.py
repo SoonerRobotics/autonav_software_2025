@@ -200,5 +200,33 @@ for point in combinedData:
 
 
 # now that we have all the data we need, we just need to plot it
-#TODO
+
+# at the start, from the robot to the right lane, is approximately the width of the right camera image, which is 480 pixels.
+# those lanes should be about 10 feet apart, according to the rules, I think, and the right half of the robot in that frame is 1 foot.
+# so that's (5-1) = 4 feet to 480 pixels, which is 1.219 meters per 480 pixels, right up at the edge of the front of the robot, approximately
+pixelsToMeters = 1.219 / 480
+
+# turn list of point objects into a list of x and y coordinates
+x_coords = []
+y_coords = []
+for point in combinedData:
+    x_coords.append(point.x - (point.leftX * pixelsToMeters))
+    y_coords.append(point.y)
+
+    x_coords.append(point.x + (point.right * pixelsToMeters))
+    y_coords.append(point.y)
+
+#FIXME this isn't going to work
+# left_x_coords = [point.x - (point.leftX * pixelsToMeters) for point in combinedData]
+# right_x_coords = [point.x + (point.right * pixelsToMeters) for point in combinedData]
+# x_coords = left_x_coords + right_x_coords
+
+# y_coords = [point.y for point in combinedData]
+
+print(len(combinedData))
+print(len(x_coords))
+print(len(y_coords))
+
 plt.figure()
+plt.plot(x_coords, y_coords) # speed (based on timestamp, or like, a log message or something) could be color? not useful in the slightest htough, this is a stationairy map. nevermind.
+plt.show()
