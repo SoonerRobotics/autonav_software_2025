@@ -2,6 +2,7 @@ import tkinter
 from tkinter import filedialog
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 # so basically, what we want to do is input a log and get out a map of the course.
 # program steps:
@@ -89,6 +90,9 @@ class Point:
         self.lon = lon
         self.image = image
 
+        self.leftX = 0
+        self.rightX = 0
+
 # go through the log array and video array to find the entries that correspond to each other
 positionIndex = 0
 frameIndex = 0
@@ -100,9 +104,6 @@ for idx, line in enumerate(log):
     entry = line.split(",") # it's a csv, so split along commas to get data
 
     match entry[0]:
-        case "ENTRY_GPS":
-            pass #TODO implement GPS stuff or something
-        
         case "ENTRY_POSITION":
             positionIndex = idx
         
@@ -121,8 +122,83 @@ for idx, line in enumerate(log):
 
         image = frames[frameCount]
 
+        #TODO do something with the timestamp? interpolate points based on velocity? splines? should probably do something like that.
+
         combinedData.append(Point(x, y, heading, lat, lon, image)) # then append the point
 
     
     lastFrameIndex = frameIndex
 
+
+# image processing taken from https://github.com/SoonerRobotics/autonav_software_2024/blob/f8f0925f5d4d29e61f98bea63b09dc5598481e54/autonav_ws/src/autonav_vision/src/feeler.py
+# which was itself taken from last year's (2024) vision pipeline in transformations.py, but this version is made to work with the combined image instead of individual images, so it'
+# more suited to our needs, and also already done
+
+# image shape is 800x1600x3; 1600 because it's two 800x800 side by side because dual camera
+WIDTH = 960
+HEIGHT = 640
+
+# verticies for region-of-disinterest
+# order is top-left, top-right, bottom-right, bottom-left
+VERTICIES = (
+    (285, 450),
+    (616, 450),
+    (722, 639),
+    (262, 639)
+)
+
+# HSV thresholding values for obstacle detection
+lower = (0, 0, 0)
+upper = (255, 95, 210)
+
+# kernel for erode/dilate
+kernel = cv2.getStructuringElement(2, (2, 2))
+
+def threshold(image):
+    img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(img, lower, upper)
+    mask = 255 - mask
+
+    mask = cv2.fillConvexPoly(mask, np.array(VERTICIES, dtype=np.int32), (0))
+
+    mask = cv2.erode(mask, kernel)
+    mask = cv2.dilate(mask, kernel)
+    
+    return mask
+
+def centerCoordinates(self, x, y):
+    return (x + WIDTH//2), (y + HEIGHT//2 + 100)
+
+# now we need to go through the frames and process them.
+# essentially, we're looking for the points directly to the left and right of the robot where there's an obstacle
+# we don't want to look forwards, because danger squiggle camera, and no good way to flatten, and so on.
+Y = 300 #TODO FIXME
+
+for point in combinedData:
+    point.image = threshold(point.image)
+
+    # check left for obstacles
+    for x in range(0, -WIDTH, -1): # for every pixel along y, going to the left from the center of the image
+        check_y, check_x = centerCoordinates(x, y)
+
+        # if any of the pixel's color values (in RGB I think) are > 0 then
+        if point.image[check_y, check_x].any() > 0:
+            # that is an obstacle, and we have found our point
+            point.leftX = x
+            break
+    
+    # repeat, check right for obstacles
+    for x in range(0, WIDTH, 1): # for every pixel along y, going to the right from the center of the image
+        check_y, check_x = centerCoordinates(x, y)
+
+        # if any of the pixel's color values (in RGB I think) are > 0 then
+        if point.image[check_y, check_x].any() > 0:
+            # that is an obstacle, and we have found our point
+            point.rightX = x
+            break
+
+
+
+# now that we have all the data we need, we just need to plot it
+#TODO
+plt.figure()
