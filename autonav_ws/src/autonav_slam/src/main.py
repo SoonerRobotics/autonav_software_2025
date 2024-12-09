@@ -183,10 +183,11 @@ def centerCoordinates(x, y):
 # now we need to go through the frames and process them.
 # essentially, we're looking for the points directly to the left and right of the robot where there's an obstacle
 # we don't want to look forwards, because danger squiggle camera, and no good way to flatten, and so on.
-Y = -150 #TODO FIXME
+Y = 0 #TODO FIXME
 
+#TODO find a way to save this data for later plotting because it is one of the most resource/time-intensive parts of the program (~10 seconds for 1 run)
 for point in combinedData:
-    point.image = threshold(point.image)
+    point.image = threshold(point.image) #TODO flattening?
 
     # check left for obstacles
     for x in range(0, -WIDTH//2 + 2, -1): # for every pixel along y, going to the left from the center of the image
@@ -239,7 +240,7 @@ for point in combinedData:
     if point.leftX == point.rightX == 0:
         continue
 
-    #FIXME this doesn't take into account the robot's rotation/heading (just need to do like point.x + point.leftX * cos(theta)) or something
+    # the obstacle is then at the robot's position +/- the leftX or rightX value, making sure to take into account the robot's rotation/heading
     x_coords.append(point.x - (point.leftX * pixelsToMeters * sin(point.heading)))
     y_coords.append(point.y - (point.leftX * pixelsToMeters * cos(point.heading)))
 
@@ -248,6 +249,8 @@ for point in combinedData:
 
     #TODO plot the actual robot's position, preferably in a different color
 
+print(f"Heading at point 5*8=40: {combinedData[40].heading} | in degrees: {degrees(combinedData[40].heading)}")
+print(f"Heading at point 90: {combinedData[90].heading} | in degrees: {degrees(combinedData[90].heading)}")
 
 print(len(combinedData))
 print(len(x_coords))
@@ -260,6 +263,6 @@ print(f"Time take: {endingTime - startTime}s")
 #TODO FIXME these should be all in GPS coordinates units instead of relative x/y units so we can have consistency and actually map the course
 plt.figure()
 # plt.plot(x_coords, y_coords) # speed (based on timestamp, or like, a log message or something) could be color? not useful in the slightest htough, this is a stationairy map. nevermind.
-plt.scatter(x_coords, y_coords, 2, color="#BB0000") #TODO points without obstacles associated with them (i.e. if leftX and rightX are both 0) should be a different color or just not plotted or something
-plt.scatter(robot_x_coords, robot_y_coords, 1, color="#0000BB")
+plt.scatter(x_coords, y_coords, 5, color="#BB0000") #TODO points without obstacles associated with them (i.e. if leftX and rightX are both 0) should be a different color or just not plotted or something
+plt.scatter(robot_x_coords, robot_y_coords, 2, color="#0000BB")
 plt.show()
