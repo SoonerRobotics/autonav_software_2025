@@ -3,6 +3,11 @@ from tkinter import filedialog
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+from math import sin, cos, tan, atan, pi, radians, degrees
+
+print(f"Starting time: {time.time()}")
+startTime = time.time()
 
 # so basically, what we want to do is input a log and get out a map of the course.
 # program steps:
@@ -27,6 +32,7 @@ root.withdraw()
 log_filename = filedialog.askopenfilename()
 
 # read all the lines in the CSV into one big array
+#TODO add support for multiple runs or something
 log = []
 if log_filename != None and log_filename != "":
     with open(log_filename, "r") as csv:
@@ -34,6 +40,8 @@ if log_filename != None and log_filename != "":
 
 # get the filename of the camera
 video_filename = filedialog.askopenfilename()
+
+print(f"Length of log csv, line 42: {len(log)}")
 
 # and make an array of all the individual frames in the video
 frames = []
@@ -46,7 +54,7 @@ while video.isOpened():
 
     frames.append(image)
 
-
+print(f"Length of frames, line 49: {len(frames)}")
 
 # the code below verifies that there is a ENTRY_POSITION between every ENTRY_CAMERA_IMAGE, essentially meaning that whenever we hit a camera image,
 # we are clear to use the last position entry, because it won't collide with another camera's position entry.
@@ -103,7 +111,7 @@ combinedData = [] # a list of POSITIONs (or GPS coordinates) and corresponding C
 for idx, line in enumerate(log):
     entry = line.split(",") # it's a csv, so split along commas to get data
 
-    match entry[0]:
+    match entry[1].strip():
         case "ENTRY_POSITION":
             positionIndex = idx
         
@@ -122,6 +130,8 @@ for idx, line in enumerate(log):
 
         image = frames[frameCount]
 
+        # print("AAAAAAAAAAAAAAAAAAAAAA")
+
         #TODO do something with the timestamp? interpolate points based on velocity? splines? should probably do something like that.
 
         combinedData.append(Point(x, y, heading, lat, lon, image)) # then append the point
@@ -129,6 +139,7 @@ for idx, line in enumerate(log):
     
     lastFrameIndex = frameIndex
 
+print(f"combined data at lin 140: {len(combinedData)}")
 
 # image processing taken from https://github.com/SoonerRobotics/autonav_software_2024/blob/f8f0925f5d4d29e61f98bea63b09dc5598481e54/autonav_ws/src/autonav_vision/src/feeler.py
 # which was itself taken from last year's (2024) vision pipeline in transformations.py, but this version is made to work with the combined image instead of individual images, so it'
@@ -166,36 +177,44 @@ def threshold(image):
     
     return mask
 
-def centerCoordinates(self, x, y):
-    return (x + WIDTH//2), (y + HEIGHT//2 + 100)
+def centerCoordinates(x, y):
+    return (x + WIDTH//2), (y + HEIGHT//2)
 
 # now we need to go through the frames and process them.
 # essentially, we're looking for the points directly to the left and right of the robot where there's an obstacle
 # we don't want to look forwards, because danger squiggle camera, and no good way to flatten, and so on.
-Y = 300 #TODO FIXME
+Y = -150 #TODO FIXME
 
 for point in combinedData:
     point.image = threshold(point.image)
 
     # check left for obstacles
-    for x in range(0, -WIDTH, -1): # for every pixel along y, going to the left from the center of the image
-        check_y, check_x = centerCoordinates(x, y)
+    for x in range(0, -WIDTH//2 + 2, -1): # for every pixel along y, going to the left from the center of the image
+        check_x, check_y = centerCoordinates(x, y)
+
+        # print(check_y, check_x)
 
         # if any of the pixel's color values (in RGB I think) are > 0 then
-        if point.image[check_y, check_x].any() > 0:
+        if point.image[int(check_y), int(check_x)].any() > 0:
             # that is an obstacle, and we have found our point
             point.leftX = x
             break
+    else:
+        # point.leftX = None #FIXME?
+        point.leftX = 0
     
-    # repeat, check right for obstacles
-    for x in range(0, WIDTH, 1): # for every pixel along y, going to the right from the center of the image
-        check_y, check_x = centerCoordinates(x, y)
+    # repeat, check right for obstacles FIXME I don't like this duplicated code right here. is annoying when have to debug and fix
+    for x in range(0, WIDTH//2 - 2, 1): # for every pixel along y, going to the right from the center of the image
+        check_x, check_y = centerCoordinates(x, y)
 
         # if any of the pixel's color values (in RGB I think) are > 0 then
-        if point.image[check_y, check_x].any() > 0:
+        if point.image[int(check_y), int(check_x)].any() > 0:
             # that is an obstacle, and we have found our point
             point.rightX = x
             break
+    else:
+        # point.rightX = None #FIXME?
+        point.rightX = 0
 
 
 
@@ -209,24 +228,38 @@ pixelsToMeters = 1.219 / 480
 # turn list of point objects into a list of x and y coordinates
 x_coords = []
 y_coords = []
+robot_x_coords = []
+robot_y_coords = []
 for point in combinedData:
-    x_coords.append(point.x - (point.leftX * pixelsToMeters))
-    y_coords.append(point.y)
+    robot_x_coords.append(point.x)
+    robot_y_coords.append(point.y)
 
-    x_coords.append(point.x + (point.right * pixelsToMeters))
-    y_coords.append(point.y)
+    #FIXME this skips the points without obstacle data in them, fix so it just displays these in a different color or something
+    # maybe append to a different list and scatter that in a different color?
+    if point.leftX == point.rightX == 0:
+        continue
 
-#FIXME this isn't going to work
-# left_x_coords = [point.x - (point.leftX * pixelsToMeters) for point in combinedData]
-# right_x_coords = [point.x + (point.right * pixelsToMeters) for point in combinedData]
-# x_coords = left_x_coords + right_x_coords
+    #FIXME this doesn't take into account the robot's rotation/heading (just need to do like point.x + point.leftX * cos(theta)) or something
+    x_coords.append(point.x - (point.leftX * pixelsToMeters * sin(point.heading)))
+    y_coords.append(point.y - (point.leftX * pixelsToMeters * cos(point.heading)))
 
-# y_coords = [point.y for point in combinedData]
+    x_coords.append(point.x + (point.rightX * pixelsToMeters * sin(point.heading)))
+    y_coords.append(point.y + (point.rightX * pixelsToMeters * cos(point.heading)))
+
+    #TODO plot the actual robot's position, preferably in a different color
+
 
 print(len(combinedData))
 print(len(x_coords))
 print(len(y_coords))
 
+endingTime = time.time()
+print(f"Ending time: {endingTime}")
+print(f"Time take: {endingTime - startTime}s")
+
+#TODO FIXME these should be all in GPS coordinates units instead of relative x/y units so we can have consistency and actually map the course
 plt.figure()
-plt.plot(x_coords, y_coords) # speed (based on timestamp, or like, a log message or something) could be color? not useful in the slightest htough, this is a stationairy map. nevermind.
+# plt.plot(x_coords, y_coords) # speed (based on timestamp, or like, a log message or something) could be color? not useful in the slightest htough, this is a stationairy map. nevermind.
+plt.scatter(x_coords, y_coords, 2, color="#BB0000") #TODO points without obstacles associated with them (i.e. if leftX and rightX are both 0) should be a different color or just not plotted or something
+plt.scatter(robot_x_coords, robot_y_coords, 1, color="#0000BB")
 plt.show()
