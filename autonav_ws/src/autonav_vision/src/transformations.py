@@ -58,7 +58,6 @@ class ImageTransformerConfig:
 class ImageTransformer(Node):
     def __init__(self, dir = "left"):
         super().__init__("autonav_vision_transformer")
-        self.config = self.get_default_config()
         self.dir = dir
 
     def directionify(self, topic):
@@ -68,34 +67,48 @@ class ImageTransformer(Node):
         self.set_device_state(DeviceState.WARMING)
 
         # subscribers
-        self.camera_subscriber = self.create_subscription(CompressedImage, self.directionify("/autonav/camera/"), self.onImageReceived)
+        self.camera_subscriber = self.create_subscription(CompressedImage, self.directionify("/autonav/camera"), self.onImageReceived, 1)
 
         # publishers (filtered view)
-        self.camera_debug_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/vision/filtered") + "/cutout")
+        self.camera_debug_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/vision/filtered"), 1)
 
         self.write_config(ImageTransformerConfig())
 
         self.set_device_state(DeviceState.READY)
 
+        #TODO FIXME HACK TEMP DEBUG REMOVE ME
+        self.has_logged = False
+
     def onImageReceived(self, image: CompressedImage):
-        if (self.device_state != DeviceState.OPERATING):
+        if (self.get_device_state() != DeviceState.OPERATING):
             self.set_device_state(DeviceState.OPERATING)
 
         # Decompress image
         img = bridge.compressed_imgmsg_to_cv2(image)
 
         #TODO
+        if not self.has_logged:
+            self.log(f"{self.dir}'s image size is {img.shape}!")
+            self.has_logged = True
 
         # publish filtered image
         self.camera_debug_publisher.publish(bridge.cv2_to_compressed_imgmsg(img))
 
 def main():
     rclpy.init()
-    node_front = ImageTransformer(dir = "front")
-    node_left = ImageTransformer(dir = "left")
-    node_right = ImageTransformer(dir = "right")
-    node_back = ImageTransformer(dir = "back")
-    Node.run_nodes([node_front, node_left, node_right, node_back])
+    
+    nodes = []
+
+    for direction in ["front", "left", "right", "back"]:
+        nodes.append(ImageTransformer(direction))
+
+    # https://github.com/SoonerRobotics/autonav_software_2025/blob/feat/camera/autonav_ws/src/autonav_hardware/src/camera_node.py
+    executor = rclpy.executors.MultiThreadedExecutor()
+    
+    for node in nodes:
+        executor.add_node(node)
+
+    executor.spin()
     rclpy.shutdown()
 
 

@@ -15,8 +15,8 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 bridge = CvBridge()
 
-
-IMAGE_WIDTH = 640
+#FIXME TODO
+IMAGE_WIDTH = 640*4 # four cameras, so for now just line them up side by side all in a row
 IMAGE_HEIGHT = 480
 
 
@@ -41,6 +41,12 @@ class ImageCombiner(Node):
 
         self.set_device_state(DeviceState.READY)
 
+        #FIXME TEMP DEBUG HACK
+        self.log("starting image combiner...", LogLevel.WARN)
+        self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (IMAGE_WIDTH, IMAGE_HEIGHT)) #TODO
+        self.frame = 0
+        self.has_logged = False
+
     def image_received_front(self, msg):
         self.image_front = msg
         self.try_combine_images()
@@ -58,18 +64,52 @@ class ImageCombiner(Node):
         self.try_combine_images()
     
     def try_combine_images(self):
-        if (self.image_front, self.image_right, self.image_left, self.image_back).any() is None:
+        # if (self.image_front, self.image_right, self.image_left, self.image_back).any() is None:
+        #     return
+
+        if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None:
             return
         
-        #TODO
+        image_front = bridge.compressed_imgmsg_to_cv2(self.image_front)
+        image_left = bridge.compressed_imgmsg_to_cv2(self.image_left)
+        image_right = bridge.compressed_imgmsg_to_cv2(self.image_right)
+        image_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
 
-        # compressed_image = bridge.cv2_to_compressed_imgmsg(preview_image)
-        # self.combined_image_image_publisher.publish(compressed_image)
+        # we have a copy of every image now, so combine them
+        combined = np.concatenate((image_front, image_left, image_right, image_back), axis=1)
+
+        if not self.has_logged:
+            self.log(f"Combined image size is {combined.shape}!")
+            self.has_logged = True
+
+        # and publish the image
+        self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
+
+        # reset the images now that we've combined a frame
+        self.image_front = None
+        self.image_left = None
+        self.image_right = None
+        self.image_back = None
+
+        # FIXME DEBUG HACK
+        # while the UI still in development, log images to a video for debugging
+        if self.frame < 200:
+            self.video_writer.write(combined)
+        elif self.video_writer.isOpened():
+            self.video_writer.release()
+            self.log("combined image logger is done!", LogLevel.ERROR)
+        
+        self.frame += 1
+        self.log(f"combining frame {self.frame}. . .", LogLevel.WARN)
 
 def main():
     rclpy.init()
+
     node = ImageCombiner()
-    Node.run_node(node)
+    rclpy.spin(node)
+
+    cv2.destroyAllWindows() # just in case
+
     rclpy.shutdown()
 
 
