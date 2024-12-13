@@ -32,20 +32,31 @@ class ImageCombiner(Node):
         self.image_right = None
         self.image_back = None
 
+        self.debug_image_front = None
+        self.debug_image_left = None
+        self.debug_image_right = None
+        self.debug_image_back = None
+
         self.image_front_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/filtered/front", self.image_received_front, 1)
         self.image_left_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/filtered/left", self.image_received_left, 1)
         self.image_right_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/filtered/right", self.image_received_right, 1)
         self.image_back_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/filtered/back", self.image_received_back, 1)
 
+        self.debug_image_front_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/front", self.debug_image_received_front, 1)
+        self.debug_image_left_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/left", self.debug_image_received_left, 1)
+        self.debug_image_right_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/right", self.debug_image_received_right, 1)
+        self.debug_image_back_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/back", self.debug_image_received_back, 1)
+
         self.combined_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/filtered", 1)
+        self.combined_debug_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/debug", 1)
 
         self.set_device_state(DeviceState.READY)
 
         #FIXME TEMP DEBUG HACK
         self.log("starting image combiner...", LogLevel.WARN)
         self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (IMAGE_WIDTH, IMAGE_HEIGHT)) #TODO
+        self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (IMAGE_WIDTH, IMAGE_HEIGHT)) #TODO
         self.frame = 0
-        self.has_logged = False
 
     def image_received_front(self, msg):
         self.image_front = msg
@@ -63,11 +74,27 @@ class ImageCombiner(Node):
         self.image_back = msg
         self.try_combine_images()
     
-    def try_combine_images(self):
-        # if (self.image_front, self.image_right, self.image_left, self.image_back).any() is None:
-        #     return
+    # ===
+    def debug_image_received_front(self, msg):
+        self.debug_image_front = msg
+        self.try_combine_images()
 
-        if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None:
+    def debug_image_received_left(self, msg):
+        self.debug_image_left = msg
+        self.try_combine_images()
+
+    def debug_image_received_right(self, msg):
+        self.debug_image_right = msg
+        self.try_combine_images()
+    
+    def debug_image_received_back(self, msg):
+        self.debug_image_back = msg
+        self.try_combine_images()
+    # ===
+
+    def try_combine_images(self):
+        # this is a horrendous line of code pls don't do it this way
+        if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
             return
         
         image_front = bridge.compressed_imgmsg_to_cv2(self.image_front)
@@ -78,10 +105,6 @@ class ImageCombiner(Node):
         # we have a copy of every image now, so combine them
         combined = np.concatenate((image_front, image_left, image_right, image_back), axis=1)
 
-        if not self.has_logged:
-            self.log(f"Combined image size is {combined.shape}!")
-            self.has_logged = True
-
         # and publish the image
         self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
 
@@ -91,13 +114,33 @@ class ImageCombiner(Node):
         self.image_right = None
         self.image_back = None
 
+        #TODO FIXME
+        debug_image_front = bridge.compressed_imgmsg_to_cv2(self.debug_image_front)
+        debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
+        debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
+        debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
+
+        # we have a copy of every image now, so combine them
+        debug_combined = np.concatenate((debug_image_front, debug_image_left, debug_image_right, debug_image_back), axis=1)
+
+        # and publish the image
+        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
+
+        # reset the images now that we've combined a frame
+        self.debug_image_front = None
+        self.debug_image_left = None
+        self.debug_image_right = None
+        self.debug_image_back = None
+
         # FIXME DEBUG HACK
         # while the UI still in development, log images to a video for debugging
         if self.frame < 200:
             combined = cv2.cvtColor(np.uint8(combined), cv2.COLOR_GRAY2BGR)
             self.video_writer.write(combined)
+            self.debug_video_writer.write(debug_combined)
         elif self.video_writer.isOpened():
             self.video_writer.release()
+            self.debug_video_writer.release()
             self.log("combined image logger is done!", LogLevel.ERROR)
         
         self.frame += 1

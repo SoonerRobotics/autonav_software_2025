@@ -72,36 +72,30 @@ class ImageTransformer(Node):
         self.camera_subscriber = self.create_subscription(CompressedImage, self.directionify("/autonav/camera"), self.onImageReceived, 1)
 
         # publishers
-        self.camera_debug_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/vision/filtered"), 1)
+        self.camera_filtered_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/vision/filtered"), 1)
+        self.camera_debug_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/vision/debug"), 1)
 
         self.set_device_state(DeviceState.READY)
 
-        #TODO FIXME HACK TEMP DEBUG REMOVE ME
-        self.has_logged = False
-        # self.log(f"CONFIG PARAMETER blur_weight = {self.config.blur_weight}")
-
-    def onImageReceived(self, image: CompressedImage):
+    def onImageReceived(self, msg: CompressedImage):
         if (self.get_device_state() != DeviceState.OPERATING):
             self.set_device_state(DeviceState.OPERATING)
 
         # Decompress image
-        img = bridge.compressed_imgmsg_to_cv2(image)
+        image = bridge.compressed_imgmsg_to_cv2(msg)
 
-        # self.log(f"{self.config}")
-        # raise SystemExit
+        filtered_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-        img = cv2.inRange(img, (self.config["lower_hue"], self.config["lower_sat"], self.config["lower_val"]), (self.config["upper_hue"], self.config["upper_sat"], self.config["upper_val"]))
-        img = 255 - img
+        filtered_image = cv2.inRange(filtered_image, (self.config["lower_hue"], self.config["lower_sat"], self.config["lower_val"]), (self.config["upper_hue"], self.config["upper_sat"], self.config["upper_val"]))
+        filtered_image = 255 - filtered_image
 
         #TODO
-        if not self.has_logged:
-            self.log(f"{self.dir}'s image size is {img.shape}!")
-            self.has_logged = True
 
         # publish filtered image
-        self.camera_debug_publisher.publish(bridge.cv2_to_compressed_imgmsg(img))
+        self.camera_filtered_publisher.publish(bridge.cv2_to_compressed_imgmsg(filtered_image))
+
+        # publish debug image TODO
+        self.camera_debug_publisher.publish(bridge.cv2_to_compressed_imgmsg(image))
 
 def main():
     rclpy.init()
@@ -111,7 +105,6 @@ def main():
     for direction in ["front", "left", "right", "back"]:
         nodes.append(ImageTransformer(direction))
 
-    # https://github.com/SoonerRobotics/autonav_software_2025/blob/feat/camera/autonav_ws/src/autonav_hardware/src/camera_node.py
     executor = rclpy.executors.MultiThreadedExecutor()
     
     for node in nodes:
