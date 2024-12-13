@@ -15,9 +15,13 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 bridge = CvBridge()
 
-#FIXME TODO
-IMAGE_WIDTH = 640*4 # four cameras, so for now just line them up side by side all in a row
+IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
+
+#TODO use like max() or min() in case we play with the dimensions
+# or like, combine them better so the total combined image is only 640x480 or something
+COMBINED_IMAGE_WIDTH = IMAGE_HEIGHT*2 # left and right cameras are 480 pixels tall but turned on their sides so it's 480 pixels wide and then next to each other, and the top/bottom cameras are only 640 wide so this is fine
+COMBINED_IMAGE_HEIGHT = IMAGE_HEIGHT*2 + IMAGE_WIDTH # top and bottom cameras are 480 pixels tall, plus the left/right cameras turned on their side which adds 640 pixels
 
 
 class ImageCombiner(Node):
@@ -54,8 +58,8 @@ class ImageCombiner(Node):
 
         #FIXME TEMP DEBUG HACK
         self.log("starting image combiner...", LogLevel.WARN)
-        self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (IMAGE_WIDTH, IMAGE_HEIGHT)) #TODO
-        self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (IMAGE_WIDTH, IMAGE_HEIGHT)) #TODO
+        self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
+        self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
         self.frame = 0
 
     def image_received_front(self, msg):
@@ -93,9 +97,11 @@ class ImageCombiner(Node):
     # ===
 
     def try_combine_images(self):
-        # this is a horrendous line of code pls don't do it this way
+        # this is a horrendous line of code pls don't actually do it this way FIXME
         if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
             return
+        
+        combined = np.zeros((COMBINED_IMAGE_HEIGHT, COMBINED_IMAGE_WIDTH))
         
         image_front = bridge.compressed_imgmsg_to_cv2(self.image_front)
         image_left = bridge.compressed_imgmsg_to_cv2(self.image_left)
@@ -103,7 +109,14 @@ class ImageCombiner(Node):
         image_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
 
         # we have a copy of every image now, so combine them
-        combined = np.concatenate((image_front, image_left, image_right, image_back), axis=1)
+        # https://stackoverflow.com/questions/14063070/overlay-a-smaller-image-on-a-larger-image-python-opencv
+        # the basic idea is to have the front camera on top, then the left and right cameras on their sides beneath that, and the back camera underneath that,
+        # so that it kind of looks top-down or like some weird 360 degree camera.
+        x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
+        combined[0 : IMAGE_HEIGHT, x_offset : x_offset+IMAGE_WIDTH] = image_front
+        combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 : IMAGE_HEIGHT] = image_left # the left and right cameras are rotated 90 degrees so coordinates are backwards, it is not [IMAGE_HEIGHT : IMAGE_HEIGHT*2, 0 : IMAGE_WIDTH]
+        combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, IMAGE_HEIGHT : ] = image_right # same here, if it wasn't rotated it would be [IMAGE_HEIGHT : IMAGE_HEIGHT*2, IMAGE_WIDTH : ]
+        combined[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT : , x_offset : x_offset+IMAGE_WIDTH] = image_back
 
         # and publish the image
         self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
@@ -114,14 +127,21 @@ class ImageCombiner(Node):
         self.image_right = None
         self.image_back = None
 
-        #TODO FIXME
+        #TODO FIXME I don't like having a lot of duplicated code here it's really bad form and annoying to update
         debug_image_front = bridge.compressed_imgmsg_to_cv2(self.debug_image_front)
         debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
         debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
         debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
 
+        debug_combined = np.zeros((COMBINED_IMAGE_HEIGHT, COMBINED_IMAGE_WIDTH, 3), dtype=np.uint8)
+        # debug_combined = cv2
+
         # we have a copy of every image now, so combine them
-        debug_combined = np.concatenate((debug_image_front, debug_image_left, debug_image_right, debug_image_back), axis=1)
+        x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
+        debug_combined[0 : IMAGE_HEIGHT, x_offset : x_offset+IMAGE_WIDTH] = debug_image_front
+        debug_combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 : IMAGE_HEIGHT] = debug_image_left # the left and right cameras are rotated 90 degrees so coordinates are backwards, it is not [IMAGE_HEIGHT : IMAGE_HEIGHT*2, 0 : IMAGE_WIDTH]
+        debug_combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, IMAGE_HEIGHT : ] = debug_image_right # same here, if it wasn't rotated it would be [IMAGE_HEIGHT : IMAGE_HEIGHT*2, IMAGE_WIDTH : ]
+        debug_combined[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT : , x_offset : x_offset+IMAGE_WIDTH] = debug_image_back
 
         # and publish the image
         self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))

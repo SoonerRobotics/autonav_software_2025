@@ -91,6 +91,26 @@ class ImageTransformer(Node):
 
         #TODO
 
+        # rotate the image depending on which direction it's facing
+        # this step is done last because we don't want to rotate it prior to filtering,
+        # so that any side of the robot can be the front.
+        # we rotate it now solely for running feelers on the combined image later
+        if self.dir == "left":
+            filtered_image = cv2.rotate(filtered_image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            # filtered_image = cv2.resize(filtered_image, (640, 480)) #TODO make it so we don't have to resize
+            # image = cv2.resize(image, (640, 480))
+        elif self.dir == "right":
+            filtered_image = cv2.rotate(filtered_image, cv2.ROTATE_90_CLOCKWISE)
+            image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+            
+            # filtered_image = cv2.resize(filtered_image, (640, 480))
+            # image = cv2.resize(image, (640, 480))
+        elif self.dir == "back":
+            filtered_image = cv2.rotate(filtered_image, cv2.ROTATE_180)
+            image = cv2.rotate(image, cv2.ROTATE_180)
+
         # publish filtered image
         self.camera_filtered_publisher.publish(bridge.cv2_to_compressed_imgmsg(filtered_image))
 
