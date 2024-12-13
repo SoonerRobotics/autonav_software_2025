@@ -94,13 +94,14 @@ class ImageCombiner(Node):
         # FIXME DEBUG HACK
         # while the UI still in development, log images to a video for debugging
         if self.frame < 200:
+            combined = cv2.cvtColor(np.uint8(combined), cv2.COLOR_GRAY2BGR)
             self.video_writer.write(combined)
         elif self.video_writer.isOpened():
             self.video_writer.release()
             self.log("combined image logger is done!", LogLevel.ERROR)
         
         self.frame += 1
-        self.log(f"combining frame {self.frame}. . .", LogLevel.WARN)
+        # self.log(f"combining frame {self.frame}. . .", LogLevel.WARN)
 
 def main():
     rclpy.init()

@@ -60,6 +60,8 @@ class ImageTransformer(Node):
         super().__init__("autonav_vision_transformer")
         self.dir = dir
 
+        self.write_config(ImageTransformerConfig())
+
     def directionify(self, topic):
         return topic + "/" + self.dir
 
@@ -69,15 +71,14 @@ class ImageTransformer(Node):
         # subscribers
         self.camera_subscriber = self.create_subscription(CompressedImage, self.directionify("/autonav/camera"), self.onImageReceived, 1)
 
-        # publishers (filtered view)
+        # publishers
         self.camera_debug_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/vision/filtered"), 1)
-
-        self.write_config(ImageTransformerConfig())
 
         self.set_device_state(DeviceState.READY)
 
         #TODO FIXME HACK TEMP DEBUG REMOVE ME
         self.has_logged = False
+        # self.log(f"CONFIG PARAMETER blur_weight = {self.config.blur_weight}")
 
     def onImageReceived(self, image: CompressedImage):
         if (self.get_device_state() != DeviceState.OPERATING):
@@ -85,6 +86,14 @@ class ImageTransformer(Node):
 
         # Decompress image
         img = bridge.compressed_imgmsg_to_cv2(image)
+
+        # self.log(f"{self.config}")
+        # raise SystemExit
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        img = cv2.inRange(img, (self.config["lower_hue"], self.config["lower_sat"], self.config["lower_val"]), (self.config["upper_hue"], self.config["upper_sat"], self.config["upper_val"]))
+        img = 255 - img
 
         #TODO
         if not self.has_logged:
