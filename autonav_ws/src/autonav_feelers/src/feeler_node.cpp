@@ -30,14 +30,14 @@ struct GPSPoint {
  * @param start_angle the starting angle offset when building the feelers, in degrees
  */
 struct FeelerNodeConfig {
-    int max_length;
+    int max_length; // pixels
     int number_of_feelers;
-    double start_angle;
-    double waypointPopDist;
-    double ultrasonic_contribution;
+    double start_angle; // degrees
+    double waypointPopDist; // meters?
+    double ultrasonic_contribution; // weight between 0 and 2 (or higher)
     unsigned long gpsWaitSeconds;
 
-    // NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, waypointPopDist, ultrasonic_contribution, gpsWaitSeconds);
 };
 
 class FeelerNode : public AutoNav::Node {
@@ -46,8 +46,15 @@ public:
     ~FeelerNode() = default;
 
     void init() override {
-        //TODO FIXME TEMP this is here until a proper config system is in place
-        this->config = this->get_default_config();
+        auto config_ = FeelerNodeConfig();
+        config_.max_length = 200;
+        config_.number_of_feelers = 10;
+        config_.start_angle = 5;
+        config_.waypointPopDist = 2;
+        config_.ultrasonic_contribution = 1;
+        config_.gpsWaitSeconds = 0;
+
+        this->write_config(config_);
 
         // === read waypoints from file === (copied and pasted from last year's feat/astar_rewrite_v3 branch)
         std::string line;
@@ -97,8 +104,8 @@ public:
         // make the feelers for the ultrasonics
         ultrasonic_feelers = std::vector<Feeler>();
         for (double angle = 0.0; angle < 360; angle += 90) { // these originate at the origin, which is fine because the only contribute in one axis
-            int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers
-            int y = this->config.max_length * sin(radians(angle));
+            int x = this->config["max_length"].get<int>() * cos(radians(angle)); //int should truncate these to nice whole numbers
+            int y = this->config["max_length"].get<int>() * sin(radians(angle));
 
             this->feelers.push_back(Feeler(x, y));
             this->feelers.push_back(Feeler(x, y)); // there are 2 ultrasonic distance sensors per side
@@ -122,9 +129,9 @@ public:
      */
     void buildFeelers() {
         this->feelers = std::vector<Feeler>();
-        for (double angle = this->config.start_angle; angle < 360; angle += (360 / this->config.number_of_feelers)) {
-            int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
-            int y = this->config.max_length * sin(radians(angle));
+        for (double angle = this->config["start_angle"].get<double>(); angle < 360; angle += (360 / this->config["start_angle"].get<double>())) {
+            int x = this->config["max_length"].get<int>() * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
+            int y = this->config["max_length"].get<int>() * sin(radians(angle));
 
             this->feelers.push_back(Feeler(x, y));
         }
@@ -132,33 +139,6 @@ public:
         for (Feeler feeler : feelers) {
             feeler.setColor(cv::Scalar(200, 0, 0)); // feelers are blue, openCV is in BGR
         }
-    }
-
-    /**
-     * This function is called whenever the configuration is updated from the UI.
-     * Configurable parameters are defined in the FeelerNodeConfig struct.
-     * @param newConfig the new configuration for the feeler node
-     */
-    void config_updated(FeelerNodeConfig newConfig) {
-        this->config = newConfig;
-
-        this->buildFeelers();
-    }
-
-    /**
-     * Gets the default configuration of the node for populating the UI.
-     * @return the default configuration of the node as a json-ified FeelerNodeConfig struct.
-     */
-    FeelerNodeConfig get_default_config() {
-        FeelerNodeConfig newConfig;
-        newConfig.max_length = 100;
-        newConfig.number_of_feelers = 12;
-        newConfig.start_angle = 0.0;
-        newConfig.waypointPopDist = 2.0; // 2 meter default
-        newConfig.ultrasonic_contribution = 2.0; // twice the strength of regular feelers
-        newConfig.gpsWaitSeconds = 6;
-
-        return newConfig;
     }
 
     /**
@@ -224,7 +204,7 @@ public:
      * @param msg an Ultrasonic message from a sensor
      */
     void onUltrasonicsReceived(const autonav_msgs::msg::Ultrasonic msg) {
-        this->ultrasonic_feelers[msg.id - 1].setLength(msg.distance * this->config.ultrasonic_contribution); // minus 1 because the sensors are numbered 1-8
+        this->ultrasonic_feelers[msg.id - 1].setLength(msg.distance * this->config["ultrasonic_contribution"].get<double>()); // minus 1 because the sensors are numbered 1-8
     }
 
     /**
@@ -238,7 +218,7 @@ public:
 
         if (this->gpsTime == 0 && this->hasPosition) {
             this->gpsTime = now();
-        } else if (now() - this->gpsTime > this->config.gpsWaitSeconds && this->direction == "") { // if it's been 6 seconds and we haven't set the direction yet
+        } else if (now() - this->gpsTime > this->config["gpsWaitSeconds"].get<unsigned long>() && this->direction == "") { // if it's been 6 seconds and we haven't set the direction yet
             double heading_degrees = abs(this->position.theta * 180 / PI);
             if (120 < heading_degrees && heading_degrees < 240) {
                 this->direction = "south";
@@ -271,7 +251,7 @@ public:
                 distToWaypoint = std::sqrt(std::pow((goalPoint.lon - this->position.longitude)*this->latitudeLength, 2) + std::pow((goalPoint.lat - this->position.latitude)*this->longitudeLength, 2));
 
                 // if we are close enough to the waypoint, and we aren't going to cause an out-of-bounds index error
-                if (distToWaypoint < config.waypointPopDist && this->waypointIndex < this->waypointsDict[this->direction].size()-1) {
+                if (distToWaypoint < config["waypointPopDist"].get<double>() && this->waypointIndex < this->waypointsDict[this->direction].size()-1) {
                     // then go to the next waypoint
                     this->waypointIndex++;
                 }
@@ -300,9 +280,10 @@ public:
             this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg()));
 
             // make the audible feedback message
+            //TODO figure out what sounds we actually want to play and when
             autonav_msgs::msg::AudibleFeedback feedback_msg;
             bool publishAudible = true;
-            if (distToWaypoint < config.waypointPopDist) {
+            if (distToWaypoint < config["waypointPopDist"].get<double>()) {
                 feedback_msg.filename = "ding.mp3";
             } else if (msg.forward_velocity < -0.5) { //TODO this is all robot-relative movement, so 'left' and 'right' here refer to the robot's POV, and if we end up moving primarily sideways through ex No-man's land then this could get annoying
                 feedback_msg.filename = "beep_beep.mp3";
@@ -353,7 +334,7 @@ private:
     unsigned long int gpsTime = 0;
     bool hasPosition = false;
 
-    FeelerNodeConfig config;
+    // FeelerNodeConfig config;
     
     // subscribers
     rclcpp::Subscription<autonav_msgs::msg::Position>::SharedPtr positionSubscriber;
