@@ -120,6 +120,8 @@ public:
         lastTime = now();
 
         set_device_state(AutoNav::DeviceState::READY);
+
+        log("FEELERS READY!", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
@@ -139,6 +141,8 @@ public:
         for (Feeler feeler : feelers) {
             feeler.setColor(cv::Scalar(200, 0, 0)); // feelers are blue, openCV is in BGR
         }
+
+        log("FEELERS BUILT!", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
@@ -146,6 +150,8 @@ public:
      * @param image a compressedimage message with the combined transformations of all 4 cameras
      */
     void onImageReceived(sensor_msgs::msg::CompressedImage const image) {
+        log("FEELERS OPERATING!", AutoNav::Logging::WARN); //FIXME TODO
+
         set_device_state(AutoNav::DeviceState::OPERATING);
 
         // reinitialize the heading arrow (with a bias towards going 'forwards')
@@ -154,18 +160,34 @@ public:
         // turn the image into a format we can use
         auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
 
+        log("FEELERS MASKING!", AutoNav::Logging::WARN); //FIXME TODO
+
         // calculate new length of every new feeler
         for (Feeler feeler : this->feelers) {
             feeler.update(&mask);
         }
 
+        log("FEELERS DRAWING!", AutoNav::Logging::WARN); //FIXME TODO
+        log("FEELERS LENGTH, MASK ROWS, MASK COLS, DEBUG ROWS, DEBUG COLS", AutoNav::Logging::WARN);
+        log(std::to_string(this->feelers.size()), AutoNav::Logging::WARN);
+        log(std::to_string(mask.cols), AutoNav::Logging::WARN);
+        log(std::to_string(mask.rows), AutoNav::Logging::WARN);
+        // log(std::to_string(debug_image_ptr->cols), AutoNav::Logging::WARN); //FIXME TODO
+        // log(std::to_string(debug_image_ptr->rows), AutoNav::Logging::WARN);
+
         // draw debug image (separate from loop because this will modify the image, which wouldn't work multithreaded)
         // also if you drew on the image while modifying it that would mess up some of the feelers
         // also add all the feelers together
         for (Feeler feeler : this->feelers) {
-            feeler.draw(debug_image_ptr->image);
+            log("DRAWING FEELER: " + feeler.to_string(), AutoNav::Logging::WARN);
+            if (this->debug_image_ptr != nullptr) {
+                feeler.draw(debug_image_ptr->image); //TODO we are failing here, probably because debug_image_ptr doesn't exist
+            }
+            log("FEELER DRAWN!", AutoNav::Logging::WARN); // FIXME TODO
             this->headingArrow = this->headingArrow + feeler;
         }
+
+        log("ULTRASONIC FEELERS!", AutoNav::Logging::WARN); //FIXME TODO
 
         // ultrasonics
         for (Feeler feeler : this->ultrasonic_feelers) {
@@ -174,6 +196,11 @@ public:
 
             feeler.draw(debug_image_ptr->image);
         }
+
+        log("chat are we cooked", AutoNav::Logging::WARN); //FIXME TODO
+
+        //FIXME this is for temporary debug purposes while we are minus a UI
+        this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
     }
 
     /**
@@ -183,7 +210,11 @@ public:
     void onDebugImageReceived(const sensor_msgs::msg::CompressedImage image) {
         this->newDebugImage = true;
 
+        log("GETTING DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+
         this->debug_image_ptr = cv_bridge::toCvCopy(image); //TODO figure out what encoding we want to use
+
+        log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
@@ -204,7 +235,11 @@ public:
      * @param msg an Ultrasonic message from a sensor
      */
     void onUltrasonicsReceived(const autonav_msgs::msg::Ultrasonic msg) {
+        log("GETTING ULTRASONICS!", AutoNav::Logging::WARN); //FIXME TODO
+
         this->ultrasonic_feelers[msg.id - 1].setLength(msg.distance * this->config["ultrasonic_contribution"].get<double>()); // minus 1 because the sensors are numbered 1-8
+
+        log("ULTRASONICS GOT!", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
@@ -215,6 +250,8 @@ public:
         if (this->get_system_state() != AutoNav::SystemState::AUTONOMOUS && this->get_device_state() != AutoNav::DeviceState::OPERATING) {
             return; // return because we don't need to do anything
         }
+
+        log("PUBLISHING MOTOR OUTPUT!", AutoNav::Logging::WARN); //FIXME TODO
 
         if (this->gpsTime == 0 && this->hasPosition) {
             this->gpsTime = now();
@@ -235,6 +272,8 @@ public:
         
         // if we are allowed to move (earlier check means we are already in auto and operating, so don't have to recheck those)
         if (this->is_mobility()) {
+            log("WE ARE MOBILE!", AutoNav::Logging::WARN); //FIXME TODO
+
             // make the message
             autonav_msgs::msg::MotorInput msg;
 
@@ -257,7 +296,8 @@ public:
                 }
             }
 
-            this->headingArrow.draw(debug_image_ptr->image);
+            log("DRAWING HEADING ARROW!", AutoNav::Logging::WARN); //FIXME TODO
+            // this->headingArrow.draw(debug_image_ptr->image); // debug image pointer is something we haven't figure out yet
 
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
@@ -276,8 +316,11 @@ public:
             this->motorPublisher->publish(msg);
             // and publish the safety lights message
             this->safetyLightsPublisher->publish(safetyLightsMsg);
+            log("MOTOR AND SAFETY LIGHTS PUBLISHED!", AutoNav::Logging::WARN); //FIXME TODO
+            
             // and publish the debug image
-            this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg()));
+            // this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //FIXME this is killing the code right now
+
 
             // make the audible feedback message
             //TODO figure out what sounds we actually want to play and when
@@ -298,9 +341,12 @@ public:
             // if we are actually wanting to play a file
             if (publishAudible) {
                 this->audibleFeedbackPublisher->publish(feedback_msg);
+                log("PUBLISHING AUDIBLE FEEDBACK!", AutoNav::Logging::WARN); //FIXME TODO
             }
 
         } else {
+            log("NO MOBILITY!", AutoNav::Logging::WARN); //FIXME TODO
+
             // we are not mobility enabled and thus not allowed to move, so publish velocities of 0 for everything
             autonav_msgs::msg::MotorInput msg;
             msg.forward_velocity = 0.0;
@@ -314,7 +360,7 @@ public:
 
             this->motorPublisher->publish(msg);
             this->safetyLightsPublisher->publish(safetyLightsMsg);
-            this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg()));
+            // this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO FIXME
         }
     }
 

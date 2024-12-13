@@ -33,6 +33,7 @@ public:
     int getOriginalX();
     int getOriginalY();
     double getOriginalLength();
+    std::string to_string();
 
     cv::Scalar getColor();
     void setColor(cv::Scalar c);
@@ -166,6 +167,18 @@ double Feeler::getOriginalLength() {
  */
 cv::Scalar Feeler::getColor() {
     return this->color;
+}
+
+/**
+ * TODO figure out which data we actually want to have here
+ * @return a string representation of the feeler
+ */
+std::string Feeler::to_string() {
+    std::string string;
+
+    string = "(" + std::to_string(this->x) + ", " + std::to_string(this->y) + ") | length " + std::to_string(this->length) + " | original: " + std::to_string(this->original_length);
+
+    return string;
 }
 
 /**
