@@ -47,7 +47,7 @@ public:
 
     void init() override {
         auto config_ = FeelerNodeConfig();
-        config_.max_length = 200;
+        config_.max_length = 300;
         config_.number_of_feelers = 10;
         config_.start_angle = 5;
         config_.waypointPopDist = 2;
@@ -89,7 +89,7 @@ public:
         // subscribers
         positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
         imageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/filtered", 1, std::bind(&FeelerNode::onImageReceived, this, std::placeholders::_1));
-        debugImageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined", 1, std::bind(&FeelerNode::onDebugImageReceived, this, std::placeholders::_1));
+        debugImageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/debug", 1, std::bind(&FeelerNode::onDebugImageReceived, this, std::placeholders::_1));
         ultrasonicSubscriber = create_subscription<autonav_msgs::msg::Ultrasonic>("/autonav/ultrasonics", 1, std::bind(&FeelerNode::onUltrasonicsReceived, this, std::placeholders::_1));
         
         // publishers
@@ -122,6 +122,8 @@ public:
         set_device_state(AutoNav::DeviceState::READY);
 
         log("FEELERS READY!", AutoNav::Logging::WARN); //FIXME TODO
+        //FIXME this is for temporary debug purposes while we are minus a UI
+        // this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
     }
 
     /**
@@ -150,9 +152,12 @@ public:
      * @param image a compressedimage message with the combined transformations of all 4 cameras
      */
     void onImageReceived(sensor_msgs::msg::CompressedImage const image) {
-        log("FEELERS OPERATING!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("FEELERS OPERATING!", AutoNav::Logging::WARN); //FIXME TODO
 
-        set_device_state(AutoNav::DeviceState::OPERATING);
+        // once we've actually gotten an image, we can safely say we're operating pretty well
+        if (this->get_device_state() != AutoNav::DeviceState::OPERATING) {
+            set_device_state(AutoNav::DeviceState::OPERATING);
+        }
 
         // reinitialize the heading arrow (with a bias towards going 'forwards')
         this->headingArrow = Feeler(0, 25);
@@ -160,18 +165,18 @@ public:
         // turn the image into a format we can use
         auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
 
-        log("FEELERS MASKING!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("FEELERS MASKING!", AutoNav::Logging::WARN); //FIXME TODO
 
         // calculate new length of every new feeler
         for (Feeler feeler : this->feelers) {
             feeler.update(&mask);
         }
 
-        log("FEELERS DRAWING!", AutoNav::Logging::WARN); //FIXME TODO
-        log("FEELERS LENGTH, MASK ROWS, MASK COLS, DEBUG ROWS, DEBUG COLS", AutoNav::Logging::WARN);
-        log(std::to_string(this->feelers.size()), AutoNav::Logging::WARN);
-        log(std::to_string(mask.cols), AutoNav::Logging::WARN);
-        log(std::to_string(mask.rows), AutoNav::Logging::WARN);
+        // log("FEELERS DRAWING!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("FEELERS LENGTH, MASK ROWS, MASK COLS, DEBUG ROWS, DEBUG COLS", AutoNav::Logging::WARN);
+        // log(std::to_string(this->feelers.size()), AutoNav::Logging::WARN);
+        // log(std::to_string(mask.cols), AutoNav::Logging::WARN);
+        // log(std::to_string(mask.rows), AutoNav::Logging::WARN);
         // log(std::to_string(debug_image_ptr->cols), AutoNav::Logging::WARN); //FIXME TODO
         // log(std::to_string(debug_image_ptr->rows), AutoNav::Logging::WARN);
 
@@ -179,28 +184,27 @@ public:
         // also if you drew on the image while modifying it that would mess up some of the feelers
         // also add all the feelers together
         for (Feeler feeler : this->feelers) {
-            log("DRAWING FEELER: " + feeler.to_string(), AutoNav::Logging::WARN);
+            // log("DRAWING FEELER: " + feeler.to_string(), AutoNav::Logging::WARN);
             if (this->debug_image_ptr != nullptr) {
                 feeler.draw(debug_image_ptr->image); //TODO we are failing here, probably because debug_image_ptr doesn't exist
             }
-            log("FEELER DRAWN!", AutoNav::Logging::WARN); // FIXME TODO
+            // log("FEELER DRAWN!", AutoNav::Logging::WARN); // FIXME TODO
             this->headingArrow = this->headingArrow + feeler;
         }
 
-        log("ULTRASONIC FEELERS!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("ULTRASONIC FEELERS!", AutoNav::Logging::WARN); //FIXME TODO
 
-        // ultrasonics
-        for (Feeler feeler : this->ultrasonic_feelers) {
-            // ultrasonic feelers contribute twice as much because there are fewer of them
-            this->headingArrow = this->headingArrow + feeler;
+        // ultrasonics FIXME re-enable ultrasonics once we like, have this figured out
+        // for (Feeler feeler : this->ultrasonic_feelers) {
+        //     // ultrasonic feelers contribute twice as much because there are fewer of them
+        //     this->headingArrow = this->headingArrow + feeler;
 
-            feeler.draw(debug_image_ptr->image);
-        }
+        //     if (this->debug_image_ptr != nullptr) {
+        //         feeler.draw(debug_image_ptr->image); //FIXME
+        //     }
+        // }
 
-        log("chat are we cooked", AutoNav::Logging::WARN); //FIXME TODO
-
-        //FIXME this is for temporary debug purposes while we are minus a UI
-        this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
+        // log("chat are we cooked", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
@@ -210,11 +214,11 @@ public:
     void onDebugImageReceived(const sensor_msgs::msg::CompressedImage image) {
         this->newDebugImage = true;
 
-        log("GETTING DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("GETTING DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
 
         this->debug_image_ptr = cv_bridge::toCvCopy(image); //TODO figure out what encoding we want to use
 
-        log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
@@ -235,11 +239,11 @@ public:
      * @param msg an Ultrasonic message from a sensor
      */
     void onUltrasonicsReceived(const autonav_msgs::msg::Ultrasonic msg) {
-        log("GETTING ULTRASONICS!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("GETTING ULTRASONICS!", AutoNav::Logging::WARN); //FIXME TODO
 
         this->ultrasonic_feelers[msg.id - 1].setLength(msg.distance * this->config["ultrasonic_contribution"].get<double>()); // minus 1 because the sensors are numbered 1-8
 
-        log("ULTRASONICS GOT!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("ULTRASONICS GOT!", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
@@ -251,7 +255,7 @@ public:
             return; // return because we don't need to do anything
         }
 
-        log("PUBLISHING MOTOR OUTPUT!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("PUBLISHING MOTOR OUTPUT!", AutoNav::Logging::WARN); //FIXME TODO
 
         if (this->gpsTime == 0 && this->hasPosition) {
             this->gpsTime = now();
@@ -259,10 +263,10 @@ public:
             double heading_degrees = abs(this->position.theta * 180 / PI);
             if (120 < heading_degrees && heading_degrees < 240) {
                 this->direction = "south";
-                log("PICKING SOUTH WAYPOINTS", AutoNav::Logging::INFO);
+                // log("PICKING SOUTH WAYPOINTS", AutoNav::Logging::INFO);
             } else {
                 this->direction = "north";
-                log("PICKING NORTH WAYPOINTS", AutoNav::Logging::INFO);
+                // log("PICKING NORTH WAYPOINTS", AutoNav::Logging::INFO);
             }
         }
 
@@ -272,18 +276,19 @@ public:
         
         // if we are allowed to move (earlier check means we are already in auto and operating, so don't have to recheck those)
         if (this->is_mobility()) {
-            log("WE ARE MOBILE!", AutoNav::Logging::WARN); //FIXME TODO
+            // log("WE ARE MOBILE!", AutoNav::Logging::WARN); //FIXME TODO
 
             // make the message
             autonav_msgs::msg::MotorInput msg;
 
             // add a bias forwards
-            this->headingArrow = this->headingArrow + Feeler(0, 50);
+            // this->headingArrow = this->headingArrow + Feeler(0, 50);
+            this->headingArrow = this->headingArrow + Feeler(0, 10);
 
             // add a bias towards the GPS waypoint
             //FIXME this doesn't account for the rotation of the robot
             //FIXME the clamping should be configurable or something
-            double distToWaypoint = 500;
+            double distToWaypoint = 500; //FIXME what the heck is this doing here? 500?
             if (this->direction != "") {
                 GPSPoint goalPoint = this->waypointsDict.at(this->direction)[this->waypointIndex];
                 this->headingArrow = this->headingArrow + Feeler(std::clamp(goalPoint.lon - this->position.longitude, -200.0, 200.0), std::clamp(goalPoint.lat - this->position.latitude, -200.0, 200.0));
@@ -296,8 +301,11 @@ public:
                 }
             }
 
-            log("DRAWING HEADING ARROW!", AutoNav::Logging::WARN); //FIXME TODO
-            // this->headingArrow.draw(debug_image_ptr->image); // debug image pointer is something we haven't figure out yet
+            if (this->debug_image_ptr != nullptr) {
+                // log("DRAWING HEADING ARROW!", AutoNav::Logging::WARN); //FIXME TODO
+                this->headingArrow.setColor(cv::Scalar(0, 200, 0)); //TODO this should be configurable or something?
+                this->headingArrow.draw(debug_image_ptr->image); // debug image pointer is something we haven't figure out yet
+            }
 
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
@@ -316,10 +324,13 @@ public:
             this->motorPublisher->publish(msg);
             // and publish the safety lights message
             this->safetyLightsPublisher->publish(safetyLightsMsg);
-            log("MOTOR AND SAFETY LIGHTS PUBLISHED!", AutoNav::Logging::WARN); //FIXME TODO
+            // log("MOTOR AND SAFETY LIGHTS PUBLISHED!", AutoNav::Logging::WARN); //FIXME TODO
             
             // and publish the debug image
-            // this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //FIXME this is killing the code right now
+            if (this->debug_image_ptr != nullptr) {
+                // log("PUBLISING DEBUG!", AutoNav::Logging::WARN); //FIXME TODO
+                this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //FIXME this is killing the code right now
+            }
 
 
             // make the audible feedback message
@@ -341,11 +352,11 @@ public:
             // if we are actually wanting to play a file
             if (publishAudible) {
                 this->audibleFeedbackPublisher->publish(feedback_msg);
-                log("PUBLISHING AUDIBLE FEEDBACK!", AutoNav::Logging::WARN); //FIXME TODO
+                // log("PUBLISHING AUDIBLE FEEDBACK!", AutoNav::Logging::WARN); //FIXME TODO
             }
 
         } else {
-            log("NO MOBILITY!", AutoNav::Logging::WARN); //FIXME TODO
+            // log("NO MOBILITY!", AutoNav::Logging::WARN); //FIXME TODO
 
             // we are not mobility enabled and thus not allowed to move, so publish velocities of 0 for everything
             autonav_msgs::msg::MotorInput msg;
@@ -360,7 +371,11 @@ public:
 
             this->motorPublisher->publish(msg);
             this->safetyLightsPublisher->publish(safetyLightsMsg);
-            // this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO FIXME
+
+            if (this->debug_image_ptr != nullptr) {
+                // log("PUBLISHING DEBUG!", AutoNav::Logging::WARN); //FIXME TODO
+                this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO FIXME
+            }
         }
     }
 
