@@ -8,12 +8,19 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(autonav_msgs REQUIRED)
 find_package(autonav_shared REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(OpenCV REQUIRED)
+
+# Install Python programs
+install(PROGRAMS
+  src/fake_vision_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # C++
 add_executable(feeler_node src/feeler_node.cpp)

@@ -24,3 +24,6 @@ autonav_ws/src/scr/include/scr/websocketpp/**/*:Zone.Identifier
 
 # python
 **/venv
+
+# temporary feeler node testing
+autonav_ws/data

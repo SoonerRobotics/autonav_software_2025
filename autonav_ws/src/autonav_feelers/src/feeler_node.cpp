@@ -168,10 +168,14 @@ public:
 
         // log("FEELERS MASKING!", AutoNav::Logging::WARN); //FIXME TODO
 
+        this->perf_start("FeelerNode::update");
+
         // calculate new length of every new feeler
         for (Feeler feeler : this->feelers) {
             feeler.update(this->feeler_img_ptr->image);
         }
+
+        this->perf_stop("FeelerNode::update", true);
 
         // log("FEELERS DRAWING!", AutoNav::Logging::WARN); //FIXME TODO
         // log("FEELERS LENGTH, MASK ROWS, MASK COLS, DEBUG ROWS, DEBUG COLS", AutoNav::Logging::WARN);
@@ -180,6 +184,8 @@ public:
         // log(std::to_string(mask.rows), AutoNav::Logging::WARN);
         // log(std::to_string(debug_image_ptr->cols), AutoNav::Logging::WARN); //FIXME TODO
         // log(std::to_string(debug_image_ptr->rows), AutoNav::Logging::WARN);
+
+        this->perf_start("FeelerNode::draw");
 
         // draw debug image (separate from loop because this will modify the image, which wouldn't work multithreaded)
         // also if you drew on the image while modifying it that would mess up some of the feelers
@@ -192,6 +198,8 @@ public:
             // log("FEELER DRAWN!", AutoNav::Logging::WARN); // FIXME TODO
             this->headingArrow = this->headingArrow + feeler;
         }
+
+        this->perf_stop("FeelerNode::draw", true);
 
         // log("ULTRASONIC FEELERS!", AutoNav::Logging::WARN); //FIXME TODO
 
@@ -219,7 +227,7 @@ public:
 
         this->debug_image_ptr = cv_bridge::toCvCopy(image); //TODO figure out what encoding we want to use
 
-        // log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+        log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
     }
 
     /**
