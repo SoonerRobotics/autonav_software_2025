@@ -5,6 +5,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "cv_bridge/cv_bridge.hpp"
 #include "sensor_msgs/msg/image.hpp"
+// #include "feeler_node.cpp"
+#include "autonav_shared/node.hpp"
+// #include "autonav_shared/types.hpp"
 
 #define PI 3.141592653
 
@@ -40,7 +43,7 @@ public:
 
     void setXY(int x, int y);
     void setLength(double newLength);
-    void update(cv::Mat mask);
+    void update(cv::Mat *mask, AutoNav::Node *node);
     void draw(cv::Mat image);
 
     Feeler operator+(Feeler const &other);
@@ -211,9 +214,9 @@ void Feeler::setLength(double newLength) {
  * FIXME TODO we should pass this a pointer not the whole matrix so we can throw it into some threads.
  * @param the thresholded image to perform feeler on
  */
-void Feeler::update(cv::Mat mask) {
-    int channels = mask.channels();
-    auto pixelPtr = (uint8_t*)mask.data;
+void Feeler::update(cv::Mat *mask, AutoNav::Node *node) {
+    int channels = mask->channels();
+    auto pixelPtr = (uint8_t*)mask->data;
 
     int x_ = 0;
     int y_ = 0;
@@ -230,56 +233,67 @@ void Feeler::update(cv::Mat mask) {
     double slope = 0;
     bool slopeIsInfinity = false;
     if (this->original_y != 0) {
-        slope = static_cast<double>(this->original_y) / static_cast<double>(this->original_y);
+        slope = static_cast<double>(this->original_y) / static_cast<double>(this->original_x);
     } else {
         slopeIsInfinity = true;
     }
 
-    // vertical line, just need to move along the y-axis
-    if (slopeIsInfinity) {
-        y_ += 1;
-    } else if (slope == 0) {
-        x_ += 1;
-    } else if (abs(slope) <= 1) {
-        // if slope is shallow, make x the independent variable
-        // get the y as a function of x
-        new_y = abs(slope) * x_;
+    int pixelsChecked = 0; //FIXME remove when done debugging
 
-        // if the new y is higher than the previous one
-        if ((new_y - prev_y) > 0) {
-            y_ += 1; // then go up by 1 y
+    // loop until we hit an obstacle or max_length
+    while (1) {
+        // vertical line, just need to move along the y-axis
+        if (slopeIsInfinity) {
+            y_ += 1;
+        } else if (slope == 0) {
+            x_ += 1;
+        } else if (abs(slope) <= 1) {
+            // if slope is shallow, make x the independent variable
+            // get the y as a function of x
+            new_y = abs(slope) * x_;
+
+            // if the new y is higher than the previous one
+            if ((new_y - prev_y) > 0) {
+                y_ += 1; // then go up by 1 y
+            }
+
+            x_ += 1;
+            prev_y = y_;
+        } else { // slope is steep, do y as independent variable
+            // get x as a function of y
+            new_x = abs(1/slope) * y_;
+
+            // and then if the new x is larger than the old one
+            if ((new_x - prev_x) > 0) {
+                x_ += 1; // go up by one
+            }
+
+            y_ += 1;
+            prev_x = x_;
         }
+        
+        auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, mask->cols, mask->rows);
 
-        x_ += 1;
-        prev_y = y_;
-    } else { // slope is steep, do y as independent variable
-        // get x as a function of y
-        new_x = abs(1/slope) * y_;
+        // node->log("Checking pixel: (" + std::to_string(coords[0]) + ", " + std::to_string(coords[1]) + ")", AutoNav::Logging::LogLevel::INFO);
+        // node->log("Pixel value is (" + std::to_string(pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + 0]) + ", " + std::to_string(pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + 1]) + "," + std::to_string(pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + 2]) + ")");
 
-        // and then if the new x is larger than the old one
-        if ((new_x - prev_x) > 0) {
-            x_ += 1; // go up by one
+        // for every one of the pixel's values (out of blue, green, and red as per openCV standard)
+        for (int i = 0; i < 3; i++) {
+            pixelsChecked++;
+
+            //reference https://stackoverflow.com/questions/7899108/opencv-get-pixel-channel-value-from-mat-image
+            if (pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + i] > 0) {
+                // that is our new length
+                // node->log("OBSTACLE FOUND! Pixels checked: " + std::to_string(pixelsChecked), AutoNav::Logging::ERROR);
+                this->setXY(x_*x_dir, y_*y_dir);
+                return; // and quit so we don't keep looping 'cause we found an obstacle
+            } else if (abs(x_) > abs(this->original_x) || abs(y_) > abs(this->original_y)) { // if we're past our original farthest point
+                this->setXY(this->original_x, this->original_y); // then we found no obstacle, and should stop looping
+                // node->log("NO OBSTACLE FOUND! Pixels checked: " + std::to_string(pixelsChecked), AutoNav::Logging::ERROR);
+                return;
+            }
         }
-
-        y_ += 1;
-        prev_x = x_;
     }
-    
-    auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, mask.cols, mask.rows);
-
-    // for every one of the pixel's values (out of blue, green, and red as per openCV standard)
-    for (int i = 0; i < 3; i++) {
-        //reference https://stackoverflow.com/questions/7899108/opencv-get-pixel-channel-value-from-mat-image
-        if (pixelPtr[coords[1]*mask.cols*channels + coords[0]*channels + i] > 0) {
-            // that is our new length
-            this->setXY(x_*x_dir, y_*y_dir);
-            return; // and quit so we don't keep looping 'cause we found an obstacle
-        } else if (abs(x_) > abs(this->original_x) || abs(y_) > abs(this->original_y)) { // if we're past our original farthest point
-            this->setXY(this->original_x, this->original_y); // then we found no obstacle, and should stop looping
-            return;
-        }
-    }
-
 }
 
 /**

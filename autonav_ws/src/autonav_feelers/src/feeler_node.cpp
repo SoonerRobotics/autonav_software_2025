@@ -47,8 +47,8 @@ public:
 
     void init() override {
         auto config_ = FeelerNodeConfig();
-        config_.max_length = 300;
-        config_.number_of_feelers = 10;
+        config_.max_length = 400;
+        config_.number_of_feelers = 30;
         config_.start_angle = 5;
         config_.waypointPopDist = 2;
         config_.ultrasonic_contribution = 1;
@@ -102,17 +102,18 @@ public:
         this->buildFeelers();
 
         // make the feelers for the ultrasonics
+        //TODO this should be part of buildFeelers or its own function or something
         ultrasonic_feelers = std::vector<Feeler>();
         for (double angle = 0.0; angle < 360; angle += 90) { // these originate at the origin, which is fine because the only contribute in one axis
             int x = this->config["max_length"].get<int>() * cos(radians(angle)); //int should truncate these to nice whole numbers
             int y = this->config["max_length"].get<int>() * sin(radians(angle));
 
-            this->feelers.push_back(Feeler(x, y));
-            this->feelers.push_back(Feeler(x, y)); // there are 2 ultrasonic distance sensors per side
+            this->ultrasonic_feelers.push_back(Feeler(x, y));
+            this->ultrasonic_feelers.push_back(Feeler(x, y)); // there are 2 ultrasonic distance sensors per side
         }
 
         for (Feeler feeler : ultrasonic_feelers) {
-            feeler.setColor(cv::Scalar(0, 200, 0)); // ultrasonic feelers are a different color
+            feeler.setColor(cv::Scalar(0, 200, 100)); // ultrasonic feelers are a different color
         }
 
         publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishMotorOutput, this));
@@ -123,7 +124,7 @@ public:
 
         log("FEELERS READY!", AutoNav::Logging::WARN); //FIXME TODO
         //FIXME this is for temporary debug purposes while we are minus a UI
-        // this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
+        this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
     }
 
     /**
@@ -133,7 +134,7 @@ public:
      */
     void buildFeelers() {
         this->feelers = std::vector<Feeler>();
-        for (double angle = this->config["start_angle"].get<double>(); angle < 360; angle += (360 / this->config["start_angle"].get<double>())) {
+        for (double angle = this->config["start_angle"].get<double>(); angle < 360; angle += (360 / this->config["number_of_feelers"].get<double>())) {
             int x = this->config["max_length"].get<int>() * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
             int y = this->config["max_length"].get<int>() * sin(radians(angle));
 
@@ -145,6 +146,7 @@ public:
         }
 
         log("FEELERS BUILT!", AutoNav::Logging::WARN); //FIXME TODO
+        log("NUMBER OF FEELERS: " + std::to_string(this->feelers.size()), AutoNav::Logging::WARN);
     }
 
     /**
@@ -163,8 +165,8 @@ public:
         this->headingArrow = Feeler(0, 25);
 
         // turn the image into a format we can use
-        // auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
-        this->feeler_img_ptr = cv_bridge::toCvCopy(image);
+        auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
+        // this->feeler_img_ptr = cv_bridge::toCvCopy(image);
 
         // log("FEELERS MASKING!", AutoNav::Logging::WARN); //FIXME TODO
 
@@ -172,7 +174,7 @@ public:
 
         // calculate new length of every new feeler
         for (Feeler feeler : this->feelers) {
-            feeler.update(this->feeler_img_ptr->image);
+            feeler.update(&mask, this);
         }
 
         this->perf_stop("FeelerNode::update", true);
@@ -191,13 +193,17 @@ public:
         // also if you drew on the image while modifying it that would mess up some of the feelers
         // also add all the feelers together
         for (Feeler feeler : this->feelers) {
-            // log("DRAWING FEELER: " + feeler.to_string(), AutoNav::Logging::WARN);
+            // log("DRAWING FEELER: " + feeler.to_string(), AutoNav::Logging::ERROR);
             if (this->debug_image_ptr != nullptr) {
-                feeler.draw(debug_image_ptr->image); //TODO we are failing here, probably because debug_image_ptr doesn't exist
+                feeler.draw(debug_image_ptr->image);
+                this->feelersDrawn = true; // we have drawn the feelers, debug image is good to publish
+            } else {
+                // log("DEBUG IMAGE IS NULL", AutoNav::Logging::ERROR);
             }
             // log("FEELER DRAWN!", AutoNav::Logging::WARN); // FIXME TODO
             this->headingArrow = this->headingArrow + feeler;
         }
+
 
         this->perf_stop("FeelerNode::draw", true);
 
@@ -221,7 +227,8 @@ public:
      * @param image the compressedImage message to draw the feelers on
      */
     void onDebugImageReceived(const sensor_msgs::msg::CompressedImage image) {
-        this->newDebugImage = true;
+        this->newDebugImage = true; // there is a new image to be published (because camera framerate != publisher callback timer)
+        // this->feelersDrawn = false; // haven't drawn the feelers on it yet
 
         // log("GETTING DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
 
@@ -335,10 +342,12 @@ public:
             this->safetyLightsPublisher->publish(safetyLightsMsg);
             // log("MOTOR AND SAFETY LIGHTS PUBLISHED!", AutoNav::Logging::WARN); //FIXME TODO
             
-            // and publish the debug image
-            if (this->debug_image_ptr != nullptr) {
+            // publish a new debug image only if we've received a new one (as we have to publish motor messages faster than we receive images for safety reasons)
+            if (this->debug_image_ptr != nullptr && this->newDebugImage && this->feelersDrawn) {
                 // log("PUBLISING DEBUG!", AutoNav::Logging::WARN); //FIXME TODO
-                this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //FIXME this is killing the code right now
+                this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg()));
+                this->newDebugImage = false;
+                this->feelersDrawn = false;
             }
 
 
@@ -381,9 +390,13 @@ public:
             this->motorPublisher->publish(msg);
             this->safetyLightsPublisher->publish(safetyLightsMsg);
 
-            if (this->debug_image_ptr != nullptr) {
+            //FIXME if this image is published whether or not we have mobility, then it should go outside the if/else statement yah?
+            // publish a new debug image only if we've received a new one (as we have to publish motor messages faster than we receive images for safety reasons
+            if (this->debug_image_ptr != nullptr && this->newDebugImage && this->feelersDrawn) {
                 // log("PUBLISHING DEBUG!", AutoNav::Logging::WARN); //FIXME TODO
                 this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO FIXME
+                this->newDebugImage = false;
+                this->feelersDrawn = false;
             }
         }
     }
@@ -395,6 +408,7 @@ private:
     Feeler headingArrow = Feeler(0, 0);
 
     bool newDebugImage = false;
+    bool feelersDrawn = false;
     cv_bridge::CvImagePtr debug_image_ptr;
     cv_bridge::CvImagePtr feeler_img_ptr;
 

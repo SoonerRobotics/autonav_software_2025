@@ -45,9 +45,10 @@ class ImageCombiner(Node):
         self.debug_video_reader = cv2.VideoCapture("./data/debug_combined.mp4")
 
         #TODO make timers
-        self.publish_timer = self.create_timer(5, self.publish_combined_images)
+        self.publish_timer = self.create_timer(.75, self.publish_combined_images)
 
         self.frame = 0
+        self.writtenFrames = 0
         
         self.log("starting image combiner...", LogLevel.WARN)
         self.set_device_state(DeviceState.READY)
@@ -55,6 +56,8 @@ class ImageCombiner(Node):
 
     # just write that straight to output
     def on_feelers_received(self, msg):
+        self.writtenFrames += 1
+        print(f"Receiving frame: {self.writtenFrames}")
         self.feeler_video_writer.write(bridge.compressed_imgmsg_to_cv2(msg))
 
     def publish_combined_images(self):
@@ -63,7 +66,7 @@ class ImageCombiner(Node):
         ret1, combined_image = self.video_reader.read()
         ret2, debug_image = self.debug_video_reader.read()
 
-        if not ret1 or not ret2 or self.frame > 3:
+        if not ret1 or not ret2 or self.frame > 20:
             self.log("OUT OF IMAGES", LogLevel.FATAL)
 
             self.video_reader.release()
@@ -74,8 +77,8 @@ class ImageCombiner(Node):
 
         self.frame += 1
 
+        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_image)) #FIXME there's got to be a better way to handle this feelers-side, but for now just send this first so that feelers can draw on it before it gets overwritten
         self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined_image))
-        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_image))
     
 
 def main():
