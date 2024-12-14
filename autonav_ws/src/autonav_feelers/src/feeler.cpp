@@ -40,7 +40,7 @@ public:
 
     void setXY(int x, int y);
     void setLength(double newLength);
-    void update(cv::Mat *mask);
+    void update(cv::Mat mask);
     void draw(cv::Mat image);
 
     Feeler operator+(Feeler const &other);
@@ -211,9 +211,9 @@ void Feeler::setLength(double newLength) {
  * FIXME TODO we should pass this a pointer not the whole matrix so we can throw it into some threads.
  * @param the thresholded image to perform feeler on
  */
-void Feeler::update(cv::Mat *mask) {
-    int channels = mask->channels();
-    auto pixelPtr = (uint8_t*)mask->data;
+void Feeler::update(cv::Mat mask) {
+    int channels = mask.channels();
+    auto pixelPtr = (uint8_t*)mask.data;
 
     int x_ = 0;
     int y_ = 0;
@@ -265,12 +265,12 @@ void Feeler::update(cv::Mat *mask) {
         prev_x = x_;
     }
     
-    auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, mask->cols, mask->rows);
+    auto coords = this->centerCoordinates(x_*x_dir, y_*y_dir, mask.cols, mask.rows);
 
     // for every one of the pixel's values (out of blue, green, and red as per openCV standard)
     for (int i = 0; i < 3; i++) {
         //reference https://stackoverflow.com/questions/7899108/opencv-get-pixel-channel-value-from-mat-image
-        if (pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + i] > 0) {
+        if (pixelPtr[coords[1]*mask.cols*channels + coords[0]*channels + i] > 0) {
             // that is our new length
             this->setXY(x_*x_dir, y_*y_dir);
             return; // and quit so we don't keep looping 'cause we found an obstacle

@@ -163,13 +163,14 @@ public:
         this->headingArrow = Feeler(0, 25);
 
         // turn the image into a format we can use
-        auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
+        // auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
+        this->feeler_img_ptr = cv_bridge::toCvCopy(image);
 
         // log("FEELERS MASKING!", AutoNav::Logging::WARN); //FIXME TODO
 
         // calculate new length of every new feeler
         for (Feeler feeler : this->feelers) {
-            feeler.update(&mask);
+            feeler.update(this->feeler_img_ptr->image);
         }
 
         // log("FEELERS DRAWING!", AutoNav::Logging::WARN); //FIXME TODO
@@ -387,6 +388,7 @@ private:
 
     bool newDebugImage = false;
     cv_bridge::CvImagePtr debug_image_ptr;
+    cv_bridge::CvImagePtr feeler_img_ptr;
 
     // GPS
     GPSPoint goalPoint;
