@@ -135,7 +135,7 @@ std::vector<int> Feeler::centerCoordinates(int x, int y, int width, int height) 
     std::vector<int> ret;
 
     ret.push_back(x + width/2);
-    ret.push_back(y + height/2);
+    ret.push_back(-y + height/2); // flip y coordinate, because if the top-left corner of an image is the origin, then the x axis will still work like normal (left is negative, etc) but the y axis will not
 
     return ret;
 }
@@ -188,9 +188,11 @@ std::string Feeler::to_string() {
  * Set the x and y of the end point of the feeler, relative to the origin
  * the origin being the center of the image
  */
-void Feeler::setXY(int x, int y) {
-    this->x = x;
-    this->y = y;
+void Feeler::setXY(int x_, int y_) {
+    this->x = x_;
+    this->y = y_;
+
+    this->length = this->dist(x_, y_);
 }
 
 /**
@@ -217,6 +219,9 @@ void Feeler::setLength(double newLength) {
 void Feeler::update(cv::Mat *mask, AutoNav::Node *node) {
     int channels = mask->channels();
     auto pixelPtr = (uint8_t*)mask->data;
+
+    // node->log(std::to_string(*pixelPtr));
+    // node->log(std::to_string(channels));
 
     int x_ = 0;
     int y_ = 0;
@@ -278,14 +283,15 @@ void Feeler::update(cv::Mat *mask, AutoNav::Node *node) {
         // node->log("Pixel value is (" + std::to_string(pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + 0]) + ", " + std::to_string(pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + 1]) + "," + std::to_string(pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + 2]) + ")");
 
         // for every one of the pixel's values (out of blue, green, and red as per openCV standard)
+        pixelsChecked++;
         for (int i = 0; i < 3; i++) {
-            pixelsChecked++;
-
             //reference https://stackoverflow.com/questions/7899108/opencv-get-pixel-channel-value-from-mat-image
             if (pixelPtr[coords[1]*mask->cols*channels + coords[0]*channels + i] > 0) {
                 // that is our new length
                 // node->log("OBSTACLE FOUND! Pixels checked: " + std::to_string(pixelsChecked), AutoNav::Logging::ERROR);
+                // node->log(this->to_string(), AutoNav::Logging::ERROR);
                 this->setXY(x_*x_dir, y_*y_dir);
+                // node->log(this->to_string(), AutoNav::Logging::ERROR);
                 return; // and quit so we don't keep looping 'cause we found an obstacle
             } else if (abs(x_) > abs(this->original_x) || abs(y_) > abs(this->original_y)) { // if we're past our original farthest point
                 this->setXY(this->original_x, this->original_y); // then we found no obstacle, and should stop looping

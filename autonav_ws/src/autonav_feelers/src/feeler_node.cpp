@@ -49,7 +49,7 @@ public:
         // configuration stuff
         auto config_ = FeelerNodeConfig();
         config_.max_length = 400;
-        config_.number_of_feelers = 30;
+        config_.number_of_feelers = 20;
         config_.start_angle = 5;
         config_.waypointPopDist = 2;
         config_.ultrasonic_contribution = 1;
@@ -108,17 +108,17 @@ public:
         lastTime = now();
 
         // subscribers
-        positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
+        // positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
         imageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/filtered", 1, std::bind(&FeelerNode::onImageReceived, this, std::placeholders::_1));
         debugImageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/debug", 1, std::bind(&FeelerNode::onDebugImageReceived, this, std::placeholders::_1));
-        ultrasonicSubscriber = create_subscription<autonav_msgs::msg::Ultrasonic>("/autonav/ultrasonics", 1, std::bind(&FeelerNode::onUltrasonicsReceived, this, std::placeholders::_1));
+        // ultrasonicSubscriber = create_subscription<autonav_msgs::msg::Ultrasonic>("/autonav/ultrasonics", 1, std::bind(&FeelerNode::onUltrasonicsReceived, this, std::placeholders::_1));
         
         // publishers
-        motorPublisher = create_publisher<autonav_msgs::msg::MotorInput>("/autonav/motor_input", 1);
+        // motorPublisher = create_publisher<autonav_msgs::msg::MotorInput>("/autonav/motor_input", 1);
         debugPublisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/feelers/debug", 1);
-        safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
-        audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
-        publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishOutputMessages, this));
+        // safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
+        // audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
+        // publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishOutputMessages, this));
 
         set_device_state(AutoNav::DeviceState::READY);
 
@@ -165,14 +165,24 @@ public:
         auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
         // this->feeler_img_ptr = cv_bridge::toCvCopy(image);
 
-        // log("FEELERS MASKING!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("LOGGING REGULAR IMAGE...", AutoNav::Logging::ERROR); //FIXME TODO
+
+        //TODO TEMP HACK FIXME BUG draw on image to see if it has any effect
+        // Feeler tempFeeler = Feeler(100, 100);
+        // tempFeeler.setColor(cv::Scalar(200, 200, 100));
+        // tempFeeler.draw(mask);
+
+        // log("drew that one image", AutoNav::Logging::INFO); //FIXME TODO
 
         this->perf_start("FeelerNode::update");
 
         // calculate new length of every new feeler
-        for (Feeler feeler : this->feelers) {
+        for (Feeler &feeler : this->feelers) {
             feeler.update(&mask, this);
+            // log(feeler.to_string(), AutoNav::Logging::WARN); //FIXME TODO
         }
+
+        // log("first feeler: " + this->feelers.at(0).to_string(), AutoNav::Logging::INFO);
 
         this->perf_stop("FeelerNode::update", true);
 
@@ -234,7 +244,7 @@ public:
             }
         }
 
-        this->calculateOutputs();
+        // this->calculateOutputs();
     }
 
     /**
@@ -250,7 +260,7 @@ public:
 
         // log("ULTRASONICS GOT!", AutoNav::Logging::WARN); //FIXME TODO
 
-        this->calculateOutputs();
+        // this->calculateOutputs();
     }
 
     /**
@@ -272,25 +282,35 @@ public:
             return;
         }
 
-        log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("LOGGING DEBUG IMAGE RECEIVED...", AutoNav::Logging::ERROR); //FIXME TODO
 
         // draw feelers on the debug image
         this->perf_start("FeelerNode::draw");
-        for (Feeler feeler : this->feelers) {
+        for (Feeler &feeler : this->feelers) {
+            // log(feeler.to_string(), AutoNav::Logging::WARN);
+            // log("==================", AutoNav::Logging::WARN);
+            // feeler.setXY(100, 100);
             feeler.draw(this->debug_image_ptr->image);
+            // log(feeler.to_string(), AutoNav::Logging::WARN);
         }
 
         // draw the ultrasonic feelers on the image (on top of the vision feelers)
-        for (Feeler feeler : this->ultrasonic_feelers) {
-            feeler.draw(this->debug_image_ptr->image);
-        }
+        // for (Feeler feeler : this->ultrasonic_feelers) {
+        //     feeler.draw(this->debug_image_ptr->image);
+        // }
 
         // draw the GPS feeler
-        this->gpsFeeler.draw(this->debug_image_ptr->image);
+        // this->gpsFeeler.draw(this->debug_image_ptr->image);
 
         // draw the heading arrow on top of everything else
         this->headingArrow.draw(this->debug_image_ptr->image);
         this->perf_stop("FeelerNode::draw", true);
+
+
+        //TEMP TODO FIXME BUG TESTING HACK
+        // Feeler x = Feeler(-200, 0);
+        // x.setColor(cv::Scalar(40, 20, 150));
+        // x.draw(this->debug_image_ptr->image);
 
         // publish the debug image
         this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO
@@ -306,7 +326,7 @@ public:
     void calculateOutputs() {
         // reinitialize the heading arrow (with a bias towards going 'forwards')
         //TODO what if forwards isn't forwards? we re-initialize this a lot, so FIXME does not account for robot rotation
-        this->headingArrow = Feeler(0, 25); //TODO this should be configurable (the bias forwards, that is)
+        this->headingArrow = Feeler(0, 100); //TODO this should be configurable (the bias forwards, that is)
         this->headingArrow.setColor(cv::Scalar(0, 250, 0)); //TODO this should be configurable?
 
         // add all the vision-based feelers together
