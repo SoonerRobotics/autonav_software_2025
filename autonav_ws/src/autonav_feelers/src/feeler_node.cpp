@@ -46,6 +46,7 @@ public:
     ~FeelerNode() = default;
 
     void init() override {
+        // configuration stuff
         auto config_ = FeelerNodeConfig();
         config_.max_length = 400;
         config_.number_of_feelers = 30;
@@ -86,18 +87,6 @@ public:
             log("No waypoints read! GPS Feeler will not work", AutoNav::Logging::WARN);
         }
 
-        // subscribers
-        positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
-        imageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/filtered", 1, std::bind(&FeelerNode::onImageReceived, this, std::placeholders::_1));
-        debugImageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/debug", 1, std::bind(&FeelerNode::onDebugImageReceived, this, std::placeholders::_1));
-        ultrasonicSubscriber = create_subscription<autonav_msgs::msg::Ultrasonic>("/autonav/ultrasonics", 1, std::bind(&FeelerNode::onUltrasonicsReceived, this, std::placeholders::_1));
-        
-        // publishers
-        motorPublisher = create_publisher<autonav_msgs::msg::MotorInput>("/autonav/motor_input", 1);
-        debugPublisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/feelers/debug", 1);
-        safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
-        audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
-
         // make all the feelers
         this->buildFeelers();
 
@@ -116,9 +105,20 @@ public:
             feeler.setColor(cv::Scalar(0, 200, 100)); // ultrasonic feelers are a different color
         }
 
-        publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishMotorOutput, this));
-
         lastTime = now();
+
+        // subscribers
+        positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
+        imageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/filtered", 1, std::bind(&FeelerNode::onImageReceived, this, std::placeholders::_1));
+        debugImageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/debug", 1, std::bind(&FeelerNode::onDebugImageReceived, this, std::placeholders::_1));
+        ultrasonicSubscriber = create_subscription<autonav_msgs::msg::Ultrasonic>("/autonav/ultrasonics", 1, std::bind(&FeelerNode::onUltrasonicsReceived, this, std::placeholders::_1));
+        
+        // publishers
+        motorPublisher = create_publisher<autonav_msgs::msg::MotorInput>("/autonav/motor_input", 1);
+        debugPublisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/feelers/debug", 1);
+        safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
+        audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
+        publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishOutputMessages, this));
 
         set_device_state(AutoNav::DeviceState::READY);
 
@@ -161,9 +161,6 @@ public:
             set_device_state(AutoNav::DeviceState::OPERATING);
         }
 
-        // reinitialize the heading arrow (with a bias towards going 'forwards')
-        this->headingArrow = Feeler(0, 25);
-
         // turn the image into a format we can use
         auto mask = cv_bridge::toCvCopy(image)->image; //TODO what encoding do we want to use?
         // this->feeler_img_ptr = cv_bridge::toCvCopy(image);
@@ -187,65 +184,57 @@ public:
         // log(std::to_string(debug_image_ptr->cols), AutoNav::Logging::WARN); //FIXME TODO
         // log(std::to_string(debug_image_ptr->rows), AutoNav::Logging::WARN);
 
-        this->perf_start("FeelerNode::draw");
-
-        // draw debug image (separate from loop because this will modify the image, which wouldn't work multithreaded)
-        // also if you drew on the image while modifying it that would mess up some of the feelers
-        // also add all the feelers together
-        for (Feeler feeler : this->feelers) {
-            // log("DRAWING FEELER: " + feeler.to_string(), AutoNav::Logging::ERROR);
-            if (this->debug_image_ptr != nullptr) {
-                feeler.draw(debug_image_ptr->image);
-                this->feelersDrawn = true; // we have drawn the feelers, debug image is good to publish
-            } else {
-                // log("DEBUG IMAGE IS NULL", AutoNav::Logging::ERROR);
-            }
-            // log("FEELER DRAWN!", AutoNav::Logging::WARN); // FIXME TODO
-            this->headingArrow = this->headingArrow + feeler;
-        }
-
-
-        this->perf_stop("FeelerNode::draw", true);
-
-        // log("ULTRASONIC FEELERS!", AutoNav::Logging::WARN); //FIXME TODO
-
-        // ultrasonics FIXME re-enable ultrasonics once we like, have this figured out
-        // for (Feeler feeler : this->ultrasonic_feelers) {
-        //     // ultrasonic feelers contribute twice as much because there are fewer of them
-        //     this->headingArrow = this->headingArrow + feeler;
-
-        //     if (this->debug_image_ptr != nullptr) {
-        //         feeler.draw(debug_image_ptr->image); //FIXME
-        //     }
-        // }
-
         // log("chat are we cooked", AutoNav::Logging::WARN); //FIXME TODO
-    }
 
-    /**
-     * Callback to receive and color image from the cameras to draw the feelers on for debug purposes
-     * @param image the compressedImage message to draw the feelers on
-     */
-    void onDebugImageReceived(const sensor_msgs::msg::CompressedImage image) {
-        this->newDebugImage = true; // there is a new image to be published (because camera framerate != publisher callback timer)
-        // this->feelersDrawn = false; // haven't drawn the feelers on it yet
-
-        // log("GETTING DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
-
-        this->debug_image_ptr = cv_bridge::toCvCopy(image); //TODO figure out what encoding we want to use
-
-        log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+        this->calculateOutputs();
     }
 
     /**
      * Callback to receive the position of the robot from the particle filter
-     * we need to know this so we can figure out which way to move to get to the GPS waypoints
+     * Uses the position to calculate what direction we need to move in to get to next waypoint, as well as popping waypoints once we get close enough
+     * Also automatically calculates if we're going north or south
+     * All code that is related to position-based stuff is located here, as it doesn't get updated anywhere else
+     * No output, but does updates GPS feeler, which is added to headingArrow later to drive us towards the waypoint
      * @param msg the Postion message from the particle filter
      */
     void onPositionReceived(const autonav_msgs::msg::Position msg) {
         this->position = msg;
 
-        this->hasPosition = true;
+        // if we haven't set a timestamp yet, but have started the run
+        if (this->gpsTime == 0 && this->is_mobility() && this->get_system_state() == AutoNav::SystemState::AUTONOMOUS) {
+            this->gpsTime = now(); // then set the timestamp for the start of the run
+        // if, however, we have set a timestamp, and it's been long enough that the particle filter should know which direction we're heading
+        } else if (now() - this->gpsTime > this->config["gpsWaitSeconds"].get<unsigned long>() && this->direction == "") {
+            // then pick a set of waypoints based on which direction we are heading
+            double heading_degrees = abs(this->position.theta * 180 / PI);
+            if (120 < heading_degrees && heading_degrees < 240) {
+                this->direction = "south";
+                log("PICKING SOUTH WAYPOINTS", AutoNav::Logging::INFO);
+            } else {
+                this->direction = "north";
+                log("PICKING NORTH WAYPOINTS", AutoNav::Logging::INFO);
+            }
+        }
+
+        this->distToWaypoint = 0;
+        if (this->direction != "") { // if we have a direction, then we are good to use it to get waypoints and go towards them
+            GPSPoint goalPoint = this->waypointsDict.at(this->direction)[this->waypointIndex];
+            //FIXME this doesn't account for the rotation of the robot
+            //FIXME the clamping and proprotional stuff should be configurable so we can make GPS contributions mean more or less
+            //FIXME this should be like, proportional and not just the error where is my kP term
+            this->gpsFeeler = Feeler(std::clamp(goalPoint.lon - this->position.longitude, -200.0, 200.0), std::clamp(goalPoint.lat - this->position.latitude, -200.0, 200.0));
+            this->gpsFeeler.setColor(cv::Scalar(50, 100, 50)); //GPS feeler is dark green
+
+            this->distToWaypoint = std::sqrt(std::pow((goalPoint.lon - this->position.longitude)*this->latitudeLength, 2) + std::pow((goalPoint.lat - this->position.latitude)*this->longitudeLength, 2));
+
+            // if we are close enough to the waypoint, and we aren't going to cause an out-of-bounds index error
+            if (this->distToWaypoint < config["waypointPopDist"].get<double>() && this->waypointIndex < this->waypointsDict[this->direction].size()-1) {
+                // then go to the next waypoint
+                this->waypointIndex++;
+            }
+        }
+
+        this->calculateOutputs();
     }
 
     /**
@@ -260,144 +249,149 @@ public:
         this->ultrasonic_feelers[msg.id - 1].setLength(msg.distance * this->config["ultrasonic_contribution"].get<double>()); // minus 1 because the sensors are numbered 1-8
 
         // log("ULTRASONICS GOT!", AutoNav::Logging::WARN); //FIXME TODO
+
+        this->calculateOutputs();
     }
 
     /**
-     * Publish the motor output messages. Main feeler node function.
+     * Callback to receive the color image to draw debug information on
+     * All draw() calls should be in this function.
+     * @param image the compressedImage message to draw the feelers on
      */
-    void publishMotorOutput() {
+    void onDebugImageReceived(const sensor_msgs::msg::CompressedImage image) {
+        // update the headingArrow with the most recent information
+        this->calculateOutputs();
+
+        // log("GETTING DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+
+        // get the debug image
+        this->debug_image_ptr = cv_bridge::toCvCopy(image); //TODO figure out what encoding we want to use
+
+        // don't publish or draw on the image if it doesn't exist
+        if (this->debug_image_ptr == nullptr) {
+            return;
+        }
+
+        log("GOT DEBUG IMAGE!", AutoNav::Logging::WARN); //FIXME TODO
+
+        // draw feelers on the debug image
+        this->perf_start("FeelerNode::draw");
+        for (Feeler feeler : this->feelers) {
+            feeler.draw(this->debug_image_ptr->image);
+        }
+
+        // draw the ultrasonic feelers on the image (on top of the vision feelers)
+        for (Feeler feeler : this->ultrasonic_feelers) {
+            feeler.draw(this->debug_image_ptr->image);
+        }
+
+        // draw the GPS feeler
+        this->gpsFeeler.draw(this->debug_image_ptr->image);
+
+        // draw the heading arrow on top of everything else
+        this->headingArrow.draw(this->debug_image_ptr->image);
+        this->perf_stop("FeelerNode::draw", true);
+
+        // publish the debug image
+        this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO
+    }
+
+    /**
+     * Calculate what the motor output should be, based on all available sensor inputs.
+     * Main feeler node function, called in every sensor callback, as new sensor data = new motor outputs.
+     * Motor outputs (aka this->headingArrow) calculated here will be read by publishOutputMessages() to be put into message form and sent,
+     * as publishOutputMessages() runs much faster than all the sensor inputs for safety reasons, as the firmware
+     * on the motor manager PCB will disable the motors if it hasn't received a motor command after a short period of time.
+     */
+    void calculateOutputs() {
+        // reinitialize the heading arrow (with a bias towards going 'forwards')
+        //TODO what if forwards isn't forwards? we re-initialize this a lot, so FIXME does not account for robot rotation
+        this->headingArrow = Feeler(0, 25); //TODO this should be configurable (the bias forwards, that is)
+        this->headingArrow.setColor(cv::Scalar(0, 250, 0)); //TODO this should be configurable?
+
+        // add all the vision-based feelers together
+        for (Feeler feeler : this->feelers) {
+            //FIXME the weight of the feelers should be configurable (outside of MAX_LENGTH), or like give them a custom response curve or something
+            this->headingArrow = this->headingArrow + feeler;
+        }
+
+        // add all the ultrasonic feelers together
+        for (Feeler feeler : this->ultrasonic_feelers) {
+            // FIXME TODO use the config ultrasonics_weight to determine how much ultrasonics effect the heading arrow
+            this->headingArrow = this->headingArrow + feeler;
+        }
+
+        // add the GPS feeler in too
+        this->headingArrow = this->headingArrow + this->gpsFeeler;
+    }
+
+    /**
+     * Publish all the output messages (motors, audible feedback, and safety lights).
+     * On a short timer so we don't fail the firmware heartbeat watchdog timer check thingamajig.
+     */
+    void publishOutputMessages() {
         // if we aren't in autonomous
         if (this->get_system_state() != AutoNav::SystemState::AUTONOMOUS && this->get_device_state() != AutoNav::DeviceState::OPERATING) {
-            return; // return because we don't need to do anything
+            return; // return because we don't need to do anything (so as to avoid conflicting with manual control if that's running)
         }
 
         // log("PUBLISHING MOTOR OUTPUT!", AutoNav::Logging::WARN); //FIXME TODO
 
-        if (this->gpsTime == 0 && this->hasPosition) {
-            this->gpsTime = now();
-        } else if (now() - this->gpsTime > this->config["gpsWaitSeconds"].get<unsigned long>() && this->direction == "") { // if it's been 6 seconds and we haven't set the direction yet
-            double heading_degrees = abs(this->position.theta * 180 / PI);
-            if (120 < heading_degrees && heading_degrees < 240) {
-                this->direction = "south";
-                // log("PICKING SOUTH WAYPOINTS", AutoNav::Logging::INFO);
-            } else {
-                this->direction = "north";
-                // log("PICKING NORTH WAYPOINTS", AutoNav::Logging::INFO);
-            }
-        }
-
-        // make the safety lights message for publishing
+        // make the messages for publishing
         autonav_msgs::msg::SafetyLights safetyLightsMsg;
+        autonav_msgs::msg::MotorInput msg;
+        autonav_msgs::msg::AudibleFeedback feedback_msg;
+
+        // default in auto should be red
+        safetyLightsMsg.red = 255;
+        safetyLightsMsg.blue = 0;
+        safetyLightsMsg.green = 0;
         safetyLightsMsg.autonomous = true; // if we passed the system state check at the beginning of the function and reach this line of code then we're in auto
-        
+
         // if we are allowed to move (earlier check means we are already in auto and operating, so don't have to recheck those)
         if (this->is_mobility()) {
             // log("WE ARE MOBILE!", AutoNav::Logging::WARN); //FIXME TODO
 
-            // make the message
-            autonav_msgs::msg::MotorInput msg;
-
-            // add a bias forwards
-            // this->headingArrow = this->headingArrow + Feeler(0, 50);
-            this->headingArrow = this->headingArrow + Feeler(0, 10);
-
-            // add a bias towards the GPS waypoint
-            //FIXME this doesn't account for the rotation of the robot
-            //FIXME the clamping should be configurable or something
-            double distToWaypoint = 500; //FIXME what the heck is this doing here? 500?
-            if (this->direction != "") {
-                GPSPoint goalPoint = this->waypointsDict.at(this->direction)[this->waypointIndex];
-                this->headingArrow = this->headingArrow + Feeler(std::clamp(goalPoint.lon - this->position.longitude, -200.0, 200.0), std::clamp(goalPoint.lat - this->position.latitude, -200.0, 200.0));
-                distToWaypoint = std::sqrt(std::pow((goalPoint.lon - this->position.longitude)*this->latitudeLength, 2) + std::pow((goalPoint.lat - this->position.latitude)*this->longitudeLength, 2));
-
-                // if we are close enough to the waypoint, and we aren't going to cause an out-of-bounds index error
-                if (distToWaypoint < config["waypointPopDist"].get<double>() && this->waypointIndex < this->waypointsDict[this->direction].size()-1) {
-                    // then go to the next waypoint
-                    this->waypointIndex++;
-                }
-            }
-
-            if (this->debug_image_ptr != nullptr) {
-                // log("DRAWING HEADING ARROW!", AutoNav::Logging::WARN); //FIXME TODO
-                this->headingArrow.setColor(cv::Scalar(0, 200, 0)); //TODO this should be configurable or something?
-                this->headingArrow.draw(debug_image_ptr->image); // debug image pointer is something we haven't figure out yet
-            }
-
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
+            //FIXME the clamping should be configurable or something
             msg.forward_velocity = std::clamp(this->headingArrow.getY(), -5, 5);
             msg.sideways_velocity = std::clamp(this->headingArrow.getX(), -5, 5);
             msg.angular_velocity = 0.0; //TODO figure out when we want to turn
 
-            // default in auto should be red
-            safetyLightsMsg.red = 255;
-            safetyLightsMsg.blue = 0;
-            safetyLightsMsg.green = 0;
-
             //TODO safety lights need to change to other colors and stuff for debug information
-
-            //publish the motor message
-            this->motorPublisher->publish(msg);
-            // and publish the safety lights message
-            this->safetyLightsPublisher->publish(safetyLightsMsg);
-            // log("MOTOR AND SAFETY LIGHTS PUBLISHED!", AutoNav::Logging::WARN); //FIXME TODO
-            
-            // publish a new debug image only if we've received a new one (as we have to publish motor messages faster than we receive images for safety reasons)
-            if (this->debug_image_ptr != nullptr && this->newDebugImage && this->feelersDrawn) {
-                // log("PUBLISING DEBUG!", AutoNav::Logging::WARN); //FIXME TODO
-                this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg()));
-                this->newDebugImage = false;
-                this->feelersDrawn = false;
-            }
-
-
-            // make the audible feedback message
-            //TODO figure out what sounds we actually want to play and when
-            autonav_msgs::msg::AudibleFeedback feedback_msg;
-            bool publishAudible = true;
-            if (distToWaypoint < config["waypointPopDist"].get<double>()) {
-                feedback_msg.filename = "ding.mp3";
-            } else if (msg.forward_velocity < -0.5) { //TODO this is all robot-relative movement, so 'left' and 'right' here refer to the robot's POV, and if we end up moving primarily sideways through ex No-man's land then this could get annoying
-                feedback_msg.filename = "beep_beep.mp3";
-            } else if (msg.sideways_velocity < -1) {
-                feedback_msg.filename = "going_left.mp3";
-            } else if (msg.sideways_velocity > 1) {
-                feedback_msg.filename = "going_right.mp3";
-            } else {
-                publishAudible = false;
-            }
-            
-            // if we are actually wanting to play a file
-            if (publishAudible) {
-                this->audibleFeedbackPublisher->publish(feedback_msg);
-                // log("PUBLISHING AUDIBLE FEEDBACK!", AutoNav::Logging::WARN); //FIXME TODO
-            }
-
         } else {
             // log("NO MOBILITY!", AutoNav::Logging::WARN); //FIXME TODO
 
             // we are not mobility enabled and thus not allowed to move, so publish velocities of 0 for everything
-            autonav_msgs::msg::MotorInput msg;
             msg.forward_velocity = 0.0;
             msg.sideways_velocity = 0.0;
             msg.angular_velocity = 0.0;
+        }
 
-            // default in auto should be red
-            safetyLightsMsg.red = 255;
-            safetyLightsMsg.blue = 0;
-            safetyLightsMsg.green = 0;
+        //TODO figure out what sounds we actually want to play and when
+        bool publishAudible = true;
+        if (distToWaypoint < config["waypointPopDist"].get<double>()) {
+            feedback_msg.filename = "ding.mp3";
+        } else if (msg.forward_velocity < -0.5) { //TODO this is all robot-relative movement, so 'left' and 'right' here refer to the robot's POV, and if we end up moving primarily sideways through ex No-man's land then this could get annoying
+            feedback_msg.filename = "beep_beep.mp3";
+        } else if (msg.sideways_velocity < -1) {
+            feedback_msg.filename = "going_left.mp3";
+        } else if (msg.sideways_velocity > 1) {
+            feedback_msg.filename = "going_right.mp3";
+        } else {
+            publishAudible = false;
+        }
+        
+        // publish the messages
+        this->motorPublisher->publish(msg);
+        this->safetyLightsPublisher->publish(safetyLightsMsg);
+        // log("MOTOR AND SAFETY LIGHTS PUBLISHED!", AutoNav::Logging::WARN); //FIXME TODO
 
-            this->motorPublisher->publish(msg);
-            this->safetyLightsPublisher->publish(safetyLightsMsg);
-
-            //FIXME if this image is published whether or not we have mobility, then it should go outside the if/else statement yah?
-            // publish a new debug image only if we've received a new one (as we have to publish motor messages faster than we receive images for safety reasons
-            if (this->debug_image_ptr != nullptr && this->newDebugImage && this->feelersDrawn) {
-                // log("PUBLISHING DEBUG!", AutoNav::Logging::WARN); //FIXME TODO
-                this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO FIXME
-                this->newDebugImage = false;
-                this->feelersDrawn = false;
-            }
+        // if we are actually wanting to play a file
+        if (publishAudible) {
+            this->audibleFeedbackPublisher->publish(feedback_msg);
+            // log("PUBLISHING AUDIBLE FEEDBACK!", AutoNav::Logging::WARN); //FIXME TODO
         }
     }
 
@@ -405,22 +399,19 @@ private:
     // feelers
     std::vector<Feeler> feelers;
     std::vector<Feeler> ultrasonic_feelers;
+    Feeler gpsFeeler = Feeler(0, 0);
     Feeler headingArrow = Feeler(0, 0);
 
-    bool newDebugImage = false;
-    bool feelersDrawn = false;
     cv_bridge::CvImagePtr debug_image_ptr;
     cv_bridge::CvImagePtr feeler_img_ptr;
 
     // GPS
     GPSPoint goalPoint;
     autonav_msgs::msg::Position position;
+    double distToWaypoint = 0;
     unsigned long int lastTime = 0;
     unsigned long int gpsTime = 0;
-    bool hasPosition = false;
 
-    // FeelerNodeConfig config;
-    
     // subscribers
     rclcpp::Subscription<autonav_msgs::msg::Position>::SharedPtr positionSubscriber;
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr imageSubscriber;
