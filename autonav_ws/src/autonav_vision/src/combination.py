@@ -15,12 +15,15 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 bridge = CvBridge()
 
+#TODO all image dimensions should be based off the image received instead of constants in this file, so we only have to change it in like camera.py and then make no changes here
+
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 
 #TODO use like max() or min() in case we play with the dimensions
 # or like, combine them better so the total combined image is only 640x480 or something
-COMBINED_IMAGE_WIDTH = IMAGE_HEIGHT*2 # left and right cameras are 480 pixels tall but turned on their sides so it's 480 pixels wide and then next to each other, and the top/bottom cameras are only 640 wide so this is fine
+# COMBINED_IMAGE_WIDTH = IMAGE_HEIGHT*2 # left and right cameras are 480 pixels tall but turned on their sides so it's 480 pixels wide and then next to each other, and the top/bottom cameras are only 640 wide so this is fine
+COMBINED_IMAGE_WIDTH = IMAGE_HEIGHT*2 + IMAGE_WIDTH # make it a square, follow what the height is
 COMBINED_IMAGE_HEIGHT = IMAGE_HEIGHT*2 + IMAGE_WIDTH # top and bottom cameras are 480 pixels tall, plus the left/right cameras turned on their side which adds 640 pixels
 
 
@@ -120,7 +123,7 @@ class ImageCombiner(Node):
         x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
         combined[0 : IMAGE_HEIGHT, x_offset : x_offset+IMAGE_WIDTH] = image_front
         combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 : IMAGE_HEIGHT] = image_left # the left and right cameras are rotated 90 degrees so coordinates are backwards, it is not [IMAGE_HEIGHT : IMAGE_HEIGHT*2, 0 : IMAGE_WIDTH]
-        combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, IMAGE_HEIGHT : ] = image_right # same here, if it wasn't rotated it would be [IMAGE_HEIGHT : IMAGE_HEIGHT*2, IMAGE_WIDTH : ]
+        combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT : ] = image_right # same here, if it wasn't rotated it would be [IMAGE_HEIGHT : IMAGE_HEIGHT*2, IMAGE_WIDTH : ]
         combined[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT : , x_offset : x_offset+IMAGE_WIDTH] = image_back
 
         # and publish the image
@@ -142,10 +145,11 @@ class ImageCombiner(Node):
         # debug_combined = cv2
 
         # we have a copy of every image now, so combine them
+        #FIXME *really* don't like duplicated code here
         x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
         debug_combined[0 : IMAGE_HEIGHT, x_offset : x_offset+IMAGE_WIDTH] = debug_image_front
         debug_combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 : IMAGE_HEIGHT] = debug_image_left # the left and right cameras are rotated 90 degrees so coordinates are backwards, it is not [IMAGE_HEIGHT : IMAGE_HEIGHT*2, 0 : IMAGE_WIDTH]
-        debug_combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, IMAGE_HEIGHT : ] = debug_image_right # same here, if it wasn't rotated it would be [IMAGE_HEIGHT : IMAGE_HEIGHT*2, IMAGE_WIDTH : ]
+        debug_combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, IMAGE_HEIGHT+IMAGE_WIDTH : ] = debug_image_right # same here, if it wasn't rotated it would be [IMAGE_HEIGHT : IMAGE_HEIGHT*2, IMAGE_WIDTH : ]
         debug_combined[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT : , x_offset : x_offset+IMAGE_WIDTH] = debug_image_back
 
         # and publish the image
@@ -168,7 +172,7 @@ class ImageCombiner(Node):
 
         # FIXME DEBUG HACK
         # while the UI still in development, log images to a video for debugging
-        if self.frame < 200:
+        if self.frame < 500:
             combined = cv2.cvtColor(np.uint8(combined), cv2.COLOR_GRAY2BGR)
             self.video_writer.write(combined)
             self.debug_video_writer.write(debug_combined)
