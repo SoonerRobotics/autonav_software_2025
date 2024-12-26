@@ -17,6 +17,7 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python programs
 install(PROGRAMS
   src/test_nodes.py
+  src/gps_test.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
