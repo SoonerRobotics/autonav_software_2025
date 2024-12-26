@@ -15,20 +15,20 @@ class GpsLoggerNode(Node):
 
         self.create_subscription(GPSFeedback, "/autonav/gps", self.logging_callback, 1)
 
-        # self.logfile = open(self.filename, "a")
+        self.logfile = open(self.filename, "a")
 
         self.set_device_state(DeviceState.READY)
 
     def logging_callback(self, msg: GPSFeedback):
-        self.log("OPERATING", LogLevel.WARN)
-        self.set_device_state(DeviceState.OPERATING)
+        # self.log("OPERATING", LogLevel.WARN)
+        # self.set_device_state(DeviceState.OPERATING)
 
         lat = msg.latitude
         lon = msg.longitude
 
-        print(f"({lat}, {lon})")
+        # print(f"({lat}, {lon})")
 
-        # self.logfile.write(f"{lat},{lon}\n")
+        self.logfile.write(f"{lat},{lon}\n")
 
 
 def main():
