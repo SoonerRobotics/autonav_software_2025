@@ -9,3 +9,4 @@ my_can_bus = can.ThreadSafeBus(
 with my_can_bus as bus:
     for msg in bus:
         print(msg.data)
+        
