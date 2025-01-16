@@ -77,7 +77,6 @@ class FrameTransformer(Node):
         self.camera_debug_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/camera/compressed") + "/cutout", self.qos_profile)
         self.grid_publisher = self.create_publisher(OccupancyGrid, self.directionify("/autonav/cfg_space/raw"), 1)
         self.grid_image_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/cfg_space/raw/image") + "_small", self.qos_profile)
-
         self.set_device_state(DeviceStateEnum.OPERATING)
 
     # ways to do the auto hsv calibration
@@ -177,46 +176,33 @@ class FrameTransformer(Node):
         return img 
 
     # HSV color space color-picking
-    def hsvcolorpicked():
+    class hsvcolorpicked:
+        # Define the max ROI, should return the bounding box size(slightly smaller than the input image)
+        def roi_max(self, image):
+            height, width = image.shape[0]
+            reduction_width = int(width * (self.config.reduction_percentage / 100) / 2)
+            reduction_height = int(height * (self.config.reduction_percentage / 100) / 2)
+            # define the max ROI
+            x = reduction_width
+            y = reduction_height
+            roi_width = width - 2 * reduction_width
+            roi_height = height - 2 * reduction_height
+
+            return (x, y, roi_width, roi_height)
         
-        return
+        # Take the input video from four cameras of the bot, make the conversion of video file from RGB to HSV Using Equations
+        def video_conversion(red, green, blue):
+
+
+        # Define the reference ROI, should return the bounding box size
+        def roi_reference():
+            #TODO
+            return
     
-    # Define the max ROI, should return the bounding box size(slightly smaller than the input image)
-    def roi_max(self, image):
-        height, width = image.shape[0]
-        reduction_width = int(width * (self.config.reduction_percentage / 100) / 2)
-        reduction_height = int(height * (self.config.reduction_percentage / 100) / 2)
-        # define the max ROI
-        x = reduction_width
-        y = reduction_height
-        roi_width = width - 2 * reduction_width
-        roi_height = height - 2 * reduction_height
-
-        return (x, y, roi_width, roi_height)
-
-    # Define the reference ROI, should return the bounding box size
-    def roi_reference():
-    
-        return
-    
-    # Try to random pick roi within the roi_max
-    def random_roi():
-        
-        return
-    
-    # draw the bounding box for max, reference and random roi
-    def roi_draw():
-
-        
-    # Compare the similarity of colors(with picked hsv color) with detected objects'
-    def hsv_calculation():
-
-        return
-
-    # ROI merge operation to get the shape or contour of detected object more accurately
-    def roi_merge():
-
-        return
+        # draw the bounding box for max, reference and random roi
+        def roi_draw():
+            #TODO
+            return
     
 
 
