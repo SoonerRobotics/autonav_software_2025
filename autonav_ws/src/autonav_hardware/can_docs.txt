@@ -1,1 +1,5 @@
-can docs
+Follow the slcand portion of https://canable.io/getting-started.html for testing the canable
+
+You may need to sudo apt install net-tools to get ifconfig
+
+The python package is python3-can
