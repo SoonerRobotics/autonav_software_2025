@@ -15,8 +15,6 @@ import cv2
 
 bridge = CvBridge()
 
-# refrence for combining images https://stackoverflow.com/questions/30227466/combine-several-images-horizontally-with-python
-
 class LogConfig:
     def __init__(self):
         self.record_imu = True
