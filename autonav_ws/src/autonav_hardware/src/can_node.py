@@ -39,6 +39,7 @@ class SafetyLightsPacket(Structure):
 
 class CanConfig:
     def __init__(self):
+        self.canable_filepath = "/dev/ttyACM3"
         self.odom_feedback_scaler = 10000
         self.linear_pid_scaling_factor = 1000
         self.angular_pid_scaling_factor = 1000
@@ -120,14 +121,14 @@ class CanNode(Node):
 
     def can_worker(self):
         try:
-            with open("/dev/ttyACM0", "r") as f:
+            with open(self.config.get("canable_filepath"), "r") as f:
                 pass
 
             if self.can is not None:
                 return
 
             self.can = can.ThreadSafeBus(
-                bustype="slcan", channel="/dev/ttyACM0", bitrate=100000)
+                bustype="slcan", channel=self.config.get("canable_filepath"), bitrate=100000)
             self.set_device_state(DeviceState.OPERATING)
         except:
             if self.can is not None:
@@ -270,20 +271,23 @@ class CanNode(Node):
 
 
     def on_conbus_received(self, msg:Conbus):
+        self.log("Conbus received", LogLevel.DEBUG)
         if self.get_device_state() != DeviceState.OPERATING:
             return
-        try:
-            data = bytes(msg.data)
-            arbitration_id = msg.id
+        # try:
+        data = bytes(msg.data)
+        arbitration_id = msg.id
 
-            can_msg = can.message(arbitration_id = arbitration_id, data = data)
-            
-            try:
-                self.can.send(can_msg)
-            except can.CanError:
-                pass
-        except:
+        can_msg = can.Message(arbitration_id = arbitration_id, data = data)
+        
+        try:
+            self.log("Sending can message", LogLevel.DEBUG)
+            self.can.send(can_msg)
+        except can.CanError:
             pass
+        # except Exception as e:
+        #     self.log(f"{e}", LogLevel.DEBUG)
+        #     pass
     
 def main():
     rclpy.init()
