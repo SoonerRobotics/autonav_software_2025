@@ -69,21 +69,25 @@ class playback(Node):
         self.camera2 = self.create_subscription(CompressedImage, 'autonav/camera/right', lambda msg: self.cameraCallback(msg, 'right'), self.QOS)
         self.camera3 = self.create_subscription(CompressedImage, 'autonav/camera/front', lambda msg: self.cameraCallback(msg, 'front'), self.QOS)
         self.camera4 = self.create_subscription(CompressedImage, 'autonav/camera/back', lambda msg: self.cameraCallback(msg, 'back'), self.QOS)
-        #self.
+        # Additional Video Feeds
+        self.combined = self.create_subscription(CompressedImage, '/autonav/vision/combined/filtered', lambda msg: self.cameraCallback(msg, 'combined'), self.QOS)
+        self.feelers = self.create_subscription(CompressedImage, '/autonav/feelers/debug', lambda msg: self.cameraCallback(msg, 'feelers'), self.QOS)
         
         # FFmpeg Process Dict - Stores the ffmpeg pipes
-        self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None, 'combined':None}
+        self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None, 'combined':None, 'feelers':None}
         # Tracks pipe status
-        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False, 'combined':False}
+        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False, 'combined':False, 'feelers':None}
         
         # Video Buffer List | Generally cutoff is equal to number of frames, in this case 15 frames ~ 1 sec of footage
-        self.buffer_dict = {'left':[], 'right':[], 'front':[], 'back':[]}
+        self.buffer_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
         # Time is money
-        self.base_time_dict = {'left':time.time(), 'right':time.time(), 'front':time.time(), 'back':time.time()}
+        t = time.time()
+        self.base_time_dict = {'left':t, 'right':t, 'front':t, 'back':t, 'combined':t, 'feelers':t}
+        del t
         
         # Video Stream Performance Tracking
         # List of times in seconds to record every frame
-        self.performance_dict = {'left':[], 'right':[], 'front':[], 'back':[]}
+        self.performance_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
         
         
     
@@ -123,6 +127,10 @@ class playback(Node):
             new_process('front')
         elif id == "back" and self.process_dict["back"] == None and not self.closed_dict['back']:
             new_process('back')
+        elif id == "combined" and self.process_dict["combined"] == None and not self.closed_dict['combined']:
+            new_process('combined')
+        elif id == "feelers" and self.process_dict["feelers"] == None and not self.closed_dict['feelers']:
+            new_process('feelers')
         
         if id == 'left' and not self.closed_dict['left']:
             check_buffer('left')
@@ -132,6 +140,10 @@ class playback(Node):
             check_buffer('front')
         elif id == 'back' and not self.closed_dict['back']:
             check_buffer('back')
+        elif id == 'combined' and not self.closed_dict['combined']:
+            check_buffer('combined')
+        elif id == 'feelers' and not self.closed_dict['feelers']:
+            check_buffer('feelers')
     
     def process_img(self, msg, process):
         image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
@@ -171,16 +183,26 @@ class playback(Node):
         if not self.process_dict['back'] == None:
             self.process_dict['back'].stdin.close()
             self.process_dict['back'].wait()
+        if not self.process_dict['combined'] == None:
+            self.process_dict['combined'].stdin.close()
+            self.process_dict['combined'].wait()
+        if not self.process_dict['feelers'] == None:
+            self.process_dict['feelers'].stdin.close()
+            self.process_dict['feelers'].wait()
         
         self.process_dict['left'] = None
         self.process_dict['right'] = None
         self.process_dict['front'] = None
         self.process_dict['back'] = None
+        self.process_dict['combined'] = None
+        self.process_dict['feelers'] = None
         
         self.closed_dict['left'] = True
         self.closed_dict['right'] = True
         self.closed_dict['front'] = True
         self.closed_dict['back'] = True
+        self.closed_dict['combined'] = True
+        self.closed_dict['feelers'] = True
     
     
     
