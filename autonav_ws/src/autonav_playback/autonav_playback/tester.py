@@ -37,7 +37,7 @@ class TestPublisher(Node):
         self.pub.append(self.create_publisher(Performance, '/autonav/performance', 10))
         
         
-        timer_period =  0.033 # ~30 fps | Also way faster
+        timer_period =  0.001
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
         
@@ -73,20 +73,13 @@ class TestPublisher(Node):
             return
         else:
             # Send Vid Over MSG
-            msg = Bool()
-            msg.data = ret
-            self.left_publisher.publish(msg)
-            self.right_publisher.publish(msg)
-            self.front_publisher.publish(msg)
-            self.back_publisher.publish(msg)
-            self.cap = None
-            self.cap_none_count += 1
+            print("Return Frame False")
             return
 
     def timer_callback(self):
         
         # The cutoff is greater than The Video length which is 360 frames at 30fps
-        if self.i >= 360:
+        if self.i >= 720:
             msg = SystemState()
             msg.state = 3
             self.pub[0].publish(msg)

@@ -60,155 +60,84 @@ class playback(Node):
 
         
         
-        self.FRAMERATE = 15
+        self.FRAMERATE = 30
         # Raw Camera Record Settings
         self.record_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', str(self.FRAMERATE), '-s', '640x480', '-i', '-']
-        # Vision Pipeline record Settings
-        self.vis_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', str(self.FRAMERATE), '-s', '640x480', '-i', '-', 'output.mp4']
         
         # Raw Camera Topics
         self.camera1 = self.create_subscription(CompressedImage, 'autonav/camera/left', lambda msg: self.cameraCallback(msg, 'left'), self.QOS)
         self.camera2 = self.create_subscription(CompressedImage, 'autonav/camera/right', lambda msg: self.cameraCallback(msg, 'right'), self.QOS)
         self.camera3 = self.create_subscription(CompressedImage, 'autonav/camera/front', lambda msg: self.cameraCallback(msg, 'front'), self.QOS)
         self.camera4 = self.create_subscription(CompressedImage, 'autonav/camera/back', lambda msg: self.cameraCallback(msg, 'back'), self.QOS)
+        #self.
         
         # FFmpeg Process Dict - Stores the ffmpeg pipes
-        self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None}
+        self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None, 'combined':None}
         # Tracks pipe status
-        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False}
+        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False, 'combined':False}
         
         # Video Buffer List | Generally cutoff is equal to number of frames, in this case 15 frames ~ 1 sec of footage
-        self.buffer_left = []
-        self.buffer_right = []
-        self.buffer_front = []
-        self.buffer_back = []
+        self.buffer_dict = {'left':[], 'right':[], 'front':[], 'back':[]}
         # Time is money
-        self.base_time_left = time.time()
-        self.base_time_right = time.time()
-        self.base_time_front = time.time()
-        self.base_time_back = time.time()
+        self.base_time_dict = {'left':time.time(), 'right':time.time(), 'front':time.time(), 'back':time.time()}
         
         # Video Stream Performance Tracking
         # List of times in seconds to record every frame
-        self.left_performance = []
-        self.right_performance = []
-        self.front_performance = []
-        self.back_performance = []
+        self.performance_dict = {'left':[], 'right':[], 'front':[], 'back':[]}
         
-        
-        # FFmpeg record video
-        # ffmpeg -f avfoundation -framerate 30 -i "0:1" output.mp4
-        # Might need to change avfoundation, framerate and -i
-        # Use Pipe? Might need to change codec?
-        # ffmpeg -f image2pipe -vcodec mjpec -framerate 30 -i - output.mp4
-        # command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '30', '-s', '1920x1080', '-i', '-', 'output.mp4']
-        
-        # Dev Video Subscriber
-        self.dev_vid_sub = self.create_subscription(CompressedImage, 'dev_vid', self.dev_vid_feedback, self.QOS)
-        self.dev_vid_status_sub = self.create_subscription(Bool, 'vid_status', self.close_proc, self.QOS)
-        self.process = None
-        self.closed = False
         
     
     def cameraCallback(self, msg, id):
+        path = os.path.join(self.home_dir, "Documents", "AutoNav", "Vids")
+        os.makedirs(path, exist_ok=True)
+        
+        def new_process(id: str):
+            print('Opening new Proccess')
+            
+            # Adjust the command output filename
+            c = self.record_command
+            c.append(path+'/'+id+'.mp4')
+            self.process_dict[id] = subprocess.Popen(c, stdin=subprocess.PIPE)
+            
+            # Start tracking time as soon as pipe opens
+            self.buffer_dict[id].append(msg)
+            self.base_time_dict[id] = time.time()
+        
+        def check_buffer(id: str):
+            # Check the buffer to see if it has a whole second of frames
+            if len(self.buffer_dict[id]) == 30:
+                frame_time = self.get_elapsed_seconds(self.base_time_dict[id])
+                self.base_time_dict[id] = time.time()
+                self.performance_dict[id].append(frame_time)
+                # Then Process the whole buffer
+                self.process_frame_buffer(self.buffer_dict[id], self.process_dict[id])
+                self.print_performance(self.performance_dict[id])
+                self.buffer_dict[id] = []
+            self.buffer_dict[id].append(msg)
         
         if id == 'left' and self.process_dict["left"] == None and not self.closed_dict['left']:
-            self.get_logger().info('Opening New Process')
-            
-            # Adjust the command output filename
-            c = self.record_command
-            c.append('left.mp4')
-            self.process_dict["left"] = subprocess.Popen(c, stdin=subprocess.PIPE)
-            
-            #self.process_img(msg, self.process_dict["left"])
-            # Start tracking time as soon as pipe opens
-            self.buffer_left.append(msg)
-            self.base_time_left = time.time()
+            new_process('left')
         elif id == 'right' and self.process_dict["right"] == None and not self.closed_dict['right']:
-            self.get_logger().info('Opening New Process')
-            
-            # Adjust the command output filename
-            c = self.record_command
-            c.append('right.mp4')
-            self.process_dict["right"] = subprocess.Popen(c, stdin=subprocess.PIPE)
-            
-            #self.process_img(msg, self.process_dict["right"])
-            self.buffer_right.append(msg)
-            self.base_time_right = time.time()
+            new_process('right')
         elif id == "front" and self.process_dict["front"] == None and not self.closed_dict['front']:
-            self.get_logger().info('Opening New Process')
-            
-            # Adjust the command output filename
-            c = self.record_command
-            c.append('front.mp4')
-            self.process_dict["front"] = subprocess.Popen(c, stdin=subprocess.PIPE)
-            
-            #self.process_img(msg, self.process_dict["front"])
-            self.buffer_front.append(msg)
-            self.base_time_front = time.time()
+            new_process('front')
         elif id == "back" and self.process_dict["back"] == None and not self.closed_dict['back']:
-            self.get_logger().info('Opening New Process')
-            
-            # Adjust the command output filename
-            c = self.record_command
-            c.append('back.mp4')
-            self.process_dict["back"] = subprocess.Popen(c, stdin=subprocess.PIPE)
-            
-            #self.process_img(msg, self.process_dict["back"])
-            self.buffer_back.append(msg)
-            self.base_time_back = time.time()
+            new_process('back')
         
         if id == 'left' and not self.closed_dict['left']:
-            #self.process_img(msg, self.process_dict["left"])
-            # Check the buffer to see if it has a whole second of frames
-            if len(self.buffer_left) == 30:
-                frame_time = self.get_elapsed_seconds(self.base_time_left)
-                self.base_time_left = time.time()
-                self.left_performance.append(frame_time)
-                # Then Process the whole buffer
-                self.process_frame_buffer(self.buffer_left, self.process_dict["left"])
-                self.print_performance(self.left_performance)
-                self.buffer_left = []
-            self.buffer_left.append(msg)
+            check_buffer('left')
         elif id == 'right' and not self.closed_dict['right']:
-            #self.process_img(msg, self.process_dict["right"])
-            if len(self.buffer_right) == 30:
-                frame_time = self.get_elapsed_seconds(self.base_time_right)
-                self.base_time_right = time.time()
-                self.right_performance.append(frame_time)
-                self.process_frame_buffer(self.buffer_right, self.process_dict["right"])
-                self.print_performance(self.right_performance)
-                self.buffer_right = []
-            self.buffer_right.append(msg)
+            check_buffer('right')
         elif id == 'front' and not self.closed_dict['front']:
-            #self.process_img(msg, self.process_dict["front"])
-            if len(self.buffer_front) == 30:
-                frame_time = self.get_elapsed_seconds(self.base_time_front)
-                self.base_time_front = time.time()
-                self.front_performance.append(frame_time)
-                self.process_frame_buffer(self.buffer_front, self.process_dict["front"])
-                self.print_performance(self.front_performance)
-                self.buffer_front = []
-            self.buffer_front.append(msg)
+            check_buffer('front')
         elif id == 'back' and not self.closed_dict['back']:
-            #self.process_img(msg, self.process_dict["back"])
-            if len(self.buffer_back) == 30:
-                frame_time = self.get_elapsed_seconds(self.base_time_back)
-                self.base_time_back = time.time()
-                self.back_performance.append(frame_time)
-                self.process_frame_buffer(self.buffer_back, self.process_dict["back"])
-                self.print_performance(self.back_performance)
-                self.buffer_back = []
-            self.buffer_back.append(msg)
+            check_buffer('back')
     
     def process_img(self, msg, process):
-        
         image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
         success, encoded_image = cv2.imencode('.jpg', image)
-            
         if success:
             process.stdin.write(encoded_image.tobytes())
-            self.get_logger().info('Writing Frame')
         else:
             print("Image Encoding Failed")
     
@@ -254,37 +183,6 @@ class playback(Node):
         self.closed_dict['back'] = True
     
     
-    def dev_vid_feedback(self, msg):
-        if self.process == None and self.closed == False:
-            
-            self.get_logger().info('Opening New Process')
-            command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', '8', '-s', '1280x720', '-i', '-', 'output.mp4']
-            self.process = subprocess.Popen(command, stdin=subprocess.PIPE)
-            
-            image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
-            success, encoded_image = cv2.imencode('.jpg', image)
-            
-            if success:
-                self.process.stdin.write(encoded_image.tobytes())
-                self.get_logger().info('Writing Frame')
-            else:
-                print("Image Encoding Failed")        
-        elif self.closed == False:
-            image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
-            success, encoded_image = cv2.imencode('.jpg', image)
-            if success:
-                self.process.stdin.write(encoded_image.tobytes())
-                self.get_logger().info('Writing Frame')
-            else:
-                print("Image Encoding Failed")
-    
-    def close_proc(self, msg):
-        if not self.process == None:
-            self.get_logger().info('Closing Process')
-            self.process.stdin.close()
-            self.process.wait()
-            self.process = None
-            self.closed = True
     
     
     def systemStateCallback(self, msg):

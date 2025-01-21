@@ -21,9 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'playback = autonav_playback.playback:main',
-            'dev_vid = autonav_playback.dev_vid:main',
             'tester = autonav_playback.tester:main',
-            'combiner = autonav_playback.CombinedView:main',
         ],
     },
 )
