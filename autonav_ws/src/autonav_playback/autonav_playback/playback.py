@@ -99,7 +99,7 @@ class playback(Node):
         path = self.vid_path
         
         def new_process(id: str):
-            print('Opening new Proccess')
+            self.log('Opening new Proccess')
             
             # Adjust the command output filename
             c = self.record_command
@@ -135,18 +135,18 @@ class playback(Node):
         if success:
             process.stdin.write(encoded_image.tobytes())
         else:
-            print("Image Encoding Failed")
+            self.log("Image Encoding Failed")
     
     def print_performance(self, performance):
         bad = max(performance)
         good = min(performance)
         mean = sum(performance) / len(performance)
-        print(f"Complete! Longest Frame: {bad} | Quickest Frame: {good}")
-        print(f"Average write time of {mean}")
+        self.log(f"Complete! Longest Frame: {bad} | Quickest Frame: {good}")
+        self.log(f"Average write time of {mean}")
     
     # This whole method is cancer but bear with me
     def process_frame_buffer(self, buffer, process):
-        print("About to process a whole buffer")
+        self.log("About to process a whole buffer")
         for img in buffer:
             self.process_img(img, process)
     
@@ -154,7 +154,15 @@ class playback(Node):
         return time.time() - base
     
     def close_recording(self):
-        self.get_logger().info('Closing Recordings')
+        i = 0
+        for c in self.closed_dict.values():
+            if c == True:
+                i += 1
+            if i >= 6:
+                return
+        
+        
+        self.log('Closing Recordings')
         for proccess in self.process_dict.values():
             proccess.stdin.close()
             proccess.wait()
