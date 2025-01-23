@@ -15,8 +15,10 @@ class CanConfig:
     def __init__(self):
         self.canable_filepath = "/dev/ttyACM0"
         self.odom_feedback_scaler = 10000
-        self.linear_pid_scaling_factor = 1000
-        self.angular_pid_scaling_factor = 1000
+        self.linear_pid_scaler = 1000
+        self.angular_pid_scaler = 1000
+        self.front_motor_scaler = 1000
+        self.back_motor_scaler = 1000
 
 
 arbitration_ids = {
@@ -217,10 +219,10 @@ class CanNode(Node):
     def publish_linear_pid_statistics(self, msg):
         forward_velocity, forward_velocity_setpoint, sideways_velocity, sideways_velocity_setpoint = struct.unpack(">hhhh", msg.data)
         linear_pid_statistics_msg = LinearPIDStatistics()
-        linear_pid_statistics_msg.forward_velocity = forward_velocity
-        linear_pid_statistics_msg.forward_velocity_setpoint = forward_velocity_setpoint
-        linear_pid_statistics_msg.sideways_velocity = sideways_velocity
-        linear_pid_statistics_msg.sideways_velocity_setpoint = sideways_velocity_setpoint
+        linear_pid_statistics_msg.forward_velocity = forward_velocity / self.config.get("linear_pid_scaler")
+        linear_pid_statistics_msg.forward_velocity_setpoint = forward_velocity_setpoint / self.config.get("linear_pid_scaler")
+        linear_pid_statistics_msg.sideways_velocity = sideways_velocity / self.config.get("linear_pid_scaler")
+        linear_pid_statistics_msg.sideways_velocity_setpoint = sideways_velocity_setpoint / self.config.get("linear_pid_scaler")
 
         self.linearPIDStatisticsPublisher.publish(linear_pid_statistics_msg)
 
@@ -228,8 +230,8 @@ class CanNode(Node):
     def publish_angular_pid_statistics(self, msg):
         angular_velocity, angular_velocity_setpoint = struct.unpack(">hh", msg.data)
         angular_pid_statistics_msg = AngularPIDStatistics()
-        angular_pid_statistics_msg.angular_velocity = angular_velocity
-        angular_pid_statistics_msg.angular_velocity_setpoint = angular_velocity_setpoint
+        angular_pid_statistics_msg.angular_velocity = angular_velocity / self.config.get("angular_pid_scaler")
+        angular_pid_statistics_msg.angular_velocity_setpoint = angular_velocity_setpoint / self.config.get("angular_pid_scaler")
 
         self.angularPIDStatisticsPublisher.publish(angular_pid_statistics_msg)
 
@@ -237,10 +239,10 @@ class CanNode(Node):
     def publish_motor_statistics_front_motors(self, msg):
         left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack(">hhhh", msg.data)
         motor_statistics_front_motors = MotorStatisticsFrontMotors()
-        motor_statistics_front_motors.left_drive_motor_output = left_drive_motor_output
-        motor_statistics_front_motors.left_steer_motor_output = left_steer_motor_output
-        motor_statistics_front_motors.right_drive_motor_output = right_drive_motor_output
-        motor_statistics_front_motors.right_steer_motor_output = right_steer_motor_output
+        motor_statistics_front_motors.left_drive_motor_output = left_drive_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics_front_motors.left_steer_motor_output = left_steer_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics_front_motors.right_drive_motor_output = right_drive_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics_front_motors.right_steer_motor_output = right_steer_motor_output / self.config.get("front_motor_scaler")
 
         self.motorStatisticsFrontMotorsPublisher.publish(motor_statistics_front_motors)
 
@@ -248,10 +250,10 @@ class CanNode(Node):
     def publish_motor_statistics_back_motors(self, msg):
         left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack(">hhhh", msg.data)
         motor_statistics_back_motors = MotorStatisticsBackMotors()
-        motor_statistics_back_motors.left_drive_motor_output = left_drive_motor_output
-        motor_statistics_back_motors.left_steer_motor_output = left_steer_motor_output
-        motor_statistics_back_motors.right_drive_motor_output = right_drive_motor_output
-        motor_statistics_back_motors.right_steer_motor_output = right_steer_motor_output
+        motor_statistics_back_motors.left_drive_motor_output = left_drive_motor_output / self.config.get("bacK_motor_scaler")
+        motor_statistics_back_motors.left_steer_motor_output = left_steer_motor_output / self.config.get("bacK_motor_scaler")
+        motor_statistics_back_motors.right_drive_motor_output = right_drive_motor_output / self.config.get("bacK_motor_scaler")
+        motor_statistics_back_motors.right_steer_motor_output = right_steer_motor_output / self.config.get("bacK_motor_scaler")
 
         self.motorStatisticsBackMotorsPublisher.publish(motor_statistics_back_motors)
 
