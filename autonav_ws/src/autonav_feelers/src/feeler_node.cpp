@@ -53,7 +53,7 @@ public:
         config_.start_angle = 5;
         config_.waypointPopDist = 2;
         config_.ultrasonic_contribution = 1;
-        config_.gpsWaitSeconds = 0;
+        config_.gpsWaitSeconds = 5;
 
         this->write_config(config_);
 
@@ -79,6 +79,7 @@ public:
             numWaypoints++;
         }
         waypointsFile.close();
+        this->waypointIndex = 0;
         // === /read waypoints ===
 
         log("Number of waypoints read: " + std::to_string(numWaypoints), AutoNav::Logging::INFO);
@@ -210,6 +211,8 @@ public:
     void onPositionReceived(const autonav_msgs::msg::Position msg) {
         this->position = msg;
 
+        // log("GOT GPS!", AutoNav::Logging::INFO);
+
         // if we haven't set a timestamp yet, but have started the run
         if (this->gpsTime == 0 && this->is_mobility() && this->get_system_state() == AutoNav::SystemState::AUTONOMOUS) {
             this->gpsTime = now(); // then set the timestamp for the start of the run
@@ -218,10 +221,10 @@ public:
             // then pick a set of waypoints based on which direction we are heading
             double heading_degrees = abs(this->position.theta * 180 / PI);
             if (120 < heading_degrees && heading_degrees < 240) {
-                this->direction = "south";
+                this->direction = "compSouth";
                 log("PICKING SOUTH WAYPOINTS", AutoNav::Logging::INFO);
             } else {
-                this->direction = "north";
+                this->direction = "compNorth";
                 log("PICKING NORTH WAYPOINTS", AutoNav::Logging::INFO);
             }
         }
@@ -232,8 +235,18 @@ public:
             //FIXME this doesn't account for the rotation of the robot
             //FIXME the clamping and proprotional stuff should be configurable so we can make GPS contributions mean more or less
             //FIXME this should be like, proportional and not just the error where is my kP term
-            this->gpsFeeler = Feeler(std::clamp(goalPoint.lon - this->position.longitude, -200.0, 200.0), std::clamp(goalPoint.lat - this->position.latitude, -200.0, 200.0));
-            this->gpsFeeler.setColor(cv::Scalar(50, 100, 50)); //GPS feeler is dark green
+            double lonError = std::clamp((goalPoint.lon - this->position.longitude) * 1000000, -200.0, 200.0);
+            double latError = std::clamp((goalPoint.lat - this->position.latitude) * 1000000, -200.0, 200.0);
+
+            // https://github.com/SoonerRobotics/autonav_software_2025/blob/main/autonav_ws/src/autonav_manual/src/manual_25.py in compose_motorinput_mesage_global()
+            int x = lonError * cos(msg.theta) + latError * sin(msg.theta);
+            int y = lonError * sin(msg.theta) - latError * cos(msg.theta); // theta is in radians according to last year's PF code
+            
+            this->gpsFeeler = Feeler(x, y);
+            
+            this->gpsFeeler.setColor(cv::Scalar(200, 100, 120)); //GPS feeler is red
+
+            // log("PIDing my robot rn", AutoNav::Logging::INFO);
 
             this->distToWaypoint = std::sqrt(std::pow((goalPoint.lon - this->position.longitude)*this->latitudeLength, 2) + std::pow((goalPoint.lat - this->position.latitude)*this->longitudeLength, 2));
 
@@ -241,6 +254,8 @@ public:
             if (this->distToWaypoint < config["waypointPopDist"].get<double>() && this->waypointIndex < this->waypointsDict[this->direction].size()-1) {
                 // then go to the next waypoint
                 this->waypointIndex++;
+
+                log("NEXT WAYPOINT!", AutoNav::Logging::WARN);
             }
         }
 

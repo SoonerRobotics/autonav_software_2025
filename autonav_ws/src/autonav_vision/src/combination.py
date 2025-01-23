@@ -6,6 +6,7 @@ import numpy as np
 
 import rclpy.qos
 from sensor_msgs.msg import CompressedImage
+from autonav_msgs.msg import GPSFeedback
 from cv_bridge import CvBridge
 
 from autonav_shared.node import Node
@@ -54,6 +55,8 @@ class ImageCombiner(Node):
         self.debug_image_right_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/right", self.debug_image_received_right, 1)
         self.debug_image_back_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/back", self.debug_image_received_back, 1)
 
+        self.gps_subscriber = self.create_subscription(GPSFeedback, "/autonav/gps", self.on_gps_received, 1)
+
         self.combined_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/filtered", 1)
         self.combined_debug_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/debug", 1)
 
@@ -67,8 +70,14 @@ class ImageCombiner(Node):
         self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
         self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
         self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
+        self.gps_filename = "./data/gps.csv"
+        self.gps_file = open(self.gps_filename, "w")
         self.frame = 0
         self.has_logged = False
+
+    def on_gps_received(self, msg):
+        if not self.gps_file.closed:
+            self.gps_file.write(f"{msg.latitude},{msg.longitude}\n")
 
     def image_received_front(self, msg):
         self.image_front = msg
@@ -181,6 +190,7 @@ class ImageCombiner(Node):
             self.video_writer.release()
             self.debug_video_writer.release()
             self.feeler_video_writer.release()
+            self.gps_file.close()
             self.log("combined image logger is done!", LogLevel.ERROR)
         
         self.frame += 1
