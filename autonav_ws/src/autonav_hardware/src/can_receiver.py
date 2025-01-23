@@ -1,12 +1,12 @@
+# this script is for testing CAN from canable to canable.
 import can
 
-dev_channel = input("enter canable channel:")
+can_channel = input("please enter CAN channel path: ")
 
-my_can_bus = can.ThreadSafeBus(
-    bustype="slcan", channel=dev_channel, bitrate=100000
+my_canable = can.ThreadSafeBus(
+    bustype="slcan", channel=can_channel, bitrate=100000
 )
 
-with my_can_bus as bus:
+with my_canable as bus:
     for msg in bus:
-        print(msg.data)
-        
+        print(f"message id: {msg.arbitration_id}, data: {msg.data.hex()}")

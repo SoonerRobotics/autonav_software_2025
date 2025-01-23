@@ -10,6 +10,7 @@ import threading
 import struct
 from ctypes import Structure, c_uint8
 
+
 class CanConfig:
     def __init__(self):
         self.canable_filepath = "/dev/ttyACM0"
@@ -33,6 +34,7 @@ arbitration_ids = {
     "ConbusLowerBound": 1000,
     "ConbusUpperBound": 1400
 }
+
 
 class SafetyLightsPacket(Structure):
     _fields_ = [
@@ -310,11 +312,13 @@ class CanNode(Node):
         #     self.log(f"{e}", LogLevel.DEBUG)
         #     pass
     
+
 def main():
     rclpy.init()
     can_node = CanNode()
     rclpy.spin(can_node)
     rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()
