@@ -45,41 +45,35 @@ class TestPublisher(Node):
         self.right_publisher = self.create_publisher(CompressedImage, 'autonav/camera/right', 10)
         self.front_publisher = self.create_publisher(CompressedImage, 'autonav/camera/front', 10)
         self.back_publisher = self.create_publisher(CompressedImage, 'autonav/camera/back', 10)
+        self.c_pub  = self.create_publisher(CompressedImage, '/autonav/vision/combined/filtered', 10)
+        self.f_pub = self.create_publisher(CompressedImage, '/autonav/feelers/debug', 10)
         
         # Open the video file
         self.video_path = '/root/robo/autonav_software_2025/autonav_ws/src/autonav_playback/autonav_playback/kitten.mp4'
-        self.cap = cv2.VideoCapture(self.video_path)
-    
-    
+        
     def video_thingy(self):
-        
-        if self.cap == None:
-            return
-        
-        if not self.cap.isOpened():
-            print("Error: Could not open video")
-            return
-        
-        ret, frame = self.cap.read()
-        if ret:
+        cap = cv2.VideoCapture(self.video_path)
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                print("Frame Error")
+                break
             image = bridge.cv2_to_compressed_imgmsg(frame)
             msg = image
             self.left_publisher.publish(msg)
             self.right_publisher.publish(msg)
             self.front_publisher.publish(msg)
             self.back_publisher.publish(msg)
+            self.c_pub.publish(msg)
+            self.f_pub.publish(msg)
             self.get_logger().info('Publishing frame')
-            self.i += 1
-            return
-        else:
-            # Send Vid Over MSG
-            print("Return Frame False")
-            return
+            
+        cap.release()
 
     def timer_callback(self):
         
         # The cutoff is greater than The Video length which is 360 frames at 30fps
-        if self.i >= 720:
+        if self.i >= 1:
             msg = SystemState()
             msg.state = 3
             self.pub[0].publish(msg)

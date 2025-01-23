@@ -29,7 +29,7 @@ class LogConfig:
 
 class playback(Node):
     """
-    This Node does some stuff :)
+    This Node does logs some stuff :)
     """
     
     def __init__(self):
@@ -61,6 +61,8 @@ class playback(Node):
         
         
         self.FRAMERATE = 30
+        self.vid_path = os.path.join(self.home_dir, "Documents", "AutoNav", "Vids", self.makeTimestamp())
+        os.makedirs(self.vid_path, exist_ok=True)
         # Raw Camera Record Settings
         self.record_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', str(self.FRAMERATE), '-s', '640x480', '-i', '-']
         
@@ -76,7 +78,7 @@ class playback(Node):
         # FFmpeg Process Dict - Stores the ffmpeg pipes
         self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None, 'combined':None, 'feelers':None}
         # Tracks pipe status
-        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False, 'combined':False, 'feelers':None}
+        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False, 'combined':False, 'feelers':False}
         
         # Video Buffer List | Generally cutoff is equal to number of frames, in this case 15 frames ~ 1 sec of footage
         self.buffer_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
@@ -92,8 +94,9 @@ class playback(Node):
         
     
     def cameraCallback(self, msg, id):
-        path = os.path.join(self.home_dir, "Documents", "AutoNav", "Vids")
-        os.makedirs(path, exist_ok=True)
+        #if not self.system_state == 3:
+            #return
+        path = self.vid_path
         
         def new_process(id: str):
             print('Opening new Proccess')
@@ -119,31 +122,12 @@ class playback(Node):
                 self.buffer_dict[id] = []
             self.buffer_dict[id].append(msg)
         
-        if id == 'left' and self.process_dict["left"] == None and not self.closed_dict['left']:
-            new_process('left')
-        elif id == 'right' and self.process_dict["right"] == None and not self.closed_dict['right']:
-            new_process('right')
-        elif id == "front" and self.process_dict["front"] == None and not self.closed_dict['front']:
-            new_process('front')
-        elif id == "back" and self.process_dict["back"] == None and not self.closed_dict['back']:
-            new_process('back')
-        elif id == "combined" and self.process_dict["combined"] == None and not self.closed_dict['combined']:
-            new_process('combined')
-        elif id == "feelers" and self.process_dict["feelers"] == None and not self.closed_dict['feelers']:
-            new_process('feelers')
+        if self.process_dict[id] == None and not self.closed_dict[id]:
+            new_process(id)
         
-        if id == 'left' and not self.closed_dict['left']:
-            check_buffer('left')
-        elif id == 'right' and not self.closed_dict['right']:
-            check_buffer('right')
-        elif id == 'front' and not self.closed_dict['front']:
-            check_buffer('front')
-        elif id == 'back' and not self.closed_dict['back']:
-            check_buffer('back')
-        elif id == 'combined' and not self.closed_dict['combined']:
-            check_buffer('combined')
-        elif id == 'feelers' and not self.closed_dict['feelers']:
-            check_buffer('feelers')
+        
+        if not self.closed_dict[id]:
+            check_buffer(id)
     
     def process_img(self, msg, process):
         image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
@@ -171,45 +155,23 @@ class playback(Node):
     
     def close_recording(self):
         self.get_logger().info('Closing Recordings')
-        if not self.process_dict['left'] == None:
-            self.process_dict['left'].stdin.close()
-            self.process_dict['left'].wait()
-        if not self.process_dict['right'] == None:
-            self.process_dict['right'].stdin.close()
-            self.process_dict['right'].wait()
-        if not self.process_dict['front'] == None:
-            self.process_dict['front'].stdin.close()
-            self.process_dict['front'].wait()
-        if not self.process_dict['back'] == None:
-            self.process_dict['back'].stdin.close()
-            self.process_dict['back'].wait()
-        if not self.process_dict['combined'] == None:
-            self.process_dict['combined'].stdin.close()
-            self.process_dict['combined'].wait()
-        if not self.process_dict['feelers'] == None:
-            self.process_dict['feelers'].stdin.close()
-            self.process_dict['feelers'].wait()
+        for proccess in self.process_dict.values():
+            proccess.stdin.close()
+            proccess.wait()
+            proccess = None
         
-        self.process_dict['left'] = None
-        self.process_dict['right'] = None
-        self.process_dict['front'] = None
-        self.process_dict['back'] = None
-        self.process_dict['combined'] = None
-        self.process_dict['feelers'] = None
+        for closed in self.closed_dict.values():
+            closed = True
         
-        self.closed_dict['left'] = True
-        self.closed_dict['right'] = True
-        self.closed_dict['front'] = True
-        self.closed_dict['back'] = True
-        self.closed_dict['combined'] = True
-        self.closed_dict['feelers'] = True
     
     
     
     
     def systemStateCallback(self, msg):
-        # ?
-        print(msg.state)
+        # 0 DISABLED
+        # 1 AUTONOMOUS
+        # 2 MANUAL
+        # 3 SHUTDOWN
         
         self.system_state = msg.state
         if self.file == None and self.system_state == 1:
@@ -220,6 +182,13 @@ class playback(Node):
         
     
     def deviceStateCallback(self, msg):
+        # 0 OFF
+        # 1 BOOTING
+        # 2 STANDBY
+        # 3 READY
+        # 4 OPERATING
+        # 5 ERRORED
+        
         if self.file == None:
             return
         
