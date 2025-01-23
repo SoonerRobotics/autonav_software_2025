@@ -2,14 +2,21 @@
 
 import rclpy
 from autonav_shared.node import Node
-from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Conbus
+from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Ultrasonic, Conbus
 from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatisticsFrontMotors, MotorStatisticsBackMotors
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
 import struct
-from ctypes import Structure, c_bool, c_uint8
-import binascii
+from ctypes import Structure, c_uint8
+
+class CanConfig:
+    def __init__(self):
+        self.canable_filepath = "/dev/ttyACM0"
+        self.odom_feedback_scaler = 10000
+        self.linear_pid_scaling_factor = 1000
+        self.angular_pid_scaling_factor = 1000
+
 
 arbitration_ids = {
     "EStop": 0,
@@ -37,13 +44,6 @@ class SafetyLightsPacket(Structure):
         ("blink_period", c_uint8)
     ]
 
-class CanConfig:
-    def __init__(self):
-        self.canable_filepath = "/dev/ttyACM0"
-        self.odom_feedback_scaler = 10000
-        self.linear_pid_scaling_factor = 1000
-        self.angular_pid_scaling_factor = 1000
-
 
 class CanNode(Node):
     def __init__(self):
@@ -58,6 +58,13 @@ class CanNode(Node):
             SafetyLights,
             "/autonav/safety_lights",
             self.on_safety_lights_received,
+            20
+        )
+        
+        # object detection
+        self.objectDetectionPublisher = self.create_publisher(
+            Ultrasonic,
+            "/autonav/ultrasonic",
             20
         )
 
@@ -158,6 +165,7 @@ class CanNode(Node):
         self.log("CAN message received", LogLevel.DEBUG)
         arbitration_id = msg.arbitration_id
         self.log(f"{arbitration_id}", LogLevel.DEBUG)
+
         if arbitration_id == arbitration_ids["EStop"]:
             self.log("EStop", LogLevel.DEBUG)
             self.set_mobility(False)
@@ -173,6 +181,10 @@ class CanNode(Node):
         if arbitration_id == arbitration_ids["OdometryFeedback"]:
             self.log("Odom Feedback", LogLevel.DEBUG)
             self.publish_odom_feedback(msg)
+
+        if arbitration_id == arbitration_ids["ObjectDetection"]:
+            self.log("Object detection", LogLevel.DEBUG)
+            self.publish_object_detection(msg)
 
         if arbitration_id == arbitration_ids["LinearPIDStatistics"]:
             self.log("Linear PID Stats", LogLevel.DEBUG)
@@ -206,11 +218,20 @@ class CanNode(Node):
         self.motorFeedbackPublisher.publish(motor_feedback_msg)
 
 
+    def publish_object_detection(self, msg):
+        ultrasonic_msg = Ultrasonic()
+        data = bytes(msg.data)
+        ultrasonic_msg.id = data[0]
+        ultrasonic_msg.distance = (data[1] << 8) | data[2]
+
+        self.objectDetectionPublisher.publish(ultrasonic_msg)
+
+
     def publish_linear_pid_statistics(self, msg):
         forward_velocity, forward_velocity_setpoint, sideways_velocity, sideways_velocity_setpoint = struct.unpack(">hhhh", msg.data)
         linear_pid_statistics_msg = LinearPIDStatistics()
         linear_pid_statistics_msg.forward_velocity = forward_velocity
-        linear_pid_statistics_msg.forward_velocity_setpoint - forward_velocity_setpoint
+        linear_pid_statistics_msg.forward_velocity_setpoint = forward_velocity_setpoint
         linear_pid_statistics_msg.sideways_velocity = sideways_velocity
         linear_pid_statistics_msg.sideways_velocity_setpoint = sideways_velocity_setpoint
 
@@ -239,13 +260,13 @@ class CanNode(Node):
 
     def publish_motor_statistics_back_motors(self, msg):
         left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack(">hhhh", msg.data)
-        motor_statistics_back_motors = MotorStatisticsFrontMotors()
+        motor_statistics_back_motors = MotorStatisticsBackMotors()
         motor_statistics_back_motors.left_drive_motor_output = left_drive_motor_output
         motor_statistics_back_motors.left_steer_motor_output = left_steer_motor_output
         motor_statistics_back_motors.right_drive_motor_output = right_drive_motor_output
         motor_statistics_back_motors.right_steer_motor_output = right_steer_motor_output
 
-        self.motorStatisticsFrontMotorsPublisher.publish(motor_statistics_back_motors)
+        self.motorStatisticsBackMotorsPublisher.publish(motor_statistics_back_motors)
 
 
     def publish_conbus(self, msg):

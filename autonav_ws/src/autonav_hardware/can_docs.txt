@@ -8,3 +8,6 @@ You can visit that link if you need to reinstall drivers on the canable. Make su
 The python package is python3-can
 
 SCR uses regular (11-bit) CAN frames (SFF)
+
+hexadecimal to decimal (signed and unsigned)
+https://www.eecs.umich.edu/courses/eng100/calc.html

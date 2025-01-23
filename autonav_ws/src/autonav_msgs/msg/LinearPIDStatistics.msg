@@ -1,4 +1,4 @@
-uint8 forward_velocity
-uint8 forward_velocity_setpoint
-uint8 sideways_velocity
-uint8 sideways_velocity_setpoint
+int16 forward_velocity
+int16 forward_velocity_setpoint
+int16 sideways_velocity
+int16 sideways_velocity_setpoint

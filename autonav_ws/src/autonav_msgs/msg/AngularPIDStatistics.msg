@@ -1,2 +1,2 @@
-uint8 angular_velocity
-uint8 angular_velocity_setpoint
+int16 angular_velocity
+int16 angular_velocity_setpoint

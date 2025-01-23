@@ -1,4 +1,4 @@
-uint8 left_drive_motor_output
-uint8 left_steer_motor_output
-uint8 right_drive_motor_output
-uint8 right_steer_motor_output
+int16 left_drive_motor_output
+int16 left_steer_motor_output
+int16 right_drive_motor_output
+int16 right_steer_motor_output
