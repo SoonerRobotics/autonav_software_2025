@@ -123,7 +123,7 @@ class CanNode(Node):
 
     def init(self):
         # can threading
-        self.canTimer = self.create_timer(0.5, self.can_worker)
+        self.canTimer = self.create_timer(0.1, self.can_worker)
         self.canReadThread = threading.Thread(target=self.can_thread_worker)
         self.canReadThread.daemon = True
         self.canReadThread.start()
