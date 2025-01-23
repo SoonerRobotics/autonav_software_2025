@@ -121,7 +121,6 @@ class CanNode(Node):
 
     def init(self):
         # can threading
-        self.log("initializing CAN node", LogLevel.DEBUG)
         self.canTimer = self.create_timer(0.5, self.can_worker)
         self.canReadThread = threading.Thread(target=self.can_thread_worker)
         self.canReadThread.daemon = True
@@ -148,7 +147,6 @@ class CanNode(Node):
 
 
     def can_thread_worker(self):
-        self.log("can thread worker working", LogLevel.DEBUG)
         while rclpy.ok():
             if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
                 continue
@@ -162,53 +160,40 @@ class CanNode(Node):
     
 
     def onCanMessageReceived(self, msg):
-        self.log("CAN message received", LogLevel.DEBUG)
         arbitration_id = msg.arbitration_id
-        self.log(f"{arbitration_id}", LogLevel.DEBUG)
 
         if arbitration_id == arbitration_ids["EStop"]:
-            self.log("EStop", LogLevel.DEBUG)
             self.set_mobility(False)
 
         if arbitration_id == arbitration_ids["MobilityStart"]:
-            self.log("Mobility Start", LogLevel.DEBUG)
             self.set_mobility(True)
         
         if arbitration_id == arbitration_ids["MobilityStop"]:
-            self.log("Mobility Stop", LogLevel.DEBUG)
             self.set_mobility(False)
 
         if arbitration_id == arbitration_ids["OdometryFeedback"]:
-            self.log("Odom Feedback", LogLevel.DEBUG)
             self.publish_odom_feedback(msg)
 
         if arbitration_id == arbitration_ids["ObjectDetection"]:
-            self.log("Object detection", LogLevel.DEBUG)
             self.publish_object_detection(msg)
 
         if arbitration_id == arbitration_ids["LinearPIDStatistics"]:
-            self.log("Linear PID Stats", LogLevel.DEBUG)
             self.publish_linear_pid_statistics(msg)
     
         if arbitration_id == arbitration_ids["AngularPIDStatistics"]:
-            self.log("Angular PID Stats", LogLevel.DEBUG)
             self.publish_angular_pid_statistics(msg)
 
         if arbitration_id == arbitration_ids["MotorStatisticsFrontMotors"]:
-            self.log("Motor Statistics Front Motors", LogLevel.DEBUG)
             self.publish_motor_statistics_front_motors(msg)
         
         if arbitration_id == arbitration_ids["MotorStatisticsBackMotors"]:
-            self.log("Motor Statistics Back Motors", LogLevel.DEBUG)
             self.publish_motor_statistics_back_motors(msg)
 
         if arbitration_id >= arbitration_ids["ConbusLowerBound"] and arbitration_id < arbitration_ids["ConbusUpperBound"]:
-            self.log("Conbus", LogLevel.DEBUG)
             self.publish_conbus(msg)
 
 
     def publish_odom_feedback(self, msg):
-        self.log(f"{msg.data.hex()}", LogLevel.DEBUG)
         delta_x, delta_y, delta_theta = struct.unpack('>hhh', msg.data)
         motor_feedback_msg = MotorFeedback()
         motor_feedback_msg.delta_x = delta_x / self.config.get("odom_feedback_scaler")
@@ -287,7 +272,6 @@ class CanNode(Node):
         safety_lights_packet.blink_period = msg.blink_period
 
         data = bytes(safety_lights_packet)
-        self.log(f"{data.hex()}", LogLevel.DEBUG)
 
         can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
         
@@ -302,7 +286,6 @@ class CanNode(Node):
             return
         data = struct.pack(">hhh", int(msg.forward_velocity * 1000), int(msg.sideways_velocity * 1000), int(msg.angular_velocity * 1000))
         can_msg = can.Message(arbitration_id = arbitration_ids["MotorsCommand"], data = data)
-        self.log(f"{can_msg.data.hex()}", LogLevel.DEBUG)
 
         try:
             self.can.send(can_msg)
@@ -311,7 +294,6 @@ class CanNode(Node):
 
 
     def on_conbus_received(self, msg:Conbus):
-        self.log("Conbus received", LogLevel.DEBUG)
         if self.get_device_state() != DeviceState.OPERATING:
             return
         # try:
@@ -321,7 +303,6 @@ class CanNode(Node):
         can_msg = can.Message(arbitration_id = arbitration_id, data = data)
         
         try:
-            self.log("Sending can message", LogLevel.DEBUG)
             self.can.send(can_msg)
         except can.CanError:
             pass
