@@ -160,8 +160,8 @@ class playback(Node):
             proccess.wait()
             proccess = None
         
-        for closed in self.closed_dict.values():
-            closed = True
+        for c in self.closed_dict:
+            self.closed_dict[c] = True
         
     
     
