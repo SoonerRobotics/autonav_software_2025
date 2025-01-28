@@ -2,7 +2,7 @@
 
 import rclpy
 from autonav_shared.node import Node
-from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Ultrasonic, Conbus
+from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Ultrasonic, Conbus, CanStats
 from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatistics
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
@@ -53,6 +53,7 @@ class CanNode(Node):
     def __init__(self):
         super().__init__("CAN_node")
         self.write_config(CanConfig())
+        self.can_stats_record = CanStats()
 
         # can
         self.can = None
@@ -121,11 +122,18 @@ class CanNode(Node):
             "/autonav/motor_statistics_back_motors",
             20
         )
+        # CAN utilization stats
+        self.can_stats_publisher = self.create_publisher(
+            CanStats,
+            "/autonav/can_stats",
+            20
+        )
 
 
     def init(self):
         # can threading
         self.canTimer = self.create_timer(0.5, self.can_worker)
+        self.canStatsTimer = self.create_timer(10, self.publish_can_stats)
         self.canReadThread = threading.Thread(target=self.can_thread_worker)
         self.canReadThread.daemon = True
         self.canReadThread.start()
@@ -159,11 +167,12 @@ class CanNode(Node):
                     msg = self.can.recv(timeout=0.01)
                     if msg is not None:
                         self.onCanMessageReceived(msg)
-                except can.CanError:
-                    pass
+                except Exception as e:
+                    self.log(f"Received erroneous CAN message from hardware {e}", LogLevel.ERROR)
     
 
     def onCanMessageReceived(self, msg):
+        self.can_stats_record.rx = self.can_stats_record.rx + 1
         arbitration_id = msg.arbitration_id
 
         if arbitration_id == arbitration_ids["EStop"]:
@@ -222,10 +231,10 @@ class CanNode(Node):
     def publish_linear_pid_statistics(self, msg):
         forward_velocity, forward_velocity_setpoint, sideways_velocity, sideways_velocity_setpoint = struct.unpack(">hhhh", msg.data)
         linear_pid_statistics_msg = LinearPIDStatistics()
-        linear_pid_statistics_msg.forward_velocity = forward_velocity / self.config.get("linear_pid_scaler")
-        linear_pid_statistics_msg.forward_velocity_setpoint = forward_velocity_setpoint / self.config.get("linear_pid_scaler")
-        linear_pid_statistics_msg.sideways_velocity = sideways_velocity / self.config.get("linear_pid_scaler")
-        linear_pid_statistics_msg.sideways_velocity_setpoint = sideways_velocity_setpoint / self.config.get("linear_pid_scaler")
+        linear_pid_statistics_msg.forward_velocity = int(forward_velocity / self.config.get("linear_pid_scaler"))
+        linear_pid_statistics_msg.forward_velocity_setpoint = int(forward_velocity_setpoint / self.config.get("linear_pid_scaler"))
+        linear_pid_statistics_msg.sideways_velocity = int(sideways_velocity / self.config.get("linear_pid_scaler"))
+        linear_pid_statistics_msg.sideways_velocity_setpoint = int(sideways_velocity_setpoint / self.config.get("linear_pid_scaler"))
 
         self.linearPIDStatisticsPublisher.publish(linear_pid_statistics_msg)
 
@@ -233,8 +242,8 @@ class CanNode(Node):
     def publish_angular_pid_statistics(self, msg):
         angular_velocity, angular_velocity_setpoint = struct.unpack(">hh", msg.data)
         angular_pid_statistics_msg = AngularPIDStatistics()
-        angular_pid_statistics_msg.angular_velocity = angular_velocity / self.config.get("angular_pid_scaler")
-        angular_pid_statistics_msg.angular_velocity_setpoint = angular_velocity_setpoint / self.config.get("angular_pid_scaler")
+        angular_pid_statistics_msg.angular_velocity = int(angular_velocity / self.config.get("angular_pid_scaler"))
+        angular_pid_statistics_msg.angular_velocity_setpoint = int(angular_velocity_setpoint / self.config.get("angular_pid_scaler"))
 
         self.angularPIDStatisticsPublisher.publish(angular_pid_statistics_msg)
 
@@ -242,10 +251,10 @@ class CanNode(Node):
     def publish_motor_statistics_front_motors(self, msg):
         left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack(">hhhh", msg.data)
         motor_statistics = MotorStatistics()
-        motor_statistics.left_drive_motor_output = left_drive_motor_output / self.config.get("front_motor_scaler")
-        motor_statistics.left_steer_motor_output = left_steer_motor_output / self.config.get("front_motor_scaler")
-        motor_statistics.right_drive_motor_output = right_drive_motor_output / self.config.get("front_motor_scaler")
-        motor_statistics.right_steer_motor_output = right_steer_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics.left_drive_motor_output = int(left_drive_motor_output / self.config.get("front_motor_scaler"))
+        motor_statistics.left_steer_motor_output = int(left_steer_motor_output / self.config.get("front_motor_scaler"))
+        motor_statistics.right_drive_motor_output = int(right_drive_motor_output / self.config.get("front_motor_scaler"))
+        motor_statistics.right_steer_motor_output = int(right_steer_motor_output / self.config.get("front_motor_scaler"))
 
         self.motorStatisticsFrontMotorsPublisher.publish(motor_statistics)
 
@@ -253,10 +262,10 @@ class CanNode(Node):
     def publish_motor_statistics_back_motors(self, msg):
         left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack(">hhhh", msg.data)
         motor_statistics = MotorStatistics()
-        motor_statistics.left_drive_motor_output = left_drive_motor_output / self.config.get("back_motor_scaler")
-        motor_statistics.left_steer_motor_output = left_steer_motor_output / self.config.get("back_motor_scaler")
-        motor_statistics.right_drive_motor_output = right_drive_motor_output / self.config.get("back_motor_scaler")
-        motor_statistics.right_steer_motor_output = right_steer_motor_output / self.config.get("back_motor_scaler")
+        motor_statistics.left_drive_motor_output = int(left_drive_motor_output / self.config.get("back_motor_scaler"))
+        motor_statistics.left_steer_motor_output = int(left_steer_motor_output / self.config.get("back_motor_scaler"))
+        motor_statistics.right_drive_motor_output = int(right_drive_motor_output / self.config.get("back_motor_scaler"))
+        motor_statistics.right_steer_motor_output = int(right_steer_motor_output / self.config.get("back_motor_scaler"))
 
         self.motorStatisticsBackMotorsPublisher.publish(motor_statistics)
 
@@ -270,6 +279,8 @@ class CanNode(Node):
 
     # subscriber callbacks
     def on_safety_lights_received(self, msg:SafetyLights):
+        self.can_stats_record.tx = self.can_stats_record.tx + 1
+
         safety_lights_packet = SafetyLightsPacket()
         safety_lights_packet.mode = msg.mode
         safety_lights_packet.brightness = msg.brightness
@@ -289,6 +300,8 @@ class CanNode(Node):
 
 
     def on_motor_input_received(self, msg:MotorInput):
+        self.can_stats_record.tx = self.can_stats_record.tx + 1
+
         if self.get_device_state() != DeviceState.OPERATING:
             return
         data = struct.pack(">hhh", int(msg.forward_velocity * 1000), int(msg.sideways_velocity * 1000), int(msg.angular_velocity * 1000))
@@ -301,6 +314,8 @@ class CanNode(Node):
 
 
     def on_conbus_received(self, msg:Conbus):
+        self.can_stats_record.tx = self.can_stats_record.tx + 1
+
         if self.get_device_state() != DeviceState.OPERATING:
             return
         # try:
@@ -317,6 +332,10 @@ class CanNode(Node):
         #     self.log(f"{e}", LogLevel.DEBUG)
         #     pass
     
+
+    def publish_can_stats(self):
+        self.can_stats_publisher.publish(self.can_stats_record)
+
 
 def main():
     rclpy.init()

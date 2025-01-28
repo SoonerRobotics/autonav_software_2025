@@ -14,6 +14,7 @@ find_package(builtin_interfaces REQUIRED)
 set(msg_files
     "msg/AngularPIDStatistics.msg"
     "msg/AudibleFeedback.msg"
+    "msg/CanStats.msg"
     "msg/Conbus.msg"
     "msg/ControllerInput.msg"
     "msg/DeviceState.msg"
