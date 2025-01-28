@@ -3,7 +3,7 @@
 import rclpy
 from autonav_shared.node import Node
 from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Ultrasonic, Conbus
-from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatisticsFrontMotors, MotorStatisticsBackMotors
+from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatistics
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
@@ -112,12 +112,12 @@ class CanNode(Node):
             20
         )
         self.motorStatisticsFrontMotorsPublisher = self.create_publisher(
-            MotorStatisticsFrontMotors,
+            MotorStatistics,
             "/autonav/motor_statistics_front_motors",
             20
         )
         self.motorStatisticsBackMotorsPublisher = self.create_publisher(
-            MotorStatisticsBackMotors,
+            MotorStatistics,
             "/autonav/motor_statistics_back_motors",
             20
         )
@@ -167,34 +167,37 @@ class CanNode(Node):
         arbitration_id = msg.arbitration_id
 
         if arbitration_id == arbitration_ids["EStop"]:
-            self.set_mobility(False)
+            self.set_system_state(SystemState.DISABLED)
 
-        if arbitration_id == arbitration_ids["MobilityStart"]:
+        elif arbitration_id == arbitration_ids["MobilityStart"]:
             self.set_mobility(True)
         
-        if arbitration_id == arbitration_ids["MobilityStop"]:
+        elif arbitration_id == arbitration_ids["MobilityStop"]:
             self.set_mobility(False)
 
-        if arbitration_id == arbitration_ids["OdometryFeedback"]:
+        elif arbitration_id == arbitration_ids["OdometryFeedback"]:
             self.publish_odom_feedback(msg)
 
-        if arbitration_id == arbitration_ids["ObjectDetection"]:
+        elif arbitration_id == arbitration_ids["ObjectDetection"]:
             self.publish_object_detection(msg)
 
-        if arbitration_id == arbitration_ids["LinearPIDStatistics"]:
+        elif arbitration_id == arbitration_ids["LinearPIDStatistics"]:
             self.publish_linear_pid_statistics(msg)
     
-        if arbitration_id == arbitration_ids["AngularPIDStatistics"]:
+        elif arbitration_id == arbitration_ids["AngularPIDStatistics"]:
             self.publish_angular_pid_statistics(msg)
 
-        if arbitration_id == arbitration_ids["MotorStatisticsFrontMotors"]:
+        elif arbitration_id == arbitration_ids["MotorStatisticsFrontMotors"]:
             self.publish_motor_statistics_front_motors(msg)
         
-        if arbitration_id == arbitration_ids["MotorStatisticsBackMotors"]:
+        elif arbitration_id == arbitration_ids["MotorStatisticsBackMotors"]:
             self.publish_motor_statistics_back_motors(msg)
 
-        if arbitration_id >= arbitration_ids["ConbusLowerBound"] and arbitration_id < arbitration_ids["ConbusUpperBound"]:
+        elif arbitration_id >= arbitration_ids["ConbusLowerBound"] and arbitration_id < arbitration_ids["ConbusUpperBound"]:
             self.publish_conbus(msg)
+
+        else:
+            self.log(f"Received CAN message with invalid id: {arbitration_id}, data: {msg.data}", LogLevel.ERROR)
 
 
     def publish_odom_feedback(self, msg):
@@ -238,24 +241,24 @@ class CanNode(Node):
 
     def publish_motor_statistics_front_motors(self, msg):
         left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack(">hhhh", msg.data)
-        motor_statistics_front_motors = MotorStatisticsFrontMotors()
-        motor_statistics_front_motors.left_drive_motor_output = left_drive_motor_output / self.config.get("front_motor_scaler")
-        motor_statistics_front_motors.left_steer_motor_output = left_steer_motor_output / self.config.get("front_motor_scaler")
-        motor_statistics_front_motors.right_drive_motor_output = right_drive_motor_output / self.config.get("front_motor_scaler")
-        motor_statistics_front_motors.right_steer_motor_output = right_steer_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics = MotorStatistics()
+        motor_statistics.left_drive_motor_output = left_drive_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics.left_steer_motor_output = left_steer_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics.right_drive_motor_output = right_drive_motor_output / self.config.get("front_motor_scaler")
+        motor_statistics.right_steer_motor_output = right_steer_motor_output / self.config.get("front_motor_scaler")
 
-        self.motorStatisticsFrontMotorsPublisher.publish(motor_statistics_front_motors)
+        self.motorStatisticsFrontMotorsPublisher.publish(motor_statistics)
 
 
     def publish_motor_statistics_back_motors(self, msg):
         left_drive_motor_output, left_steer_motor_output, right_drive_motor_output, right_steer_motor_output= struct.unpack(">hhhh", msg.data)
-        motor_statistics_back_motors = MotorStatisticsBackMotors()
-        motor_statistics_back_motors.left_drive_motor_output = left_drive_motor_output / self.config.get("bacK_motor_scaler")
-        motor_statistics_back_motors.left_steer_motor_output = left_steer_motor_output / self.config.get("bacK_motor_scaler")
-        motor_statistics_back_motors.right_drive_motor_output = right_drive_motor_output / self.config.get("bacK_motor_scaler")
-        motor_statistics_back_motors.right_steer_motor_output = right_steer_motor_output / self.config.get("bacK_motor_scaler")
+        motor_statistics = MotorStatistics()
+        motor_statistics.left_drive_motor_output = left_drive_motor_output / self.config.get("back_motor_scaler")
+        motor_statistics.left_steer_motor_output = left_steer_motor_output / self.config.get("back_motor_scaler")
+        motor_statistics.right_drive_motor_output = right_drive_motor_output / self.config.get("back_motor_scaler")
+        motor_statistics.right_steer_motor_output = right_steer_motor_output / self.config.get("back_motor_scaler")
 
-        self.motorStatisticsBackMotorsPublisher.publish(motor_statistics_back_motors)
+        self.motorStatisticsBackMotorsPublisher.publish(motor_statistics)
 
 
     def publish_conbus(self, msg):
