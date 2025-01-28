@@ -94,8 +94,8 @@ class playback(Node):
         
     
     def cameraCallback(self, msg, id):
-        #if not self.system_state == 3:
-            #return
+        if not self.system_state == 1 or self.system_state == 2:
+            return
         path = self.vid_path
         
         def new_process(id: str):
@@ -184,7 +184,7 @@ class playback(Node):
         self.system_state = msg.state
         if self.file == None and self.system_state == 1:
             self.create_entry()
-        elif self.system_state == 3:
+        elif self.system_state != 1 or self.system_state != 2:
             self.close_entry()
             self.close_recording()
         

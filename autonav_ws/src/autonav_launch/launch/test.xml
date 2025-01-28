@@ -1,3 +1,3 @@
 <launch>
-    <node pkg="autonav_logging" exec="playback.py" output="screen" emulate_tty="true" />
+    <node pkg="autonav_playback" exec="playback" output="screen" emulate_tty="true" />
 </launch>
