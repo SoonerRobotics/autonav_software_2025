@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rclpy
 from autonav_shared.node import Node
 
