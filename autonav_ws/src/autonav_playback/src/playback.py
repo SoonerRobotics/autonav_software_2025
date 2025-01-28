@@ -1,5 +1,5 @@
 import rclpy
-from rclpy.node import Node
+from autonav_shared.node import Node
 
 from std_msgs.msg import *
 from sensor_msgs.msg import CompressedImage

@@ -5,19 +5,24 @@
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="ghair244@gmail.com">root</maintainer>
-  <license>Apache-2.0</license>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>autonav_msgs</exec_depend>
   <exec_depend>autonav_shared</exec_depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
 
-  <test_depend>ament_copyright</test_depend>
-  <test_depend>ament_flake8</test_depend>
-  <test_depend>ament_pep257</test_depend>
-  <test_depend>python3-pytest</test_depend>
+
+  <build_depend>rosidl_default_generators</build_depend>  
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <export>
-    <build_type>ament_python</build_type>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>
