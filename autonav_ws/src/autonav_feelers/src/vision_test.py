@@ -24,7 +24,10 @@ while True:
     cv2.imshow("before", old_combined)
 
     # add an alpha channel to the combined image so we can use transparency for blitting the images together later
-    combined_image = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
+    combined_image_front = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
+    combined_image_left = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
+    combined_image_right = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
+    combined_image_back = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
 
     #TODO this was also copypastaed from combination.py
     x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
@@ -58,6 +61,9 @@ while True:
     #  - make masks for all the big images using alpha transparency or whatever
     #  - binary and all of the masks together
 
+    # nah nah nah we just need to do like inRange() and then binary mask the images together and whatnot
+    # that is gonna require 4 separate like, big blank images and stuff
+
     bigImageFront = np.zeros_like(combined_image)
     bigImageLeft = np.zeros_like(combined_image)
     bigImageRight = np.zeros_like(combined_image)
@@ -78,13 +84,29 @@ while True:
     image_right_flattened = cv2.rotate(image_right_flattened, cv2.ROTATE_90_CLOCKWISE)
     image_back_flattened = cv2.rotate(image_back_flattened, cv2.ROTATE_180)
 
+    # empty combined_image as it will be our destination
     combined_image.fill(0)
 
     #TODO https://stackoverflow.com/questions/40895785/using-opencv-to-overlay-transparent-image-onto-another-image we don't want to clip the images when we move them inwards using x_shrink and y_shrink
-    combined_image[0 + y_shrink : IMAGE_HEIGHT + y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_front_flattened
-    combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 + x_shrink : IMAGE_HEIGHT + x_shrink] = image_left_flattened
-    combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT - x_shrink : -x_shrink] = image_right_flattened
-    combined_image[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - y_shrink : -y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_back_flattened
+    # put each individual transformed camera image (left, right, etc) into its own big combined image with just itself
+    bigImageFront[0 + y_shrink : IMAGE_HEIGHT + y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_front_flattened
+    bigImageLeft[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 + x_shrink : IMAGE_HEIGHT + x_shrink] = image_left_flattened
+    bigImageRight[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT - x_shrink : -x_shrink] = image_right_flattened
+    bigImageBack[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - y_shrink : -y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_back_flattened
+
+    # get masks for each of those big images
+    mask_front = cv2.inRange(bigImageFront, (1,1,1,0), (255, 255, 255, 255))
+    mask_left = cv2.inRange(bigImageLeft, (1,1,1,0), (255, 255, 255, 255))
+    mask_right = cv2.inRange(bigImageRight, (1,1,1,0), (255, 255, 255, 255))
+    mask_back = cv2.inRange(bigImageBack, (1,1,1,0), (255, 255, 255, 255))
+
+    # https://docs.opencv.org/4.x/d0/d86/tutorial_py_image_arithmetics.html
+    # https://stackoverflow.com/questions/44333605/what-does-bitwise-and-operator-exactly-do-in-opencv
+    # overlay all the individual images (bigImageFront, etc) onto the final image (combined_image) using the masks
+    combined_image = cv2.bitwise_or(bigImageFront, combined_image, mask_front)
+    combined_image = cv2.bitwise_or(bigImageLeft, combined_image, mask_left)
+    combined_image = cv2.bitwise_or(bigImageRight, combined_image, mask_right)
+    combined_image = cv2.bitwise_or(bigImageBack, combined_image, mask_back)
 
     # shrunk_image = cv2.resize(combined_image, (COMBINED_IMAGE_WIDTH//2, COMBINED_IMAGE_HEIGHT//2))
     # shrunk_image = combined_image

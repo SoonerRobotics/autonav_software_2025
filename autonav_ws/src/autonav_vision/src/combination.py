@@ -27,6 +27,13 @@ IMAGE_HEIGHT = 480
 COMBINED_IMAGE_WIDTH = IMAGE_HEIGHT*2 + IMAGE_WIDTH # make it a square, follow what the height is
 COMBINED_IMAGE_HEIGHT = IMAGE_HEIGHT*2 + IMAGE_WIDTH # top and bottom cameras are 480 pixels tall, plus the left/right cameras turned on their side which adds 640 pixels
 
+#TODO I don't like doing this
+class ImageContainer():
+    def __init__(self, front, left, right, back):
+        self.front = front
+        self.left = left
+        self.right = right
+        self.back = back
 
 class ImageCombiner(Node):
     def __init__(self):
@@ -134,6 +141,8 @@ class ImageCombiner(Node):
         combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 : IMAGE_HEIGHT] = image_left # the left and right cameras are rotated 90 degrees so coordinates are backwards, it is not [IMAGE_HEIGHT : IMAGE_HEIGHT*2, 0 : IMAGE_WIDTH]
         combined[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT : ] = image_right # same here, if it wasn't rotated it would be [IMAGE_HEIGHT : IMAGE_HEIGHT*2, IMAGE_WIDTH : ]
         combined[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT : , x_offset : x_offset+IMAGE_WIDTH] = image_back
+
+        #TODO combine all images but like mask out the parts of them that are just transparent or something
 
         # and publish the image
         self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
