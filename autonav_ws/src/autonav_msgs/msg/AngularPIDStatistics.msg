@@ -1,0 +1,2 @@
+int16 angular_velocity
+int16 angular_velocity_setpoint

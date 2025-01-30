@@ -1,0 +1,13 @@
+Follow the slcand portion of https://canable.io/getting-started.html for testing the canable
+
+You may need to sudo apt install net-tools to get ifconfig
+
+Canables should appear as Protofusion Labs CANable https://github.com/normaldotcom/canable-fw under lsusb. 
+You can visit that link if you need to reinstall drivers on the canable. Make sure you set the bootloader pin.
+
+The python package is python3-can
+
+SCR uses regular (11-bit) CAN frames (SFF)
+
+hexadecimal to decimal (signed and unsigned)
+https://www.eecs.umich.edu/courses/eng100/calc.html
