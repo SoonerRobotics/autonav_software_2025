@@ -48,7 +48,7 @@ namespace AutoNav
         // Publish the performance data
         auto performance_msg = autonav_msgs::msg::Performance();
         performance_msg.name = name;
-        performance_msg.duration = duration.count();
+        performance_msg.elapsed = duration.count();
         performance_pub->publish(performance_msg);
 
         // Log the performance data

@@ -2,6 +2,7 @@
 
 import rclpy
 from autonav_shared.node import Node
+from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 from std_msgs.msg import *
 from sensor_msgs.msg import CompressedImage
@@ -45,8 +46,8 @@ class playback(Node):
         self.config = LogConfig()
         
         # Topic Listeners
-        self.systemStateSub = self.create_subscription(SystemState, 'autonav/shared/system', self.systemStateCallback, self.QOS)
-        self.deviceStateSub = self.create_subscription(DeviceState, 'autonav/shared/device', self.deviceStateCallback, self.QOS)
+        self.systemStateSub = self.create_subscription(SystemState, '/autonav/shared/system', self.systemStateCallback, self.QOS)
+        self.deviceStateSub = self.create_subscription(DeviceState, '/autonav/shared/device', self.deviceStateCallback, self.QOS)
         
         # IMU is still TBD
         self.imu_subscriber  = self.create_subscription(IMUData, '/autonav/imu', self.imu_feedback, self.QOS)
@@ -92,6 +93,11 @@ class playback(Node):
         # Video Stream Performance Tracking
         # List of times in seconds to record every frame
         self.performance_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
+
+        msg = SystemState()
+        msg.state = 2
+        msg.mobility = True
+        self.systemStateCallback(msg)
         
         
     
@@ -186,7 +192,7 @@ class playback(Node):
         self.system_state = msg.state
         if self.file == None and self.system_state == 1:
             self.create_entry()
-        elif self.system_state != 1 or self.system_state != 2:
+        elif self.system_state != 1 and self.system_state != 2:
             self.close_entry()
             self.close_recording()
         
@@ -214,7 +220,8 @@ class playback(Node):
         if self.file == None:
             return
         
-        self.get_logger().info("Writing")
+        # self.get_logger().info("Writing")
+        self.log("TEST!", LogLevel.ERROR)
         self.file.write(msg + "\n")
     
     
@@ -259,7 +266,7 @@ class playback(Node):
         if not self.config.record_motor:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_INPUT, {msg.forward_velocity}, {msg.sideways_velocity}, {msg.angluar_velocity}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_INPUT, {msg.forward_velocity}, {msg.sideways_velocity}, {msg.angular_velocity}")
     
     def position_feedback(self, msg):
         if not self.config.record_position:

@@ -14,6 +14,7 @@ find_package(builtin_interfaces REQUIRED)
 set(msg_files
     "msg/AudibleFeedback.msg"
     "msg/Conbus.msg"
+    "msg/ControllerInput.msg"
     "msg/DeviceState.msg"
     "msg/GPSFeedback.msg"
     "msg/IMUData.msg"
@@ -26,6 +27,8 @@ set(msg_files
     "msg/SystemState.msg"
     "msg/Ultrasonic.msg"
     "msg/Performance.msg"
+    "msg/ConfigurationBroadcast.msg"
+    "msg/ConfigurationUpdate.msg"
 )
 
 set(srv_files
