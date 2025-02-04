@@ -11,12 +11,24 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+<<<<<<< HEAD
 find_package(autonav_shared REQUIRED)
 find_package(autonav_msgs REQUIRED)
+=======
+>>>>>>> main
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
+<<<<<<< HEAD
+=======
+# msgs and srvs 
+#rosidl_generate_interfaces(${PROJECT_NAME}
+  # add message types here
+  #"path_to_message/message.msg"
+#)
+
+>>>>>>> main
 # C++
 
 # Inlcude Cpp "include" directory
@@ -42,9 +54,13 @@ install(TARGETS
  # Install Python programs
  install(PROGRAMS
    # add programs in format:
+<<<<<<< HEAD
    #/path_to_program/program.py
    src/audible_feedback.py
    src/simple_audible_feedback_publisher.py
+=======
+   src/can_node.py
+>>>>>>> main
    DESTINATION lib/${PROJECT_NAME}
 )
 
