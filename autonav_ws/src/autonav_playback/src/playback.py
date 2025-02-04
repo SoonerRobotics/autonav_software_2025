@@ -2,7 +2,9 @@
 
 import rclpy
 from autonav_shared.node import Node
-from autonav_shared.types import LogLevel, DeviceState, SystemState
+from autonav_shared.types import LogLevel, DeviceState
+from autonav_shared.types import SystemState as SystemStateEnum
+# from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 from std_msgs.msg import *
 from sensor_msgs.msg import CompressedImage
@@ -94,10 +96,7 @@ class playback(Node):
         # List of times in seconds to record every frame
         self.performance_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
 
-        msg = SystemState()
-        msg.state = 2
-        msg.mobility = True
-        self.systemStateCallback(msg)
+
         
         
     
@@ -189,12 +188,12 @@ class playback(Node):
         # 2 MANUAL
         # 3 SHUTDOWN
         
-        self.system_state = msg.state
-        if self.file == None and self.system_state == 1:
+        if self.file == None and (self.system_state == SystemStateEnum.MANUAL or self.system_state == SystemStateEnum.AUTONOMOUS):
             self.create_entry()
-        elif self.system_state != 1 and self.system_state != 2:
-            self.close_entry()
-            self.close_recording()
+        elif self.system_state != SystemStateEnum.MANUAL and self.system_state != SystemStateEnum.AUTONOMOUS:
+            if self.file != None:
+                self.close_entry()
+                self.close_recording()
         
     
     def deviceStateCallback(self, msg):
@@ -218,21 +217,23 @@ class playback(Node):
     
     def write_file(self, msg):
         if self.file == None:
+            self.log("File is None!", LogLevel.ERROR)
             return
         
         # self.get_logger().info("Writing")
-        self.log("TEST!", LogLevel.ERROR)
+        # self.log("TEST!", LogLevel.ERROR)
         self.file.write(msg + "\n")
     
     
     def create_entry(self):
+        self.log("Create_entry", LogLevel.INFO)
         stateFrmt = "autonomous" if self.system_state == 1 else "manual"
         filename = f"{stateFrmt}_{self.makeTimestamp()}"
         
         BASE_PATH = os.path.join(self.home_dir, "Documents", "AutoNav", "Logs", filename)
         os.makedirs(BASE_PATH, exist_ok=True)
         
-        self.get_logger().info("Creating Entry")
+        self.log("Creating Entry", LogLevel.INFO)
         self.file = open(os.path.join(BASE_PATH, "log.csv"), "w")
         self.file.write("timestamp, type\n")
     
