@@ -38,7 +38,7 @@ class Manual24Node(Node):
         
         self.motorPublisher = self.create_publisher(
             MotorInput,
-            '/autonav/MotorInput',
+            '/autonav/motor_input',
             10
         )
 
