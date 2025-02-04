@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import rclpy
-from rclpy.node import Node
+# from rclpy.node import Node as rosNode
+from autonav_shared.node import Node
+from autonav_shared.types import LogLevel, SystemState
 from autonav_msgs.msg import MotorInput
 
 
@@ -14,7 +16,7 @@ class ControllerListener(Node):
 
         self.subscription = self.create_subscription(
             MotorInput,
-            '/autonav/MotorInput',
+            '/autonav/motor_input',
             self.listener_callback,
             10)
         
@@ -23,6 +25,7 @@ class ControllerListener(Node):
 
     def listener_callback(self, msg):
         self.get_logger().info(f"I heard: {msg.forward_velocity}, {msg.sideways_velocity}, {msg.angular_velocity}")
+        self.get_logger().info(f"system state: {self.system_state}")
 
 
     def deserialize_controller_state(self, msg):
@@ -43,7 +46,6 @@ def main(args=None):
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
     # when the garbage collector destroys the node object)
-    controller_listener.destroy_node()
     rclpy.shutdown()
 
 
