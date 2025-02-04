@@ -14,9 +14,10 @@ import PySoundSphere
 
 class AudibleFeedbackConfig:
     def __init__(self):
-        self.volume = 1.0
+        self.volume = 10.0
         self.autonomous_transition_filepath = os.path.expanduser('~/Documents/imposter.mp3')
-        
+        self.manual_transition_filepath = os.path.expanduser('~/Documents/manual_mode.mp3')
+        self.disabled_transition_filepath = os.path.expanduser('~/Documents/robot_disabled.mp3')
 
 class AudibleFeedbackNode(Node):
     def __init__(self):
@@ -37,6 +38,7 @@ class AudibleFeedbackNode(Node):
 
         self.system_state_monitor = self.create_timer(0.5, self.monitor_system_state)
         self.track_monitor = self.create_timer(0.5, self.monitor_tracks)
+
 
     def on_audible_feedback_received(self, msg:AudibleFeedback):
         self.monitor_tracks()
@@ -140,6 +142,38 @@ class AudibleFeedbackNode(Node):
             
             self.secondary_tracks.append(playback)
             self.old_system_state = SystemState.AUTONOMOUS
+
+        elif self.system_state == SystemState.MANUAL and self.old_system_state != SystemState.MANUAL:
+            playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
+
+            try:
+                filename = self.config.get('manual_transition_filepath')
+            except:
+                self.log("invalid manual transition filepath")
+                return
+            
+            playback.load(filename)
+            playback.volume = self.config.get('volume')
+            playback.play()
+            
+            self.secondary_tracks.append(playback)
+            self.old_system_state = SystemState.MANUAL
+
+        elif self.system_state == SystemState.DISABLED and self.old_system_state != SystemState.DISABLED:
+            playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
+
+            try:
+                filename = self.config.get('disabled_transition_filepath')
+            except:
+                self.log("invalid disabled transition filepath")
+                return
+            
+            playback.load(filename)
+            playback.volume = self.config.get('volume')
+            playback.play()
+            
+            self.secondary_tracks.append(playback)
+            self.old_system_state = SystemState.DISABLED
 
         else:
             self.old_system_state = self.system_state

@@ -10,6 +10,8 @@ from enum import IntEnum
 import time
 import json
 import os
+import threading
+
 
 class ControllerMode(IntEnum):
     LOCAL = 0
@@ -29,7 +31,6 @@ class Manual25Node(Node):
     def __init__(self):
         super().__init__('manual25_node')
         self.write_config(Manual25Config())
-        self.log("bigger pepe")
 
 
     def init(self):
@@ -38,10 +39,15 @@ class Manual25Node(Node):
         self.last_time = 0
         self.delta_t = 0
         self.new_time = time.time()
+        
         # self.max_forward_speed = 1
         # self.max_angular_speed = np.pi/4
 
         self.controller_state = {}
+
+        self.audio_manager = threading.Thread(target=self.manage_audio)
+        self.audio_manager.daemon = True
+        self.audio_manager.start()
 
         self.set_device_state(DeviceState.WARMING)
 
@@ -85,11 +91,11 @@ class Manual25Node(Node):
         self.change_controller_mode()
         self.change_system_state()
 
-        if self.delta_t > self.config.get("sound_buffer"):
-            self.play_sound()
-            self.last_time = time.time()
+        # if self.delta_t > self.config.get("sound_buffer"):
+        #     self.play_sound()
+        #     self.last_time = time.time()
         
-        self.manage_audio()
+        # self.manage_audio()
 
 
         self.log(f"orientation: {self.orientation}")
@@ -188,33 +194,69 @@ class Manual25Node(Node):
 
 
     def play_sound(self):
+        self.new_time = time.time()
+        self.delta_t = self.new_time - self.last_time
+
+        self.get_logger().info(f"{self.delta_t}")
+        if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
+            return
+
+        if self.controller_state == {}:
+            return
+
+        if self.delta_t < self.config.get("sound_buffer"):
+            return
+
         if self.controller_state['btn_west'] == 1:
             audible_feedback = AudibleFeedback()
             audible_feedback.filename = os.path.expanduser('~/Documents/vine-boom.mp3')
             self.audibleFeedbackPublisher.publish(audible_feedback)
+            self.last_time = time.time()
 
-        if self.controller_state['abs_hat0y'] == -1:
+        elif self.controller_state['abs_hat0y'] == -1:
             audible_feedback = AudibleFeedback()
             audible_feedback.filename= os.path.expanduser('~/Documents/vivalavida.wav')
             audible_feedback.main_track = True
             self.audibleFeedbackPublisher.publish(audible_feedback)
+            self.last_time = time.time()
+
+        elif self.controller_state['btn_south'] == 1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.filename = os.path.expanduser('~/Documents/robot_relative.mp3')
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+            self.last_time = time.time()
+
+        elif self.controller_state['btn_north'] == 1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.filename = os.path.expanduser('~/Documents/field_oriented.mp3')
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+            self.last_time = time.time()
 
 
     def manage_audio(self):
-        if self.controller_state['abs_hat0y'] == 1:
-            audible_feedback = AudibleFeedback()
-            audible_feedback.stop_all = True
-            self.audibleFeedbackPublisher.publish(audible_feedback)
+        while rclpy.ok():
+            if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
+                continue
 
-        if self.controller_state['abs_hat0x'] == -1:
-            audible_feedback = AudibleFeedback()
-            audible_feedback.pause_all = True
-            self.audibleFeedbackPublisher.publish(audible_feedback)
+            if self.controller_state == {}:
+                continue
 
-        if self.controller_state['abs_hat0x'] == 1:
-            audible_feedback = AudibleFeedback()
-            audible_feedback.unpause_all = True
-            self.audibleFeedbackPublisher.publish(audible_feedback)
+            if self.controller_state['abs_hat0y'] == 1:
+                audible_feedback = AudibleFeedback()
+                audible_feedback.stop_all = True
+                self.audibleFeedbackPublisher.publish(audible_feedback)
+
+            if self.controller_state['abs_hat0x'] == -1:
+                audible_feedback = AudibleFeedback()
+                audible_feedback.pause_all = True
+                self.audibleFeedbackPublisher.publish(audible_feedback)
+
+            if self.controller_state['abs_hat0x'] == 1:
+                audible_feedback = AudibleFeedback()
+                audible_feedback.unpause_all = True
+                self.audibleFeedbackPublisher.publish(audible_feedback)
+
+            self.play_sound()
 
 
 def main(args=None):
