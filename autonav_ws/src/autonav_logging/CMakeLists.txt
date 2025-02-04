@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(autonav_playback)
+project(autonav_logging)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -20,7 +20,7 @@ find_package(OpenCV REQUIRED)
 
 # Install Python programs
 install(PROGRAMS
-  src/playback.py
+  src/logging.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
