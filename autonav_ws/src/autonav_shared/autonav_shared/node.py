@@ -123,7 +123,7 @@ class Node(RclpyNode):
         
         msg = Performance()
         msg.name = name
-        msg.duration = duration
+        msg.elapsed = duration
         self.performance_pub.publish(msg)
         
         if print_to_console:
