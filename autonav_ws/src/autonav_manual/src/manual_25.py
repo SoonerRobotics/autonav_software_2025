@@ -18,9 +18,9 @@ class ControllerMode(IntEnum):
 
 class Manual25Config:
     def __init__(self):
-        self.max_forward_speed = 3
-        self.max_sideways_speed = 3
-        self.max_angular_speed = np.pi
+        self.max_forward_speed = -3
+        self.max_sideways_speed = -3
+        self.max_angular_speed = -np.pi
         self.odom_fudge_factor = 1
 
 
@@ -56,14 +56,14 @@ class Manual25Node(Node):
 
         self.motorSubscription = self.create_subscription(
             MotorFeedback,
-            '/autonav/MotorFeedback',
+            '/autonav/motor_feedback',
             self.on_motor_feedback,
             10
         )
         
         self.motorPublisher = self.create_publisher(
             MotorInput,
-            '/autonav/MotorInput',
+            '/autonav/motor_input',
             10
         )
 
