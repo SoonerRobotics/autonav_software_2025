@@ -2,10 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>autonav_logging</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="ghair244@gmail.com">root</maintainer>
-  <license>TODO</license>
+  <version>2025.0.1</version>
+  <description>The fastest damn Logger in the West</description>
+  <maintainer email="ghair244@gmail.com">Garrison</maintainer>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
