@@ -23,6 +23,22 @@ class PerformanceNode(Node):
         self.update_cpu()
         self.memory = psutil.virtual_memory()
         
+        # Publisher
+        self.performance_publisher = self.create_publisher(HardwarePerformance, "/autonav/hardware_performance", 10)
+        timer_period = 0.1
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+    
+    
+    def timer_callback(self):
+        update_cpu()
+        update_memory()
+        temp = query_temps()
+        self.log(temp, self.cpu_utilization, self.memory)
+        msg = HardwarePerformance()
+        msg.cpu = self.cpu_utilization
+        msg.memory = self.memory
+        self.performance_publisher.publish(msg)
+        
     
     def query_temps(self):
         if self.config.CELCUIS:
@@ -34,7 +50,7 @@ class PerformanceNode(Node):
     
     def query_battery(self):
         battery = psutil.sensors_battery()
-        if battery = None:
+        if battery == None:
             return
         else:
             return battery
