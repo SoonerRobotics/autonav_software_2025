@@ -4,17 +4,19 @@ import rclpy
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
+from autonav_msgs.msg import HardwarePerformance
 
 import psutil
 
 class Config():
     
     def __init__(self):
-        self.CELCIUS = False
+        self.CELSIUS = False
 
 class PerformanceNode(Node):
     
     def __init__(self):
+        super().__init__("autonav_hardware_performance")
         # Initiliza config
         self.config = Config()
         
@@ -30,18 +32,19 @@ class PerformanceNode(Node):
     
     
     def timer_callback(self):
-        update_cpu()
-        update_memory()
-        temp = query_temps()
-        self.log(temp, self.cpu_utilization, self.memory)
-        msg = HardwarePerformance()
-        msg.cpu = self.cpu_utilization
-        msg.memory = self.memory
-        self.performance_publisher.publish(msg)
+        self.update_cpu()
+        self.update_memory()
+        temp = self.query_temps()
+        self.log(f"{temp}, {self.cpu_utilization}, {self.memory}")
+        print(f"{temp}, {self.cpu_utilization}, {self.memory}")
+        #msg = HardwarePerformance()
+        #msg.cpu = self.cpu_utilization
+        #msg.memory = self.memory
+        #self.performance_publisher.publish(msg)
         
     
     def query_temps(self):
-        if self.config.CELCUIS:
+        if self.config.CELSIUS:
             # Send in Celcius
             return psutil.sensors_temperatures()
         else:
