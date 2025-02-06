@@ -82,6 +82,11 @@ class Manual24Node(Node):
             self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
 
+        elif self.controller_state['btn_mode'] == 1.0:
+            new_system_state = SystemState.AUTONOMOUS
+            self.log(f'Setting system state to {new_system_state}')
+            self.set_system_state(new_system_state)
+
         elif self.controller_state['btn_select'] == 1.0:
             new_system_state = SystemState.DISABLED
             self.log(f'Setting system state to {new_system_state}')

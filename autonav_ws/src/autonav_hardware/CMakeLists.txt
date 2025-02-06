@@ -46,6 +46,9 @@ install(TARGETS
  # Install Python programs
  install(PROGRAMS
    # add programs in format:
+   #/path_to_program/program.py
+   src/audible_feedback.py
+   src/simple_audible_feedback_publisher.py
    src/can_node.py
    DESTINATION lib/${PROJECT_NAME}
 )
