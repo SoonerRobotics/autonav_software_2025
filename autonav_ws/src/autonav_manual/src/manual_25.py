@@ -16,7 +16,7 @@ import threading
 class ControllerMode(IntEnum):
     LOCAL = 0
     GLOBAL = 1
-
+    
 
 class Manual25Config:
     def __init__(self):
@@ -25,6 +25,8 @@ class Manual25Config:
         self.max_angular_speed = -np.pi
         self.odom_fudge_factor = 1
         self.sound_buffer = 0.5 # seconds
+        self.main_song_path = '~/Documents/vivalavida.wav'
+        self.x_button_sound = '~/Documents/vine-boom.mp3'
 
 
 class Manual25Node(Node):
@@ -86,19 +88,10 @@ class Manual25Node(Node):
 
         self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
-        # self.log(f"I heard: {str(self.controller_state)}")
 
         self.change_controller_mode()
         self.change_system_state()
 
-        # if self.delta_t > self.config.get("sound_buffer"):
-        #     self.play_sound()
-        #     self.last_time = time.time()
-        
-        # self.manage_audio()
-
-
-        self.log(f"orientation: {self.orientation}")
         # local vs. global toggle
 
         if self.mode == ControllerMode.LOCAL:
@@ -123,33 +116,29 @@ class Manual25Node(Node):
         if self.controller_state["btn_north"] == 1.0:
             self.orientation = 0
             self.mode = ControllerMode.GLOBAL
-            self.log(f'changed controller mode to {self.mode}')
+
         elif self.controller_state["btn_south"] == 1.0:
             self.orientation = 0
             self.mode = ControllerMode.LOCAL
-            self.log(f'changed controller mode to {self.mode}')
+
             
 
     def change_system_state(self):
         new_system_state = self.system_state
         if self.controller_state['btn_east'] == 1.0:
             new_system_state = SystemState.SHUTDOWN
-            self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
             
         elif self.controller_state['btn_start'] == 1.0:
             new_system_state = SystemState.MANUAL
-            self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
 
         elif self.controller_state['btn_mode'] == 1.0:
             new_system_state = SystemState.AUTONOMOUS
-            self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
 
         elif self.controller_state['btn_select'] == 1.0:
             new_system_state = SystemState.DISABLED
-            self.log(f'Setting system state to {new_system_state}')
             self.set_system_state(new_system_state)
 
 
@@ -197,7 +186,6 @@ class Manual25Node(Node):
         self.new_time = time.time()
         self.delta_t = self.new_time - self.last_time
 
-        self.get_logger().info(f"{self.delta_t}")
         if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
             return
 
@@ -209,13 +197,13 @@ class Manual25Node(Node):
 
         if self.controller_state['btn_west'] == 1:
             audible_feedback = AudibleFeedback()
-            audible_feedback.filename = os.path.expanduser('~/Documents/vine-boom.mp3')
+            audible_feedback.filename = os.path.expanduser(self.config.get("x_button_sound"))
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()
 
         elif self.controller_state['abs_hat0y'] == -1:
             audible_feedback = AudibleFeedback()
-            audible_feedback.filename= os.path.expanduser('~/Documents/vivalavida.wav')
+            audible_feedback.filename= os.path.expanduser(self.config.get("main_song_path"))
             audible_feedback.main_track = True
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()

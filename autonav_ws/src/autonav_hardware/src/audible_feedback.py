@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import rclpy
 from autonav_msgs.msg import AudibleFeedback
 
@@ -18,6 +17,7 @@ class AudibleFeedbackConfig:
         self.autonomous_transition_filepath = os.path.expanduser('~/Documents/imposter.mp3')
         self.manual_transition_filepath = os.path.expanduser('~/Documents/manual_mode.mp3')
         self.disabled_transition_filepath = os.path.expanduser('~/Documents/robot_disabled.mp3')
+
 
 class AudibleFeedbackNode(Node):
     def __init__(self):
@@ -43,7 +43,6 @@ class AudibleFeedbackNode(Node):
     def on_audible_feedback_received(self, msg:AudibleFeedback):
         self.monitor_tracks()
 
-        # self.log(f"{len(self.secondary_tracks)}", LogLevel.DEBUG)
         if msg.stop_all:
             self.stop_all()
             return
@@ -57,11 +56,9 @@ class AudibleFeedbackNode(Node):
             return
 
         else:
-            # self.log(f"playing {msg.filename}")
             filename = str(msg.filename)
             main_track = msg.main_track
 
-            # self.log(f"heard request to play {msg.filename}")
             self.play_sound(filename, main_track)
 
 
@@ -100,7 +97,7 @@ class AudibleFeedbackNode(Node):
         try:
             self.main_track.stop()
         except:
-            self.log("No main track", LogLevel.ERROR)
+            self.log("No main track", LogLevel.INFO)
 
         self.main_track = None
 
@@ -133,7 +130,7 @@ class AudibleFeedbackNode(Node):
             try:
                 filename = self.config.get('autonomous_transition_filepath')
             except:
-                self.log("invalid autonomous transition filepath")
+                self.log("invalid autonomous transition filepath", LogLevel.ERROR)
                 return
             
             playback.load(filename)
@@ -149,7 +146,7 @@ class AudibleFeedbackNode(Node):
             try:
                 filename = self.config.get('manual_transition_filepath')
             except:
-                self.log("invalid manual transition filepath")
+                self.log("invalid manual transition filepath", LogLevel.ERROR)
                 return
             
             playback.load(filename)
@@ -165,7 +162,7 @@ class AudibleFeedbackNode(Node):
             try:
                 filename = self.config.get('disabled_transition_filepath')
             except:
-                self.log("invalid disabled transition filepath")
+                self.log("invalid disabled transition filepath", LogLevel.ERROR)
                 return
             
             playback.load(filename)
