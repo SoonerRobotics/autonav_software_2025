@@ -20,6 +20,7 @@ find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
  
 # Install Python programs
+
 install(PROGRAMS
   src/transformations.py
   src/combination.py
