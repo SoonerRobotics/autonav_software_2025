@@ -35,12 +35,11 @@ class PerformanceNode(Node):
         self.update_cpu()
         self.update_memory()
         temp = self.query_temps()
-        self.log(f"{temp}, {self.cpu_utilization}, {self.memory}")
-        print(f"{temp}, {self.cpu_utilization}, {self.memory}")
-        #msg = HardwarePerformance()
-        #msg.cpu = self.cpu_utilization
-        #msg.memory = self.memory
-        #self.performance_publisher.publish(msg)
+        self.log(f"{psutil.sensors_temperatures()}, {self.cpu_utilization}, {self.memory}")
+        msg = HardwarePerformance()
+        msg.cpu = self.cpu_utilization
+        msg.memory = self.memory
+        self.performance_publisher.publish(msg)
         
     
     def query_temps(self):
@@ -69,6 +68,7 @@ class PerformanceNode(Node):
 
     def update_memory(self):
         self.memory = psutil.virtual_memory()
+        self.memory = self.memory.percent
 
 def main(args=None):
     rclpy.init(args=args)
