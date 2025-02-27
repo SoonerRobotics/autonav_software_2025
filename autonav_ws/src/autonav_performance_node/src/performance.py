@@ -35,10 +35,11 @@ class PerformanceNode(Node):
         self.update_cpu()
         self.update_memory()
         temp = self.query_temps()
-        self.log(f"{psutil.sensors_temperatures()}, {self.cpu_utilization}, {self.memory}")
+        self.log(f"{temp}, {self.cpu_utilization}, {self.memory}")
         msg = HardwarePerformance()
         msg.cpu = self.cpu_utilization
         msg.memory = self.memory
+        msg.temp = str(temp)
         self.performance_publisher.publish(msg)
         
     
