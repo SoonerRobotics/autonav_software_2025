@@ -27,3 +27,5 @@ autonav_ws/src/scr/include/scr/websocketpp/**/*:Zone.Identifier
 **/venv
 
 .idea/
+.idea/git_toolbox_blame.xml
+.idea/autonav_software_2025.iml
