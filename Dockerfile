@@ -9,4 +9,4 @@ WORKDIR /autonav_software_2025
 #     apt-get install -y python3-pip
 
 
-#RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash; colcon build"
+#RUN /bin/b ash -c "source /opt/ros/jazzy/setup.bash; colcon build"2
