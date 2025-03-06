@@ -9,6 +9,7 @@ __pycache__
 # Visual Studio Code
 .vscode
 
+
 # VNav
 setup/vectornav.zip
 setup/vectorsecrets.txt
