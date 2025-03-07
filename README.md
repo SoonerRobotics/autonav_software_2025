@@ -34,7 +34,7 @@ or
 ros2 launch autonav_launch manual.xml
 ```
 
-![](./img/Autonav25%20Controller%20Input%20Documentation.png)
+![](./img/Autonav25%20Controller%20Input%20Documentation.jpg)
 
 ## Simulation
 
