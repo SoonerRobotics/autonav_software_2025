@@ -1,2 +1,1 @@
-uint32 id
 uint8 which_encoder
