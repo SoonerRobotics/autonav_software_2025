@@ -150,7 +150,7 @@ class Manual25Node(Node):
     
     def handle_encoders(self):
         if self.controller_state['btn_tl'] == 1.0:
-            self.log("zeroing the encoders", LogLevel.INFO)
+            # self.log("zeroing the encoders", LogLevel.INFO)
             number_of_absolute_encoders = 4
             for i in range(number_of_absolute_encoders):
                 encoder_msg = ZeroEncoders()
