@@ -34,6 +34,8 @@ or
 ros2 launch autonav_launch manual.xml
 ```
 
+![](./img/Autonav25%20Controller%20Input%20Documentation.png)
+
 ## Simulation
 
 Follow the steps in [building](#building) and then run the following command
