@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import numpy as np
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import ControllerInput
+from autonav_msgs.msg import ControllerInput, ZeroEncoders
 from enum import IntEnum
 import time
 
@@ -64,6 +64,12 @@ class Manual25Node(Node):
         self.motorPublisher = self.create_publisher(
             MotorInput,
             '/autonav/motor_input',
+            10
+        )
+
+        self.zeroEncodersPublisher = self.create_publisher(
+            ZeroEncoders,
+            '/autonav/zero_encoders',
             10
         )
 
