@@ -22,7 +22,7 @@ find_package(image_transport REQUIRED)
  
 # Install Python programs
 
-install(PROGRAMS
+install(PROGRAMS)
   src/transformations.py
   src/combination.py
   DESTINATION lib/${PROJECT_NAME}
