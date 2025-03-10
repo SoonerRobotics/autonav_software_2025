@@ -12,20 +12,27 @@ find_package(builtin_interfaces REQUIRED)
 
 # generate messages
 set(msg_files
+    "msg/AngularPIDStatistics.msg"
     "msg/AudibleFeedback.msg"
+    "msg/CanStats.msg"
     "msg/Conbus.msg"
+    "msg/ControllerInput.msg"
     "msg/DeviceState.msg"
     "msg/GPSFeedback.msg"
     "msg/IMUData.msg"
+    "msg/LinearPIDStatistics.msg"
     "msg/Log.msg"
     "msg/MotorFeedback.msg"
     "msg/MotorInput.msg"
+    "msg/MotorStatistics.msg"
     "msg/NUCStatistics.msg"
     "msg/Position.msg"
     "msg/SafetyLights.msg"
     "msg/SystemState.msg"
     "msg/Ultrasonic.msg"
     "msg/Performance.msg"
+    "msg/ConfigurationBroadcast.msg"
+    "msg/ConfigurationUpdate.msg"
 )
 
 set(srv_files

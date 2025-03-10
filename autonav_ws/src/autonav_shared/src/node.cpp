@@ -14,18 +14,71 @@ namespace AutoNav
         // TODO: Setup all relevant publishers, subscribers, services, clients, etc
         system_state_sub = this->create_subscription<autonav_msgs::msg::SystemState>("/autonav/shared/system", 1, std::bind(&Node::system_state_callback, this, std::placeholders::_1));
         device_state_sub = this->create_subscription<autonav_msgs::msg::DeviceState>("/autonav/shared/device", 1, std::bind(&Node::device_state_callback, this, std::placeholders::_1));
+        configuration_broadcast_sub = this->create_subscription<autonav_msgs::msg::ConfigurationBroadcast>("/autonav/shared/config/requests", 1, std::bind(&Node::config_broadcast_callback, this, std::placeholders::_1));
+        configuration_update_sub = this->create_subscription<autonav_msgs::msg::ConfigurationUpdate>("/autonav/shared/config/updates", 1, std::bind(&Node::config_updated_callback, this, std::placeholders::_1));
 
         performance_pub = this->create_publisher<autonav_msgs::msg::Performance>("/autonav/shared/performance", 10);
         log_pub = this->create_publisher<autonav_msgs::msg::Log>("/autonav/shared/log", 10);
         device_state_pub = this->create_publisher<autonav_msgs::msg::DeviceState>("/autonav/shared/device", 10);
         system_state_pub = this->create_publisher<autonav_msgs::msg::SystemState>("/autonav/shared/system", 10);
-    
+        configuration_broadcast_pub = this->create_publisher<autonav_msgs::msg::ConfigurationBroadcast>("/autonav/shared/config/requests", 10);
+        configuration_update_pub = this->create_publisher<autonav_msgs::msg::ConfigurationUpdate>("/autonav/shared/config/updates", 10);
+
         set_device_state(AutoNav::DeviceState::WARMING);
     }
 
     Node::~Node()
     {
         // TODO: Cleanup stuff as required
+    }
+
+    void Node::config_updated_callback(const autonav_msgs::msg::ConfigurationUpdate::SharedPtr msg)
+    {
+        if (msg->device == get_name())
+        {
+            log("Received update on our own configuration", Logging::LogLevel::DEBUG);
+            this->config = json::parse(msg->json);
+        } else {
+            log("Received update on " + msg->device + "'s configuration", Logging::LogLevel::DEBUG);
+        }
+
+        other_cfgs.insert_or_assign(msg->device, json::parse(msg->json));
+    }
+
+    void Node::config_broadcast_callback(const autonav_msgs::msg::ConfigurationBroadcast::SharedPtr msg)
+    {
+        if (msg->target_nodes.size() == 0 || std::find(msg->target_nodes.begin(), msg->target_nodes.end(), get_name()) != msg->target_nodes.end())
+        {
+            log("Received request for our own configuration to be broadcasted", Logging::LogLevel::DEBUG);
+            broadcast_config();
+        };
+    }
+
+    void Node::broadcast_config()
+    {
+        autonav_msgs::msg::ConfigurationUpdate msg;
+        msg.device = get_name();
+        msg.json = config.dump();
+        configuration_update_pub->publish(msg);
+    }
+
+    void Node::request_all_configs()
+    {
+        autonav_msgs::msg::ConfigurationBroadcast msg;
+        configuration_broadcast_pub->publish(msg);
+    }
+
+    void Node::request_config(const std::string & device)
+    {
+        autonav_msgs::msg::ConfigurationBroadcast msg;
+        msg.target_nodes.push_back(device);
+        configuration_broadcast_pub->publish(msg);
+    }
+
+    void Node::write_config(const json & config)
+    {
+        this->config = config;
+        broadcast_config();
     }
 
     void Node::perf_start(const std::string & name)
@@ -48,7 +101,7 @@ namespace AutoNav
         // Publish the performance data
         auto performance_msg = autonav_msgs::msg::Performance();
         performance_msg.name = name;
-        performance_msg.duration = duration.count();
+        performance_msg.elapsed = duration.count();
         performance_pub->publish(performance_msg);
 
         // Log the performance data
