@@ -7,6 +7,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(autonav_shared REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -29,7 +30,7 @@ install(PROGRAMS
 
 # C++
 add_executable(expandify src/expandify.cpp)
-ament_target_dependencies(expandify rclcpp sensor_msgs autonav_msgs nav_msgs cv_bridge image_transport scr)
+ament_target_dependencies(expandify rclcpp sensor_msgs autonav_msgs nav_msgs cv_bridge image_transport scr autonav_shared)
 
 install(TARGETS
   expandify
