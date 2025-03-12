@@ -1,0 +1,1 @@
+docker run --pull never -it sha256:41dbe6cf4bc89647077fb6c4f473b05c6ca3be4788a823767b95da293998ffeb /bin/bash

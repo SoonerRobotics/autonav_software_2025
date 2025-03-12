@@ -7,6 +7,7 @@ from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 from autonav_msgs.msg import AudibleFeedback, ControllerInput
 from enum import IntEnum
+
 import time
 import json
 import os

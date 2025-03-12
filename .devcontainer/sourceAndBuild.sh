@@ -11,6 +11,6 @@ colcon build
 
 source install/setup.bash
 
-# ros2 launch autonav_launch test.xml
+ros2 launch autonav_launch test.xml
 
 exec "$SHELL"
