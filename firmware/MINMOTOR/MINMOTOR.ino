@@ -23,46 +23,44 @@ static const byte MCP2515_MISO_MOTOR = 12;
 static const byte MCP2515_CS_MOTOR = 13;
 static const byte MCP2515_INT_MOTOR = 11;
 
-// Motor controller addresses
-static const uint32_t MOTOR1_DRIVE = 0x02052C81;
-static const uint32_t MOTOR1_ROTATE = 0x02052C8B;
-static const uint32_t MOTOR2_DRIVE = 0x02052C82;
-static const uint32_t MOTOR2_ROTATE = 0x02052C8C;
-static const uint32_t MOTOR3_DRIVE = 0x02052C83;
-static const uint32_t MOTOR3_ROTATE = 0x02052C8D;
-static const uint32_t MOTOR4_DRIVE = 0x02052C84;
-static const uint32_t MOTOR4_ROTATE = 0x02052C8E;
+// Motor controller addresses 0x0205008x
+static const uint32_t MOTOR1_DRIVE = 0x02050081; // Motor Control 1
+static const uint32_t MOTOR1_ROTATE = 0x0205008B; // Motor Control 11
+static const uint32_t MOTOR2_DRIVE = 0x02050082; // Motor Control 2
+static const uint32_t MOTOR2_ROTATE = 0x0205008C; // Motor Control 12
+static const uint32_t MOTOR3_DRIVE = 0x02050083; // Motor Control 3
+static const uint32_t MOTOR3_ROTATE = 0x0205008D; // Motor Control 13
+static const uint32_t MOTOR4_DRIVE = 0x02050084; // Motor Control 4
+static const uint32_t MOTOR4_ROTATE = 0x0205008E; // Motor Control 14
 
 // Absoute Encoder I2C
 static const byte SDA_ENC = 20;
 static const byte SCL_ENC = 21;
 static const byte MCP3428_ADDR = 0b1101000;
-static const byte MCP3428_CONFIG1 = 0b11110000;
-static const byte MCP3428_CONFIG2 = 0b10110000;
-static const byte MCP3428_CONFIG3 = 0b10010000;
-static const byte MCP3428_CONFIG4 = 0b11010000;
+static const byte MCP3428_CONFIG1 = 0b11110000; // Abs Encoder 1
+static const byte MCP3428_CONFIG2 = 0b10110000; // Abs Encoder 2
+static const byte MCP3428_CONFIG3 = 0b10010000; // Abs Encoder 3
+static const byte MCP3428_CONFIG4 = 0b11010000; // Abs Encoder 4
 
 // Quadature Encoder
-static const byte MOTOR1_ENC1 = 9;
-static const byte MOTOR1_ENC2 = 8;
+static const byte MOTOR1_ENC1 = 9; // 1A
+static const byte MOTOR1_ENC2 = 8; // 1B
 
-static const byte MOTOR2_ENC1 = 1;
-static const byte MOTOR2_ENC2 = 0;
+static const byte MOTOR2_ENC1 = 1; // 2A
+static const byte MOTOR2_ENC2 = 0; // 2B
 
-static const byte MOTOR3_ENC1 = 2;
-static const byte MOTOR3_ENC2 = 3;
+static const byte MOTOR3_ENC1 = 2; // 3A
+static const byte MOTOR3_ENC2 = 3; // 3B
 
-static const byte MOTOR4_ENC1 = 7;
-static const byte MOTOR4_ENC2 = 6;
+static const byte MOTOR4_ENC1 = 7; // 4A
+static const byte MOTOR4_ENC2 = 6; // 4B
 
-//——————————————————————————————————————————————————————————————————————————————
 //  MCP2515 Driver objects
-//——————————————————————————————————————————————————————————————————————————————
-
 ACAN2515 can (MCP2515_CS, SPI, MCP2515_INT);
 ACAN2515 can_motor (MCP2515_CS_MOTOR, SPI1, MCP2515_INT_MOTOR);
 
-static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
+static const uint32_t QUARTZ_FREQUENCY = 16UL * 1000UL * 1000UL ; // 16 MHz
+static const uint32_t QUARTZ_FREQUENCY_MOTOR = 16UL * 1000UL * 1000UL ; // 16 MHz
 
 TickTwo motor_update_timer(setMotorUpdateFlag, 25);
 
@@ -70,7 +68,11 @@ CANMessage frame;
 CANMessage outFrame;
 
 CONBus::CONBus conbus;
-CONBus::CANBusDriver conbus_can(conbus,//0xid)
+CONBus::CANBusDriver conbus_can(conbus,0x10);
+
+robotStatus_t roboStatus;
+distance motorDistances;
+MotorCommand motorCommand;
 
 MotorWithEncoder SwerveMod1(can_motor, MOTOR1_DRIVE, MOTOR1_ROTATE, MOTOR1_ENC1, MOTOR1_ENC2, MCP3428_CONFIG1, false);
 MotorWithEncoder SwerveMod2(can_motor, MOTOR2_DRIVE, MOTOR2_ROTATE, MOTOR2_ENC1, MOTOR2_ENC2, MCP3428_CONFIG2, false);
@@ -79,14 +81,14 @@ MotorWithEncoder SwerveMod4(can_motor, MOTOR4_DRIVE, MOTOR4_ROTATE, MOTOR4_ENC1,
 
 SwerveDrive drivetrain(SwerveMod1, SwerveMod2, SwerveMod3, SwerveMod4, 0.025);
 
-void onCanReceive() {
-  can.isr();
+void onCanReceiveMotor() {
+  can_motor.isr();
 
-  if (!can.available()) {
+  if (!can_motor.available()) {
     return;
   }
 
-  can.receive(Frame);
+  can_motor.receive(frame);
   // conbus and other stuff
 }
 
@@ -97,7 +99,6 @@ bool canBlinky = false;
 bool useObstacleAvoidance = false;
 uint32_t collisonBoxDist = 20;
 bool isDetectingObstacle = false;
-
 bool sendStatistics = true;
 
 float delta_x = 0;
@@ -111,7 +112,10 @@ PIDSetpoints pid_setpoints;
 PIDControl pid_controls;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
 
   pinMode(MOTOR1_ENC1, INPUT);
   pinMode(MOTOR1_ENC2, INPUT);
@@ -139,12 +143,18 @@ void setup() {
   conbus.addReadOnlyRegister(0x00, drivetrain.getUpdatePeriod());
   conbus.addRegister(0x01, drivetrain.getPulsesPerRadian());
   conbus.addRegister(0x02, drivetrain.getWheelRadius());
-  // conbus.addRegister(0x03, drivetrain.getWheelbaseLength());
+  conbus.addRegister(0x03, drivetrain.getWheelbaseLength());
   conbus.addRegister(0x04, drivetrain.getSlewRateLimit());
-  conbus.addRegister(0x05, drivetrain.getSwerveMod1EncoderFactor());
-  conbus.addRegister(0x06, drivetrain.getSwerveMod2EncoderFactor());
-  conbus.addRegister(0x07, drivetrain.getSwerveMod3EncoderFactor());
-  conbus.addRegister(0x08, drivetrain.getSwerveMod4EncoderFactor());
+  conbus.addRegister(0x05, drivetrain.getSwerveMod1QuadratureEncoderFactor());
+  conbus.addRegister(0x06, drivetrain.getSwerveMod2QuadratureEncoderFactor());
+  conbus.addRegister(0x07, drivetrain.getSwerveMod3QuadratureEncoderFactor());
+  conbus.addRegister(0x08, drivetrain.getSwerveMod4QuadratureEncoderFactor());
+  conbus.addRegister(0x09, drivetrain.getSwerveMod1AbsoluteEncoderFactor());
+  conbus.addRegister(0x0A, drivetrain.getSwerveMod2AbsoluteEncoderFactor());
+  conbus.addRegister(0x0B, drivetrain.getSwerveMod3AbsoluteEncoderFactor());
+  conbus.addRegister(0x0C, drivetrain.getSwerveMod4AbsoluteEncoderFactor());
+
+  //add absolute encoder conbus
 
   conbus.addRegister(0x10, drivetrain.getVelocitykP());
   conbus.addRegister(0x11, drivetrain.getVelocitykI());
@@ -212,28 +222,6 @@ void updateSwerveMod4()
   drivetrain.pulseSwerveModuleFourEncoder();
 }
 
-void i2cWrite(uint8_t config)
-{
-  Wire.beginTransmission(MCP3428_ADDR);
-  Wire.write(config);
-  Wire.endTransmission();
-  delay(50);
-}
-
-void i2cRead()
-{
-  Wire.requestFrom(MCP3428_ADDR,2);
-  while (Wire.available()) {
-    msb = Wire.read();
-    lsb = Wire.read();
-    total = (int16_t)((msb << 8)| lsb);
-    Serial.print(" ADC raw: ");
-    Serial.println(total);
-    Serial.println(total*2.048/2048);
-  }
-    delay(50);
-}
-
 void configureCan() {
   // Set CAN
   SPI.setSCK(MCP2515_SCK);
@@ -251,8 +239,10 @@ void configureCan() {
 
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 100UL * 1000UL);  // CAN bit rate 100 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode ; // Select Normal mode
+  ACAN2515Settings settings_motor(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 1 Mb/s
+  settings_motor.mRequestedMode = ACAN2515Settings::NormalMode ; // Select Normal mode
   const uint16_t errorCode = can.begin(settings, onCanRecieve );
-  const uint16_t errorCodeMotor = can_motor.begin(settings, onCanRecieve );
+  const uint16_t errorCodeMotor = can_motor.begin(settings_motor, onCanReceiveMotor );
   if (errorCode == 0) {
     Serial.println("CAN Configured");
   }

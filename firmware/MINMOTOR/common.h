@@ -36,10 +36,15 @@ typedef  struct{
 } PIDSetpoints;
 
 typedef  struct{
-      short swerve_mod1_output;
-      short swerve_mod2_output;
-      short swerve_mod3_output;
-      short swerve_mod4_output;
+      short swerve_mod1_output_drive;
+      short swerve_mod2_output_drive;
+      short swerve_mod3_output_drive;
+      short swerve_mod4_output_drive;
+
+      short swerve_mod1_output_rotate;
+      short swerve_mod2_output_rotate;
+      short swerve_mod3_output_rotate;
+      short swerve_mod4_output_rotate;
 } PIDControl;
 
 #endif

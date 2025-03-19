@@ -4,16 +4,11 @@
 #include <stdio.h>
 #include <Wire.h>
 #include <ACAN2515.h>
-
-/*
-  changes: no more PWM; now CAN
-*/
-
+#include "common.h"
 
 class MotorWithEncoder {
 
 public:
-    //MotorWithEncoder(uint8_t pin_PWM_Control, uint8_t pin_EncoderA, uint8_t pin_EncoderB, bool reversed);
     MotorWithEncoder(ACAN2515 &can_motor, uint32_t drive, uint32_t rotate, uint8_t pin_Encoder_QA, uint8_t pin_Encoder_QB, uint8_t pin_Encoder_Abs, bool reversed);
 
     void setup();
@@ -22,14 +17,12 @@ public:
     int getPulses();
     int absoluteEncoder();
 
-    void setOutput(float control);
+    void setOutput(float control_drive, float control_rotate);
     void setMinOutput(float minControl);
 
 private:
     float minControl_ = 0.01f;
     float maxControl_ = 0.90f;
-
-    // Servo servoController_;
 
     //const uint8_t pin_PWM_Control_;
     ACAN2515 *can_motor_;
@@ -40,104 +33,84 @@ private:
     const uint8_t pin_Encoder_Abs_;
     const bool reversed_;
 
-    const uint32_t motor_address_difference = 0x00002C00; //difference between the addresses of the 2 CAN messages
+    const uint32_t motor_address_enable = 0x02052C80;
     int encoder_pulses_ = 0;
     int previous_Encoder_State_ = 0;
+
     void i2cWrite(uint8_t config);
     int i2cRead();
+    const uint8_t MCP3428_ADDR_ = 0b1101000;
 };
-
-const uint8_t MCP3428_ADDR_ = 0b1101000;
-// inline MotorWithEncoder::MotorWithEncoder(uint8_t pin_PWM_Control, uint8_t pin_EncoderA, uint8_t pin_EncoderB, bool reversed)
-//     : pin_PWM_Control_(pin_PWM_Control), pin_EncoderA_(pin_EncoderA), pin_EncoderB_(pin_EncoderB), reversed_(reversed) {}
 
 inline MotorWithEncoder::MotorWithEncoder(ACAN2515 &can_motor, uint32_t drive, uint32_t rotate, uint8_t pin_Encoder_QA, uint8_t pin_Encoder_QB, uint8_t pin_Encoder_Abs, bool reversed)
     : can_motor_(&can_motor), drive_(drive), rotate_(rotate), pin_Encoder_QA_(pin_Encoder_QA), pin_Encoder_QB_(pin_Encoder_QB), pin_Encoder_Abs_(pin_Encoder_Abs), reversed_(reversed) {}
 
 
-// inline void MotorWithEncoder::setup() {
-//     servoController_.attach(pin_PWM_Control_, 1000, 2000);
-// }
-
-/*
-********************************************
-servo controller is for servo object that drives the robot for PWM pin input
-********************************************
-*/
-
-/*
-    Set motor output on a scale of -1.0 to 1.0
-*/
-// inline void MotorWithEncoder::setOutput(float control) {
-    
-//     int servoOut = 90; // Default to braked
-
-//     if (control > 1) {
-//       control = 1;
-//     }
-
-//     if (control < -1) {
-//       control = -1;
-//     }
-
-//     if (reversed_) {
-//         control = -control;
-//     }
-
-//     if (abs(control) > maxControl_) { 
-//       control = abs(control) / control * maxControl_;
-//     }
-
-//     // If we are greater than our min control signal, set the servo output
-//     if ((control > 0 && control > minControl_) || (control < 0 && control < -minControl_)) {
-//         servoOut = 90 + control * 85;
-//     }
-
-//     servoController_.write(servoOut);
-// }
-
-inline void MotorWithEncoder::setOutput(float control) {
+inline void MotorWithEncoder::setOutput(float control_drive, float control_rotate) {
     CANMessage outframe;
+    float rotate_factor = 0.5f;
     outframe.ext = true;
+    control_rotate = rotate_factor * control_rotate;
 
-    float CANOut = 0; // Default to braked
+    float CANOutD = 0; // Default to braked
+    float CANOutR = 0;
 
-    if (control > 1) {
-      control = 1;
+    if (control_drive > 1) {
+      control_drive = 1;
     }
 
-    if (control < -1) {
-      control = -1;
+    if (control_drive < -1) {
+      control_drive = -1;
     }
 
     if (reversed_) {
-        control = -control;
+        control_drive = -control_drive;
     }
 
-    if (abs(control) > maxControl_) { 
-      control = abs(control) / control * maxControl_;
+    if (abs(control_drive) > maxControl_) { 
+      control_drive = abs(control_drive) / control_drive * maxControl_;
     }
 
     // If we are greater than our min control signal, set the servo output
-    if ((control > 0 && control > minControl_) || (control < 0 && control < -minControl_)) {
-        CANOut = control * 0.85;
+    if ((control_drive > 0 && control_drive > minControl_) || (control_drive < 0 && control_drive < -minControl_)) {
+        CANOutD = control_drive * 0.85;
+    }
+
+    if (control_rotate > 1) {
+      control_drive = 1;
+    }
+
+    if (control_rotate < -1) {
+      control_drive = -1;
+    }
+
+    if (abs(control_rotate) > maxControl_) { 
+      control_rotate = abs(control_rotate) / control_rotate * maxControl_;
+    }
+
+    // If we are greater than our min control signal, set the servo output
+    if ((control_rotate > 0 && control_rotate > minControl_) || (control_rotate < 0 && control_rotate < -minControl_)) {
+        CANOutR = control_rotate * 0.85;
     }
 
     outframe.id = drive_;
-    outframe.data[0] = 0x02;
-
+    outframe.dataFloat[0] = CANOutD;
     bool ok = can_motor_->tryToSend(outframe);
-    if(ok);
+    outframe.id = rotate_;
+    outframe.dataFloat[0] = CANOutR;
+    can_motor_->tryToSend(outframe);
 
-    outframe.id = drive_ - motor_address_difference;
+    outframe.id = motor_address_enable; //0x02052C8x
+    outframe.data[0] = 0x1E; // motors 1-4 enable: 0b00011110
+    outframe.data[1] = 0x78; // motors 11-14 enable: 0b01111000
+    outframe.data[2] = 0;
+    outframe.data[3] = 0;
+    outframe.data[4] = 0;
+    outframe.data[5] = 0;
+    outframe.data[6] = 0;
+    outframe.data[7] = 0;
 
-    outframe.data[3] = ((uint32_t)CANOut >> 24) & 0xFF;
-    outframe.data[2] = ((uint32_t)CANOut >> 16) & 0xFF;
-    outframe.data[1] = ((uint32_t)CANOut >> 8) & 0xFF;
-    outframe.data[0] = ((uint32_t)CANOut >> 0) & 0xFF;
-
-    ok = can_motor_->tryToSend(outframe);
-    if(ok);
+    can_motor_->tryToSend(outframe);
 }
 
 // provides information for whether wheel is spinning forward or reverse
@@ -159,10 +132,6 @@ inline void MotorWithEncoder::pulseEncoder() {
     previous_Encoder_State_ = current_Encoder_State_;
 }
 
-/*
-  inline some kind of encoder stuff for I2C abs encoder data or something
-*/
-
 //provide information of the angle of the wheel
 inline int MotorWithEncoder::absoluteEncoder() {
     i2cWrite(pin_Encoder_Abs_);
@@ -180,7 +149,7 @@ inline int MotorWithEncoder::getPulses() {
     return temp;
 }
 
-void i2cWrite(uint8_t config)
+inline void MotorWithEncoder::i2cWrite(uint8_t config)
 {
     Wire.beginTransmission(MCP3428_ADDR_);
     Wire.write(config);
@@ -188,7 +157,7 @@ void i2cWrite(uint8_t config)
     delay(25);
 }
 
-int i2cRead()
+inline int MotorWithEncoder::i2cRead()
 {
     uint8_t msb;
     uint8_t lsb;
