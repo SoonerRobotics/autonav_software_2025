@@ -3,41 +3,49 @@
 
 #include <ACAN2515.h>
 
-#define CAN_SPARK_MAX_OFFSET      0x02052C81
-#define CAN_SPARK_MAX_PWM_OFFSET  0x00002C00
+#define CAN_SPARK_MAX_OFFSET 0x02052C81
+#define CAN_SPARK_MAX_PWM_OFFSET 0x00002C00
 
-class CanSparkMax {
+class CanSparkMax
+{
 public:
-    CanSparkMax(ACAN2515* can_driver, int id) : can_driver_(can_driver) {
+    CanSparkMax(ACAN2515 *can_driver, int id) : can_driver_(can_driver)
+    {
         id_ = id + CAN_SPARK_MAX_OFFSET;
     }
 
     void setPWM(float value);
 
-    CanSparkMax reversed(bool reversed) {
+    CanSparkMax reversed(bool reversed)
+    {
         reversed_ = reversed;
         return *this;
     }
 
 private:
-    ACAN2515* can_driver_;
+    ACAN2515 *can_driver_;
     int id_;
     float value_ = 0.0;
     bool reversed_ = false;
 };
 
-inline void CanSparkMax::setPWM(float value) {
+inline void CanSparkMax::setPWM(float value)
+{
     value_ = value;
 
     // Clamp value to [-1, 1]
-    if (value_ > 1) {
+    if (value_ > 1)
+    {
         value_ = 1;
-    } else if (value_ < -1) {
+    }
+    else if (value_ < -1)
+    {
         value_ = -1;
     }
 
     // Apply reverse
-    if (reversed_) {
+    if (reversed_)
+    {
         value_ = -value_;
     }
 

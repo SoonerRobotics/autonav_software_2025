@@ -56,7 +56,10 @@ namespace Config
         .front_left = front_left_module_config,
         .front_right = front_right_module_config,
         .back_left = back_left_module_config,
-        .back_right = back_right_module_config};
+        .back_right = back_right_module_config,
+        .driveMotorGearRatio = 16,
+        .angleMotorGearRatio = 25,
+        .wheelRadius = 0.1016};
 }
 
 #endif

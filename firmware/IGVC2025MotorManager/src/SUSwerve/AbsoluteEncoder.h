@@ -6,7 +6,8 @@
 #define MCP3428_ADDR 0x68
 #define ENCODER_TO_RADIANS (2 * 3.14159265 / 2.048)
 
-class AbsoluteEncoder {
+class AbsoluteEncoder
+{
 public:
     AbsoluteEncoder(int id);
 
@@ -25,7 +26,8 @@ private:
 
 inline AbsoluteEncoder::AbsoluteEncoder(int id) : id_(id) {}
 
-inline void AbsoluteEncoder::update(double period) {
+inline void AbsoluteEncoder::update(double period)
+{
     // Read the encoder values
     double new_angle_ = readEncoder();
 
@@ -35,15 +37,18 @@ inline void AbsoluteEncoder::update(double period) {
     angle_ = new_angle_;
 }
 
-inline double AbsoluteEncoder::getAngle() {
+inline double AbsoluteEncoder::getAngle()
+{
     return angle_;
 }
 
-inline double AbsoluteEncoder::getVelocity() {
+inline double AbsoluteEncoder::getVelocity()
+{
     return velocity_;
 }
 
-inline double AbsoluteEncoder::readEncoder() {
+inline double AbsoluteEncoder::readEncoder()
+{
     Wire.beginTransmission(MCP3428_ADDR);
     Wire.write(id_);
     Wire.endTransmission();
@@ -54,12 +59,13 @@ inline double AbsoluteEncoder::readEncoder() {
     uint8_t lsb;
     uint16_t total;
 
-    Wire.requestFrom(MCP3428_ADDR,2);
+    Wire.requestFrom(MCP3428_ADDR, 2);
 
-    while (Wire.available()) {
+    while (Wire.available())
+    {
         msb = Wire.read();
         lsb = Wire.read();
-        total = (int16_t)((msb << 8)| lsb);
+        total = (int16_t)((msb << 8) | lsb);
     }
 
     return total / 1000 * ENCODER_TO_RADIANS;
