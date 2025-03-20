@@ -1,0 +1,17 @@
+CAN_readRegisterMessage	KEYWORD1
+CAN_readRegisterResponseMessage	KEYWORD1
+CAN_writeRegisterMessage	KEYWORD1
+CAN_writeRegisterResponseMessage	KEYWORD1
+CANBusDriver	KEYWORD1
+isReplyReady	KEYWORD2
+peekReply	KEYWORD2
+popReply	KEYWORD2
+readCanMessage	KEYWORD2
+CONBus	KEYWORD1
+addReadOnlyRegister	KEYWORD2
+addRegister	KEYWORD2
+hasRegister	KEYWORD2
+readRegister	KEYWORD2
+readRegisterBytes	KEYWORD2
+writeRegister	KEYWORD2
+writeRegisterBytes	KEYWORD2

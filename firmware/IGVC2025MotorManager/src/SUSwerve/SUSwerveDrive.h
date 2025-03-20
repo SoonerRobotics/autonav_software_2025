@@ -1,6 +1,7 @@
 #ifndef SU_SWERVE_DRIVE_H
 #define SU_SWERVE_DRIVE_H
 
+#include "ArduinoEigenDense.h"
 #include "SUSwerveModule.h"
 
 typedef struct{
@@ -10,16 +11,22 @@ typedef struct{
     SUSwerveDriveModuleConfig back_right;
 } SUSwerveDriveConfig;
 
+typedef struct{
+    double x_vel;
+    double y_vel;
+    double angular_vel;
+} SUSwerveDriveState;
+
 class SUSwerveDrive {
 
 public:
 
-    SUSwerveDrive(SUSwerveDriveConfig config, float update_period);
+    SUSwerveDrive(SUSwerveDriveConfig config, ACAN2515* driver);
 
     // Drive the robot
     // state: The desired state of the robot
     // returns: The actual state of the robot
-    SUSwerveDriveState updateState(SUSwerveDriveState state);
+    SUSwerveDriveState updateState(SUSwerveDriveState state, double period);
 
 private:
     SUSwerveDriveModule front_left_module_;
@@ -28,12 +35,12 @@ private:
     SUSwerveDriveModule back_right_module_;
 
     // 8x1 matrix of the state of the modules
-    Eigen::Matrix<double, 8, 1> desired_module_state_;
-    Eigen::Matrix<double, 8, 1> measured_module_state_;
+    Eigen::Matrix<double, 8, 1> desired_modules_state_;
+    Eigen::Matrix<double, 8, 1> measured_modules_state_;
 
     // 3x1 matrix of the state of the robot
     Eigen::Matrix<double, 3, 1> desired_robot_state_;
-    Eigen::Matrix<double, 3, 1> mesured_robot_state_;
+    Eigen::Matrix<double, 3, 1> measured_robot_state_;
 
     // 3x8 matrix of the module positions
     Eigen::Matrix<double, 8, 3> module_positions_matrix_;
@@ -42,11 +49,11 @@ private:
     Eigen::Matrix<double, 3, 8> module_positions_matrix_pinv_;
 };
 
-inline SUSwerveDrive::SUSwerveDrive(SUSwerveDriveConfig config, float update_period) :
-    front_left_module_(config.front_left),
-    front_right_module_(config.front_right),
-    back_left_module_(config.back_left),
-    back_right_module_(config.back_right) {
+inline SUSwerveDrive::SUSwerveDrive(SUSwerveDriveConfig config, ACAN2515* driver) :
+    front_left_module_(config.front_left, driver),
+    front_right_module_(config.front_right, driver),
+    back_left_module_(config.back_left, driver),
+    back_right_module_(config.back_right, driver) {
 
     // Create the module positions matrix
     // should appear like:
@@ -63,7 +70,7 @@ inline SUSwerveDrive::SUSwerveDrive(SUSwerveDriveConfig config, float update_per
                          0, 1,  config.back_right.x_pos;
 
     // Calculate the pseudo-inverse of the module positions matrix
-    module_positions_matrix_pinv_ = module_positions_.completeOrthogonalDecomposition().pseudoInverse();
+    module_positions_matrix_pinv_ = module_positions_matrix_.completeOrthogonalDecomposition().pseudoInverse();
 
     // Initialize the module state matrix
     desired_modules_state_ << 0, 0, 0, 0, 0, 0, 0, 0;
@@ -74,7 +81,7 @@ inline SUSwerveDrive::SUSwerveDrive(SUSwerveDriveConfig config, float update_per
     measured_robot_state_ << 0, 0, 0;
 }
 
-inline SUSwerveDriveState SUSwerveDrive::updateState(SUSwerveDriveState state) {
+inline SUSwerveDriveState SUSwerveDrive::updateState(SUSwerveDriveState state, double period) {
     // Update the state of the robot
     desired_robot_state_ << state.x_vel, state.y_vel, state.angular_vel;
 
@@ -82,20 +89,20 @@ inline SUSwerveDriveState SUSwerveDrive::updateState(SUSwerveDriveState state) {
     desired_modules_state_ = module_positions_matrix_ * desired_robot_state_;
 
     // Update the state of each module
-    SUSwerveDriveModuleState front_left_measured_state = front_left_module_.updateState({desired_modules_state_(0), desired_modules_state_(1)});
-    SUSwerveDriveModuleState front_right_measured_state = front_right_module_.updateState({desired_modules_state_(2), desired_modules_state_(3)});
-    SUSwerveDriveModuleState back_left_measured_state = back_left_module_.updateState({desired_modules_state_(4), desired_modules_state_(5)});
-    SUSwerveDriveModuleState back_right_measured_state = back_right_module_.updateState({desired_modules_state_(6), desired_modules_state_(7)});
+    SUSwerveDriveModuleState front_left_measured_state = front_left_module_.updateState({desired_modules_state_(0), desired_modules_state_(1)}, period);
+    SUSwerveDriveModuleState front_right_measured_state = front_right_module_.updateState({desired_modules_state_(2), desired_modules_state_(3)}, period);
+    SUSwerveDriveModuleState back_left_measured_state = back_left_module_.updateState({desired_modules_state_(4), desired_modules_state_(5)}, period);
+    SUSwerveDriveModuleState back_right_measured_state = back_right_module_.updateState({desired_modules_state_(6), desired_modules_state_(7)}, period);
     
     // Use the feedback from each module to calculate the state of the robot
-    measured_modules_state_ << front_left_state.x_vel, front_left_state.y_vel,
-                     front_right_state.x_vel, front_right_state.y_vel,
-                     back_left_state.x_vel, back_left_state.y_vel,
-                     back_right_state.x_vel, back_right_state.y_vel;
+    measured_modules_state_ << front_left_measured_state.x_vel, front_left_measured_state.y_vel,
+        front_right_measured_state.x_vel, front_right_measured_state.y_vel,
+        back_left_measured_state.x_vel, back_left_measured_state.y_vel,
+        back_right_measured_state.x_vel, back_right_measured_state.y_vel;
 
     measured_robot_state_ = module_positions_matrix_pinv_ * measured_modules_state_;
 
-    return {robot_state_(0), robot_state_(1), robot_state_(2)};
+    return {measured_robot_state_(0), measured_robot_state_(1), measured_robot_state_(2)};
 }
 
 #endif

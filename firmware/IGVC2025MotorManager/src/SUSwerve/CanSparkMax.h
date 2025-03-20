@@ -12,7 +12,7 @@ public:
         id_ = id + CAN_SPARK_MAX_OFFSET;
     }
 
-    void setPWM(double value);
+    void setPWM(float value);
 
     CanSparkMax reversed(bool reversed) {
         reversed_ = reversed;
