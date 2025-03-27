@@ -12,7 +12,7 @@ import aiohttp.web as web
 
 from autonav_shared.node import *
 from autonav_shared.types import *
-from autonav_shared.types import DeviceState, LogLevel, SystemState #Why can't I just use import * instead?
+from autonav_shared.types import DeviceState, LogLevel, SystemState # Why can't I just use import * instead?
 from autonav_msgs.msg import *
 
 from std_msgs.msg import *
