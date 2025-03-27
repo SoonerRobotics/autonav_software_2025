@@ -11,19 +11,54 @@ import rclpy
 import aiohttp.web as web
 
 from autonav_shared.node import *
+from autonav_shared.types import *
+from autonav_shared.types import DeviceState, LogLevel, SystemState #Why can't I just use import * instead?
+from autonav_msgs.msg import *
+
 from std_msgs.msg import *
 from sensor_msgs.msg import *
 
-from autonav_msgs.msg import *
-from autonav_shared.node import Node
-# from scr.states import DeviceStateEnum
-from autonav_msgs.msg import ControllerInput, MotorInput
+from enum import Enum
 
-# from scr_msgs.srv import *
+# from autonav_ws.src.autonav_shared.autonav_shared.node import Node
 
-#from std_msgs.msg import Empty
 
-from autonav_ws.src.autonav_shared.autonav_shared.types import SystemState, DeviceState
+class Topics(Enum):
+    # Topic Lis
+    # teneres
+    BROADCAST = "autonav/shared/broadcast"#todo does this work?
+    SYSTEM_STATE = "autonav/shared/system"
+    DEVICE_STATE = "autonav/shared/device"
+
+    # IMU Data
+    IMU = "/autonav/imu"
+    AUTONAV_GPS = "/autonav/gps"
+    MOTOR_INPUT = "/autonav/MotorInput"
+    POSITION = "/autonav/position"
+    MOTOR_CONTROLLER_DEBUG = '/autonav/motor_feedback' # todo implement
+    CONTROLLER_INP = '/autonav/controller_input'       # todo implement
+
+    MOTOR_FEEDBACK = "/autonav/MotorFeedback"
+    NUC_STATISTICS = "/autonav/statistic"
+    ULTRASONICS = "/autonav/ultrasonics"
+    CONBUS = "/autonav/conbus"
+    SAFETY_LIGHTS = "/autonav/safety_lights"
+    PERFORMANCE = "autonav/performance"
+
+    # Raw camera
+    RAW_LEFT = "autonav/camera/left"
+    RAW_RIGHT = "autonav/camera/right"
+    RAW_FRONT = "autonav/camera/front"
+    RAW_BACK = "autonav/camera/back"
+
+    # Other Camera Nodes
+    COMBINED_IMAGE = "/autonav/vision/combined/filtered"
+    FEELERS = "/autonav/feelers/debug"  # todo does this transmit an image? (assuming it does for now
+
+    # Others
+    CONFIGURATION = "/scr/configuration"           # TODO IS THIS STILL A TOPIC? (would need to atleast be implemented, see last years repo)
+    PLAYBACK = "autonav/autonav_playback"          # TODO see how to feed this data in
+    AUDIBLE_FEEDBACK = '/autonav/audible_feedback' # todo implement!
 
 async_loop = asyncio.new_event_loop()
 bridge = cv_bridge.CvBridge()
@@ -65,6 +100,8 @@ class BroadcastNode(Node):
         self.send_map = {}
         self.client_map = {}
 
+        self.QOS = 10 #TODO this was added to actually be able to build.. but not sure where it came from (check where it came frm last year)
+
         # Limiter
         self.limiter = Limiter()
         self.limiter.setLimit(Topics.MOTOR_INPUT.value, 2)
@@ -73,7 +110,7 @@ class BroadcastNode(Node):
 
         # IMU
         self.limiter.setLimit(Topics.IMU.value, 1)
-        self.limiter.setLimit(Topics.GPS_FEEDBACK, 3)
+        self.limiter.setLimit(Topics.AUTONAV_GPS, 3)
         self.limiter.setLimit(Topics.POSITION.value, 3)
         # Cameras
         self.limiter.setLimit(Topics.RAW_LEFT.value, 0.5)
@@ -82,32 +119,32 @@ class BroadcastNode(Node):
         self.limiter.setLimit(Topics.RAW_BACK.value, 0.5)
         self.limiter.setLimit(Topics.COMBINED_IMAGE.value, 0.5)
 
-        # Clients
-        self.system_state_c = self.create_subscription(
-            SystemState, Topics.SYSTEM_STATE.value, self.systemStateCallback, 20
-        )
-        self.system_state_c = self.create_client(
-            SetSystemState, Topics.SYSTEM_STATE.value
-        )
-        self.config_c = self.create_client(UpdateConfig, Topics.CONFIGURATION.value)
+        # Clients TODO a lot of these dont exist anymore
+#        self.system_state_c = self.create_subscription(
+#            SystemState, Topics.SYSTEM_STATE.value, self.systemStateCallback, 20
+#        )
+#        self.system_state_c = self.create_client(
+#            SetSystemState, Topics.SYSTEM_STATE.value
+#        )
+        #self.config_c = self.create_client(UpdateConfig, Topics.CONFIGURATION.value)
 
-        # self.get_presets_c = self.create_client(GetPresets, Topics.GET_PRESETS.value)# TODO THESE Don't EXIST ANYMORE
-        # self.set_active_preset_c = self.create_client(
-        #    SetActivePreset, Topics.SET_ACTIVE_PRESET.value
-        # )
-        # self.save_active_preset_c = self.create_client(
-        #    SaveActivePreset, Topics.SAVE_ACTIVE_PRESET.value
-        # )
-        # self.delete_preset_c = self.create_client(DeletePreset, Topics.DELETE_PRESET.value)
+        #self.get_presets_c = self.create_client(GetPresets, Topics.GET_PRESETS.value)# TODO THESE Don't EXIST ANYMORE
+        #self.set_active_preset_c = self.create_client(
+        #   SetActivePreset, Topics.SET_ACTIVE_PRESET.value
+        #)
+        #self.save_active_preset_c = self.create_client(
+        #   SaveActivePreset, Topics.SAVE_ACTIVE_PRESET.value
+        #)
+        #self.delete_preset_c = self.create_client(DeletePreset, Topics.DELETE_PRESET.value)
 
-        # Publishers
-        # self.broadcast_p = self.create_publisher(Empty, Topics.BROADCAST.value, 20)
+        #Publishers
+        self.broadcast_p = self.create_publisher(Empty, Topics.BROADCAST.value, 20)
 
         # Subscriptions
         self.device_state_s = self.create_subscription(
             DeviceState, Topics.DEVICE_STATE.value, self.deviceStateCallback, 20
         )
-        # self.config_s = self.create_subscription(
+        # self.config_s = self.create_subscription(TODO
         #    ConfigUpdated,
         #    Topics.CONFIG_UPDATED.value,
         #    self.configurationInstructionCallback,
@@ -122,48 +159,26 @@ class BroadcastNode(Node):
         self.motor_input_s = self.create_subscription(
             MotorInput, Topics.MOTOR_INPUT.value, self.motorInputCallback, 20
         )
-        self.motor_debug_s = self.create_subscription(
-            MotorControllerDebug,  # tood what was this before?
-            Topics.MOTOR_CONTROLLER_DEBUG.value,  #
-            self.motorControllerDebugCallback,
-            20,
-        )
+        #self.motor_debug_s = self.create_subscription(TODO
+        #    MotorControllerDebug,  # tood what was this before?
+        #    Topics.MOTOR_CONTROLLER_DEBUG.value,  #
+        #    self.motorControllerDebugCallback,
+        #    20,
+        #)
         self.gps_s = self.create_subscription(
-            GPSFeedback, Topics.GPS_FEEDBACK.value, self.gpsFeedbackCallback, 20
+            GPSFeedback, Topics.AUTONAV_GPS.value, self.gpsFeedbackCallback, 20
         )
         self.imu_s = self.create_subscription(
-            IMUData, Topics.IMU_DATA.value, self.imuDataCallback, 20
+            IMUData, Topics.IMU.value, self.imuDataCallback, 20
         )
-        self.camera_left_s = self.create_subscription(
-            CompressedImage,
-            Topics.CAMERA_LEFT.value,
-            self.feelers,
-            self.qos_profile,
-        )
-        self.camera_right_s = self.create_subscription(
-            CompressedImage,
-            Topics.CAMERA_RIGHT.value,
-            self.combined,
-            self.qos_profile,
-        )
-        self.camera_front_s = self.create_subscription(
-            CompressedImage,
-            Topics.RAW_FRONT.value,
-            self.camera_front_s,
-            self.qos_profile,
-        )
-        self.camera_back_s = self.create_subscription(
-            CompressedImage,
-            Topics.RAW_BACK.value,
-            self.camera_back_s,
-            self.qos_profile,
-        )
-        self.combined_s = self.create_subscription(
-            CompressedImage,
-            Topics.COMBINED_IMAGE.value,
-            self.combined_s,
-            self.qos_profile,
-        )
+
+        self.camera_left_s = self.create_subscription(CompressedImage, 'autonav/camera/left', lambda msg: self.cameraCallback(msg, 'left'), self.QOS)
+        self.camera_right_s = self.create_subscription(CompressedImage, 'autonav/camera/right', lambda msg: self.cameraCallback(msg, 'right'), self.QOS)
+        self.camera_front_s = self.create_subscription(CompressedImage, 'autonav/camera/front', lambda msg: self.cameraCallback(msg, 'front'), self.QOS)
+        self.camera_back_s = self.create_subscription(CompressedImage, 'autonav/camera/back', lambda msg: self.cameraCallback(msg, 'back'), self.QOS)
+        self.combined = self.create_subscription(CompressedImage, '/autonav/vision/combined/filtered', lambda msg: self.cameraCallback(msg, 'combined'), self.QOS)
+        self.feelers = self.create_subscription(CompressedImage, '/autonav/feelers/debug', lambda msg: self.cameraCallback(msg, 'feelers'), self.QOS)
+
         """self.inflated_s = self.create_subscription(
             CompressedImage,
             Topics.INFLATED_DEBUG.value,
@@ -191,6 +206,7 @@ class BroadcastNode(Node):
             "Started webserver server on ws://%s:%d" % (self.host, self.port)
         )
         await asyncio.Future()
+
 
     def request(self, request):
         return request.query.get("id")
@@ -368,12 +384,12 @@ class BroadcastNode(Node):
         del self.send_map[unique_id]
 
     def systemStateCallback(self, msg: SystemState):
-        self.push(Topics.SystemState, msg)
+        self.push(Topics.SYSTEM_STATE, msg)
 
     def deviceStateCallback(self, msg: DeviceState):
         self.push(DeviceState, msg)
 
-    #    def configurationInstructionCallback(self, msg: ConfigUpdated):
+    #    def configurationInstructionCallback(self, msg: ConfigUpdated):TODO
     #        self.push("/scr/configuration", msg)
 
     def positionCallback(self, msg: Position):
@@ -391,8 +407,8 @@ class BroadcastNode(Node):
     def gpsFeedbackCallback(self, msg: GPSFeedback):
         self.push(Topics.AUTONAV_GPS, msg)
 
-    def motorControllerDebugCallback(self, msg: MotorControllerDebug):
-        self.push(Topics.MOTOR_CONTROLLER_DEBUG, msg)
+    #def motorControllerDebugCallback(self, msg: MotorControllerDebug):TODO
+    #    self.push(Topics.MOTOR_CONTROLLER_DEBUG, msg)
 
     # Cameras
     # We have a total of 4 cameras: front,back,left,right, z
@@ -414,75 +430,35 @@ class BroadcastNode(Node):
     def back(self, msg: CompressedImage):
         self.push_image(Topics.RAW_BACK, msg)
 
-    #    def filteredCallbackCombined(self, msg: CompressedImage):
+    #    def filteredCallbackCombined(self, msg: CompressedImage): TODO
     #        self.push_image("/autonav/cfg_space/combined/image", msg)
 
-    #    def inflated_callback(self, msg: CompressedImage):
+    #    def inflated_callback(self, msg: CompressedImage):TODO
     #       self.push_image("/autonav/cfg_space/raw/debug", msg)
 
-    def pathingDebugCallback(self,
-                             msg: PathingDebug):  # //feature 21/11/2024 Unused? Can reImplement pathing stuff again?
-        self.push_old(
-            json.dumps(
-                {
-                    "op": "data",
-                    "desired_heading": msg.desired_heading,
-                    "desired_latitude": msg.desired_latitude,
-                    "desired_longitude": msg.desired_longitude,
-                    "distance_to_destination": msg.distance_to_destination,
-                    "waypoints": msg.waypoints.tolist(),
-                    "time_until_use_waypoints": msg.time_until_use_waypoints,
-                }
-            )
-        )
+    #def pathingDebugCallback(self, #TODO!
+    #                         msg: PathingDebug):  # //feature 21/11/2024 Unused? Can reImplement pathing stuff again?
+    #    self.push_old(
+    #        json.dumps(
+    #            {
+    #                "op": "data",
+    #                "desired_heading": msg.desired_heading,
+    #                "desired_latitude": msg.desired_latitude,
+    #                "desired_longitude": msg.desired_longitude,
+    #                "distance_to_destination": msg.distance_to_destination,
+    #                "waypoints": msg.waypoints.tolist(),
+    #                "time_until_use_waypoints": msg.time_until_use_waypoints,
+    #            }
+    #        )
+    #    )
 
     def init(self):
-        self.set_device_state(DeviceStateEnum.OPERATING)
-
+        self.set_device_state(DeviceState.OPERATING)
 
 def main():
     rclpy.init()
     node = BroadcastNode()
-    Node.run_node(node)
-    rclpy.shutdown()
-
+    Node.run_node(node) #FIXME! AttributeError: type object 'Node' has no attribute 'run_node'
 
 if __name__ == "__main__":
     main()
-
-from enum import Enum
-
-class Topics(Enum):
-    # Topic Lis
-    # teneres
-    SYSTEM_STATE = "autonav/shared/system"
-    DEVICE_STATE = "autonav/shared/device"
-
-    # IMU Data
-    IMU = "/autonav/imu"
-    AUTONAV_GPS = "/autonav/gps"
-    MOTOR_INPUT = "/autonav/MotorInput"
-    POSITION = "/autonav/position"
-
-    MOTOR_FEEDBACK = "/autonav/MotorFeedback"
-    NUC_STATISTICS = "/autonav/statistic"
-    ULTRASONICS = "/autonav/ultrasonics"
-    CONBUS = "/autonav/conbus"
-    SAFETY_LIGHTS = "/autonav/safety_lights"
-    PERFORMANCE = "autonav/performance"
-
-    # Raw camera
-    RAW_LEFT = "autonav/camera/left"
-    RAW_RIGHT = "autonav/camera/right"
-    RAW_FRONT = "autonav/camera/front"
-    RAW_BACK = "autonav/camera/back"
-
-    # Other Camera Nodes
-    COMBINED_IMAGE = "/autonav/vision/combined/filtered"
-    FEELERS = "/autonav/feelers/debug"  # todo does this transmit an image? (assuming it does for now
-
-    # Others
-    CONFIGURATION = "/scr/configuration"  # TODO IS THIS STILL A TOPIC?
-    PLAYBACK = "autonav/autonav_playback"  # TODO feed in new data and test if this actually gets data in
-
-    MOTOR_CONTROLLER_DEBUG = ""  # TOD???

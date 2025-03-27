@@ -7,12 +7,19 @@ RUN apt-get update && apt-get install -y \
     python3-pip
 # RUN apt-get update && apt-get install -y \ #Optional add in if running from a volume instead..
 
-############## Base Image setup above ^^
-############# ROS setup below VV
+RUN pip install sty --break-system-packages
+
+############## Base Image setup above
+
+############# ROS setup below
 ENTRYPOINT [".devcontainer/sourceAndBuild.sh"]
 
-#RUN git clone https://github.com/SoonerRobotics/autonav_software_2025.git #optional if wanting to run by cloning instead
+#RUN git clone https://github.com/SoonerRobotics/autonav_software_2025.git #optional if wanting to run by cloning instead else copy all current dir contents to container
 
 COPY . /autonav_software_2025/
 
 WORKDIR /autonav_software_2025
+
+EXPOSE 8023
+EXPOSE 8080
+# Pretty sure this is needed since running the websocket
