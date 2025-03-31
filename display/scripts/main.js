@@ -31,10 +31,14 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
         const userID = generateUUID();
 
         const url = `ws://${preferences.host}:${preferences.port}/?id=${userID}`
-        if (development_mode)
+        if (development_mode) {
             websocket = new WebSocket("ws://localhost:8080");
-        else
-            websocket = new WebSocket(url);
+            console.log("Created websocket on ws://localhost:8080");
+        } else {
+            websocket = new WebSocket(url)
+            console.log("Created websocket with url: " + url);
+        }
+        ;
 
         websocket.onopen = function (event) {
             if (connected) {
