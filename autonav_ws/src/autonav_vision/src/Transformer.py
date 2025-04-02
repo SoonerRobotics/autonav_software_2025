@@ -10,10 +10,6 @@ from geometry_msgs.msg import Pose
 from cv_bridge import CvBridge
 import json
 
-
-
-
-
 g_bridge = CvBridge()
 
 g_mapData = MapMetaData()
@@ -54,7 +50,7 @@ class FrameTransformerConfig:
         self.min_line_length = 50
         self.max_line_gap = 10
         
-        # ROI
+        # ROI picker
         self.reduction_percentage = 10
         
         # Disabling
@@ -174,36 +170,153 @@ class FrameTransformer(Node):
             img = cv.GaussianBlur(img, self.get_blur_level, 0)
 
         return img 
+    
+    def publish_debug_image(self, img):
+        # Draw region of interest (parallelogram)
+        roi_points = np.array([
+            [self.config.roi_x1, self.config.roi_y1],
+            [self.config.roi_x2, self.config.roi_y2], 
+            [self.config.roi_x3, self.config.roi_y3],
+            [self.config.roi_x4, self.config.roi_y4]
+        ], np.int32)
+        cv.polylines(img, [roi_points], True, (0, 255, 0), 2)  # Green color for ROI
 
-    # HSV color space color-picking
-    class hsvcolorpicked:
-        # Define the max ROI, should return the bounding box size(slightly smaller than the input image)
-        def roi_max(self, image):
-            height, width = image.shape[0]
-            reduction_width = int(width * (self.config.reduction_percentage / 100) / 2)
-            reduction_height = int(height * (self.config.reduction_percentage / 100) / 2)
-            # define the max ROI
-            x = reduction_width
-            y = reduction_height
-            roi_width = width - 2 * reduction_width
-            roi_height = height - 2 * reduction_height
 
-            return (x, y, roi_width, roi_height)
+    
+
+    # colorTracker class
+    class ColorTracker:
+
+        def __init__(self):
+            self.roi = None
+            self.lower = np.array([0, 0, 0])
+            self.upper = np.array([179, 255, 255])
+            self.alpha = 0.1
+            self.min_area = 500
+            self.cap = None
+            self.roi_start = None
+            self.roi_end = None
+            self.selecting = False
+
+        def initialize_camera(self):
+            self.cap = cv.VideoCapture(0)
+            return self.cap.isOpened()
         
-        # Take the input video from four cameras of the bot, make the conversion of video file from RGB to HSV Using Equations
-        def video_conversion(red, green, blue):
+        def mouse_callback(self, event, x, y, flags, param):
+            if event == cv.EVENT_LBUTTONDOWN:
+                self.roi_start = (x, y)
+                self.selecting = True
+            elif event == cv.EVENT_MOUSEMOVE and self.selecting:
+                self.roi_end = (x, y)
+            elif event == cv.EVENT_LBUTTONUP:
+                self.roi_end = (x, y)
+                self.selecting = False
+        
+        def select_roi(self, frame):
+            """Select region of interest"""
+            cv.namedWindow('Select ROI')
+            cv.setMouseCallback('Select ROI', self.mouse_callback)
+        
+            while True:
+                display = frame.copy()
+                if self.roi_start and self.roi_end:
+                    cv.rectangle(display, self.roi_start, self.roi_end, (0, 255, 0), 2)
+                cv.imshow('Select ROI', display)
+            
+                key = cv.waitKey(1) & 0xFF
+                if key == 13:  # Enter key
+                    break
+                elif key == 27:  # ESC key
+                    return False
+        
+            cv.destroyWindow('Select ROI')
+            self.roi = (self.roi_start[0], self.roi_start[1],
+                        self.roi_end[0] - self.roi_start[0],
+                        self.roi_end[1] - self.roi_start[1])
+            return True
+        
+        def calibrate(self, frame):
+            """perform initial calibration"""
+            hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+            x, y, w, h = self.roi
+            roi_region = hsv[y:y+h, x:x+w]
 
+            h_mean, h_std = np.mean(roi_region[:,:,0]), np.std(roi_region[:,:,0])
+            s_mean, s_std = np.mean(roi_region[:,:,1]), np.std(roi_region[:,:,1])
+            v_mean, v_std = np.mean(roi_region[:,:,2]), np.std(roi_region[:,:,2])
 
-        # Define the reference ROI, should return the bounding box size
-        def roi_reference():
-            #TODO
-            return
-    
-        # draw the bounding box for max, reference and random roi
-        def roi_draw():
-            #TODO
-            return
-    
+            self.lower = np.array([
+            max(0, h_mean - 2*h_std),
+            max(0, s_mean - 2*s_std),
+            max(0, v_mean - 2*v_std)
+            ])
+            self.upper = np.array([
+                min(179, h_mean + 2*h_std),
+                min(255, s_mean + 2*s_std),
+                min(255, v_mean + 2*v_std)
+            ])
+        
+        def process_frame(self, frame):
+            """Process a single frame and return results"""
+            hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+            mask = cv.inRange(hsv, self.lower, self.upper)
+            
+            # Noise Reduction
+            kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+            mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
+            mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
+
+            # Stray pixel rejection
+            cleaned_mask = np.zeros_like(mask)
+            num_labels, labels, stats, _ = cv.connectedComponentsWithStats(mask, 8, cv.CV_32S)
+            
+            for i in range(1, num_labels):
+                if stats[i, cv.CC_STAT_AREA] >= self.min_area:
+                    cleaned_mask[labels == i] = 255
+
+            # Find largest Contour
+            contours, _ = cv.findContours(cleaned_mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            largest_contour = max(contours, key = cv.contourArea) if contours else None
+
+            return cleaned_mask, largest_contour
+        
+        def update_thresholds(self, detected_pixels):
+            """Adaptively adjust thresholds"""
+            if len(detected_pixels) < 100:
+                return
+            
+            # Update hsv value
+            new_h = np.mean(detected_pixels[:,0])
+            new_s = np.mean(detected_pixels[:,1])
+            new_v = np.mean(detected_pixels[:,2])
+            
+            self.lower = np.clip([
+                self.alpha*new_h + (1-self.alpha)*self.lower[0],
+                self.alpha*new_s + (1-self.alpha)*self.lower[1],
+                self.alpha*new_v + (1-self.alpha)*self.lower[2]
+                ])
+            
+            self.upper = np.clip([
+                self.alpha*new_h + (1-self.alpha)*self.upper[0],
+                self.alpha*new_s + (1-self.alpha)*self.upper[1],
+                self.alpha*new_v + (1-self.alpha)*self.upper[2]
+                ])
+        
+        def get_target_position(self, contour):
+            """Get centroid of largest detected object"""
+            if contour is None:
+                return None
+            M = cv.moments(contour)
+            if M["m00"] == 0:
+                return None
+            return (int(M["m10"]/M["m00"]), int(M["m01"]/M["m00"]))
+        
+        def release(self):
+            """Release Measures"""
+            if self.cap:
+                self.cap.release()
+            cv.destroyAllWindows()
+
 
 
     # Convert the Colorspace
@@ -223,16 +336,30 @@ class FrameTransformer(Node):
         return lower_limits, upper_limits
     # Pixel rejection(2D convolution and filtering, maybe smoothing?)
 
-    # Receive the Image from the camera(front, back, left, right)
-    def ImageReceived(self, image: CompressedImage):
+    def onImageReceived(self, image: CompressedImage):
+        # Decompress image
         img = g_bridge.compressed_imgmsg_to_cv2(image)
+
+        # Publish debug image
         self.publish_debug_image(img)
-        
-        # blur it
-        img = self.blur(img)
+
+        # Blur it up
+        img = self.apply_blur(img)
+
         # Apply filter and return a mask
+        img = self.apply_hsv(img)
+
+        # Apply region of disinterest and flattening
+        img = self.apply_region_of_disinterest(img)
+        
+        # Apply perspective transform
+        img = self.apply_perspective_transform(img)
+
+        # Actually generate the map
+        self.publish_occupancy_grid(img)
         
     
+
 def main():
     rclpy.init()
     node_left = ImageTransformer(dir = "left")
