@@ -37,9 +37,15 @@ class FrameTransformerConfig:
         self.blur_iterations = 3
         self.map_res = 80
 
-        # Perspective transform 
-        pts1 = np.float32([[80, 200], [400, 220], [480, 640], [0, 640]])
-        pts2 = np.float32([[80, 220], [400, 220], [480, 640], [0, 640]])
+        # Perspective transform
+        self.left_topleft = [80, 220]
+        self.left_topright = [400, 220]
+        self.left_bottomright = [480, 640]
+        self.left_bottomleft = [0, 640]
+        self.right_topleft = [80, 220]
+        self.right_topright = [400, 220]
+        self.right_bottomright = [480, 640]
+        self.right_bottomleft = [0, 640]
 
         # Hough Transform
         self.edge_thresholdOne = 50
@@ -49,6 +55,11 @@ class FrameTransformerConfig:
         self.line_threshold = 100
         self.min_line_length = 50
         self.max_line_gap = 10
+
+
+        self.top_width = 320
+        self.bottom_width = 240
+        self.offset = 20
         
         # ROI picker
         self.reduction_percentage = 10
@@ -171,7 +182,10 @@ class FrameTransformer(Node):
 
         return img 
     
+    # Publish the modified image with roi, hough Transform and Pespective Transform
     def publish_debug_image(self, img):
+        img_copy = img.copy()
+
         # Draw region of interest (parallelogram)
         roi_points = np.array([
             [self.config.roi_x1, self.config.roi_y1],
@@ -179,8 +193,31 @@ class FrameTransformer(Node):
             [self.config.roi_x3, self.config.roi_y3],
             [self.config.roi_x4, self.config.roi_y4]
         ], np.int32)
-        cv.polylines(img, [roi_points], True, (0, 255, 0), 2)  # Green color for ROI
+        cv.polylines(img_copy, [roi_points], True, (255, 0, 0), 2)  # Green color for ROI
 
+        # Perform Hough Transform and draw results
+        lines = self.hough_transform(img)
+        if lines is not None:
+            for line in lines:
+                rho, theta = line[0]
+                a = np.cos(theta)
+                b = np.sin(theta)
+                x0 = a*rho
+                y0 = b*rho
+                x1 = int(x0 + 1000*(-b))
+                y1 = int(y0 + 1000*(a))
+                x2 = int(x0 - 1000*(-b))
+                y2 = int(y0 - 1000*(a))
+                cv.line(img_copy, (x1,y1), (x2,y2), (0,255,0), 2)
+        
+        # Draw perspective transform points
+        if self.dir == "left":
+            pts = [self.config.left_topleft, self.config.left_topright, self.config.left_bottomright, self.config.left_bottomleft]
+        else:
+            [self.config.right_topleft, self.config.right_topright, self.config.right_bottomright, self.config.right_bottomleft]
+        cv.polylines(img_copy, [np.array(pts)], True, (0, 0, 255), 2)
+
+        self.camera_debug_publisher.publish(g_bridge.cv_to_compressed_imgmsg(img_copy))
 
     
 
@@ -344,13 +381,13 @@ class FrameTransformer(Node):
         self.publish_debug_image(img)
 
         # Blur it up
-        img = self.apply_blur(img)
+        img = self.blur(img)
 
         # Apply filter and return a mask
         img = self.apply_hsv(img)
-
-        # Apply region of disinterest and flattening
-        img = self.apply_region_of_disinterest(img)
+        
+        # Get the ROI
+        img = self.ColorTracker.select_roi(img)
         
         # Apply perspective transform
         img = self.apply_perspective_transform(img)
