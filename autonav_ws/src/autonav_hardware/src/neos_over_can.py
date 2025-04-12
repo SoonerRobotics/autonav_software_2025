@@ -26,7 +26,13 @@ ENCODER_API_INDEX = 2
 POSITION_API_CLASS = 3
 POSITION_API_INDEX = 2
 
-PARAMETER_API_CLASS = 48
+VELOCITY_API_CLASS = 1
+VELOCITY_API_INDEX = 2
+
+# PARAMETER_API_CLASS = 48
+# PARAMETER_API_INDEX = 0
+
+PARAMETER_API_CLASS = 7
 PARAMETER_API_INDEX = 0
 
 class REVMessage():
@@ -86,6 +92,8 @@ class CANSparkMax():
             [0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00] #TODO FIXME are these supposed to individually enable motors? should this bytearray enable all of them? should we only enable if we are in manual?
         ).getMessage())
 
+        self.setVelocity(50)
+
     def configure(self):
         #TODO FIXME set like, parameters and stuff here (PIDs, update rates, etc)
         # encoder configuration (periodic status frame 02?) probably, from REV hardware client:
@@ -102,6 +110,15 @@ class CANSparkMax():
 
         # self.canbus.send(REVMessage(
             #TODO config PID values
+        # ).getMessage())
+
+        # these don't seem to persist across runs? even is set from the hardware client?
+        # this is technically deprecated but hey we're having to use 24.0.1 anyways
+        # self.canbus.send(REVMessage(
+        #     PARAMETER_API_CLASS,
+        #     PARAMETER_API_INDEX,
+        #     self.device_id,
+        #     []
         # ).getMessage())
     
     def set(self, output):
@@ -136,6 +153,21 @@ class CANSparkMax():
         self.canbus.send(REVMessage(
             POSITION_API_CLASS,
             POSITION_API_INDEX,
+            self.device_id,
+            data_array,
+        ).getMessage())
+    
+    # @param velocity 32-bit float
+    def setVelocity(self, velocity: float):
+        data_array = bytearray(pack('<f', velocity)) # NEOs expect little-endian format
+        
+        # need to append 4*4=16 trailing bytes I think (like, 4 different pairs of hex digits, so 2*4*2 or something?)
+        for i in range(4):
+            data_array.append(0x00) #FIXME when you print it something looks off about the bytearray (it has an '=' in it somewhere) but it works so
+
+        self.canbus.send(REVMessage(
+            VELOCITY_API_CLASS,
+            VELOCITY_API_INDEX,
             self.device_id,
             data_array,
         ).getMessage())
