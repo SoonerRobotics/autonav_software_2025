@@ -72,7 +72,7 @@ class CANSparkMax():
 
     def heartbeat(self): #TODO FIXME
         self.enable()
-        
+
         self.canbus.send(REVMessage(
             NONRIO_HEARTBEAT_API_CLASS,
             NONRIO_HEARTBEAT_API_INDEX,
@@ -93,14 +93,6 @@ class CANSparkMax():
             self.device_id,
             [0x1D, 0x00] # update rate, in milliseconds, in reverse order
         ).getMessage())
-
-        # print(REVMessage(
-        #     ENCODER_API_CLASS,
-        #     ENCODER_API_INDEX,
-        #     self.device_id,
-        #     [0x1D, 0x00] # update rate, in milliseconds, in reverse order
-        # ).getMessage().arbitration_id)
-
     
     def set(self, output):
         # self.enable() #TODO we should only send this if we are in fact enabled and in manual mode or whatever
@@ -123,6 +115,14 @@ class CANSparkMax():
             self.device_id,
             data_array,
         ).getMessage())
+    
+    def getEncoderArbID(self):
+        return REVMessage(
+            ENCODER_API_CLASS,
+            ENCODER_API_INDEX,
+            self.device_id,
+            []
+        ).getMessage().arbitration_id
 
 
 #FIXME CanConfig doesn't do anything right now
@@ -173,8 +173,9 @@ class SparkMAXNode(Node):
             
         # print(f"{hex(msg.arbitration_id)} | {msg.data.hex()}")
 
-        if msg.arbitration_id == 0x205b881:
-            print(unpack('<ff', msg.data)) # a tuple of (velocity, position) in (RPM, rotations) respectively
+        for motor in self.motors:
+            if motor.getEncoderArbID() == msg.arbitration_id:
+                print(unpack('<ff', msg.data)[0]) # units are rotation, don't care about the last 4 bytes
 
 
     def on_motor_input_received(self, msg):
