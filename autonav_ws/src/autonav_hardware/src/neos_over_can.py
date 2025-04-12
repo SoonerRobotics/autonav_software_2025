@@ -20,6 +20,8 @@ NONRIO_HEARTBEAT_API_INDEX = 2
 PERCENT_OUTPUT_API_CLASS = 0
 PERCENT_OUTPUT_API_INDEX = 2
 
+ENCODER_API_CLASS = 6 # periodic status frame 2 has encoder position data
+ENCODER_API_INDEX = 2
 
 class REVMessage():
     def __init__(self, api_class, api_index, device_number, data):
@@ -56,6 +58,9 @@ class CANSparkMax():
     def __init__(self, device_id, canbus):
         self.device_id = device_id
         self.canbus = canbus
+
+        self.position = 0 # rotations, TODO FIXME
+        self.velocity = 0 # RPM
     
     def enable(self):
         self.canbus.send(REVMessage(
@@ -66,12 +71,36 @@ class CANSparkMax():
         ).getMessage())
 
     def heartbeat(self): #TODO FIXME
+        self.enable()
+        
         self.canbus.send(REVMessage(
             NONRIO_HEARTBEAT_API_CLASS,
             NONRIO_HEARTBEAT_API_INDEX,
             self.device_id,
             [0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00] #TODO FIXME are these supposed to individually enable motors? should this bytearray enable all of them? should we only enable if we are in manual?
         ).getMessage())
+
+    def configure(self):
+        #TODO FIXME set like, parameters and stuff here (PIDs, update rates, etc)
+        # encoder configuration (periodic status frame 02?) probably, from REV hardware client:
+        #0x02050401  DLC=4  Data=[04, 00, 04, 00]
+        #0x02050441  DLC=5  Data=[00, 04, 00, 27, 00]
+
+        # enable periodic status frame 2 with an update rate of 30ms
+        self.canbus.send(REVMessage(
+            ENCODER_API_CLASS,
+            ENCODER_API_INDEX,
+            self.device_id,
+            [0x1D, 0x00] # update rate, in milliseconds, in reverse order
+        ).getMessage())
+
+        # print(REVMessage(
+        #     ENCODER_API_CLASS,
+        #     ENCODER_API_INDEX,
+        #     self.device_id,
+        #     [0x1D, 0x00] # update rate, in milliseconds, in reverse order
+        # ).getMessage().arbitration_id)
+
     
     def set(self, output):
         # self.enable() #TODO we should only send this if we are in fact enabled and in manual mode or whatever
@@ -95,6 +124,7 @@ class CANSparkMax():
             data_array,
         ).getMessage())
 
+
 #FIXME CanConfig doesn't do anything right now
 class CanConfig:
     def __init__(self):
@@ -108,6 +138,7 @@ class SparkMAXNode(Node):
         self.write_config(CanConfig())
         self.can = None
         self.motors = []
+        self.hasConfigured = False
     
     def init(self):
         # make the CAN object
@@ -128,10 +159,23 @@ class SparkMAXNode(Node):
         # Periodic heartbeat to keep motors enabled
         self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat)
     
-    def on_can_received(self, msg):
-        #TODO TODO TODO FIXME
+    def on_can_received(self, msg: can.Message):
+        # ignore the boring ones. might be worth looking into actually making them not update as fast, or hardware filtering that python-can mentions, but we're not coding for the future right now
+        match(msg.arbitration_id):
+            case 0x205bc01:
+                return
+            case 0x205b801:
+                return
+            case 0x205b841:
+                return
+            case 0x2051801:
+                return
+            
         # print(f"{hex(msg.arbitration_id)} | {msg.data.hex()}")
-        pass
+
+        if msg.arbitration_id == 0x205b881:
+            print(unpack('<ff', msg.data)) # a tuple of (velocity, position) in (RPM, rotations) respectively
+
 
     def on_motor_input_received(self, msg):
         # self.can.send() #TODO
@@ -140,6 +184,11 @@ class SparkMAXNode(Node):
     def send_heartbeat(self):
         for motor in self.motors:
             motor.heartbeat()
+        
+        if not self.hasConfigured:
+            for motor in self.motors:
+                motor.configure()
+            self.hasConfigured = True
 
 
 def main():
