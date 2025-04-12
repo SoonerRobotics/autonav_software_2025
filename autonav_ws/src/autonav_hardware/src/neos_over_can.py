@@ -23,6 +23,12 @@ PERCENT_OUTPUT_API_INDEX = 2
 ENCODER_API_CLASS = 6 # periodic status frame 2 has encoder position data
 ENCODER_API_INDEX = 2
 
+POSITION_API_CLASS = 3
+POSITION_API_INDEX = 2
+
+PARAMETER_API_CLASS = 48
+PARAMETER_API_INDEX = 0
+
 class REVMessage():
     def __init__(self, api_class, api_index, device_number, data):
         # see https://docs.google.com/document/d/1ms0ON998f-L-pQZcR1BxyYkEZ_EzRyy0jn7Wsaba6M0/
@@ -93,6 +99,10 @@ class CANSparkMax():
             self.device_id,
             [0x1D, 0x00] # update rate, in milliseconds, in reverse order
         ).getMessage())
+
+        # self.canbus.send(REVMessage(
+            #TODO config PID values
+        # ).getMessage())
     
     def set(self, output):
         # self.enable() #TODO we should only send this if we are in fact enabled and in manual mode or whatever
@@ -112,6 +122,20 @@ class CANSparkMax():
         self.canbus.send(REVMessage(
             PERCENT_OUTPUT_API_CLASS,
             PERCENT_OUTPUT_API_INDEX,
+            self.device_id,
+            data_array,
+        ).getMessage())
+    
+    def setPosition(self, pos):
+        data_array = bytearray(pack('<f', pos)) # NEOs expect little-endian format
+        
+        # need to append 4*4=16 trailing bytes I think (like, 4 different pairs of hex digits, so 2*4*2 or something?)
+        for i in range(4):
+            data_array.append(0x00) #FIXME when you print it something looks off about the bytearray (it has an '=' in it somewhere) but it works so
+
+        self.canbus.send(REVMessage(
+            POSITION_API_CLASS,
+            POSITION_API_INDEX,
             self.device_id,
             data_array,
         ).getMessage())
