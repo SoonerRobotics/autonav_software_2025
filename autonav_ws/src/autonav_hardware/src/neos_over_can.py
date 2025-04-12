@@ -2,7 +2,7 @@
 
 import can
 import threading
-import struct
+from struct import pack, unpack
 import time
 
 import rclpy
@@ -10,8 +10,9 @@ from autonav_shared.node import Node
 from autonav_msgs.msg import MotorInput, MotorStatistics, ZeroEncoders
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 
-ENABLE_API_CLASS = 0 #TODO
-ENABLE_API_INDEX = 0 #TODO
+ENABLE_API_CLASS = 11
+ENABLE_API_INDEX = 0
+# ENABLE_API_INDEX = 10 # system resume according to FRC docs???
 
 NONRIO_HEARTBEAT_API_CLASS = 11
 NONRIO_HEARTBEAT_API_INDEX = 2
@@ -45,12 +46,8 @@ class REVMessage():
         return can.Message(
             timestamp=time.time(),
             arbitration_id=self.getArbirtationID(),
-            # is_extended=True,
-            # is_remote_frame=False,
-            # is_error_frame=False,
-            # is_rx=False,
-            # dlc=len(self.data), #TODO
-            check=True #TODO
+            data=self.data,
+            check=True #TODO we can remove this eventually I think
         )
 
 
@@ -64,7 +61,7 @@ class CANSparkMax():
             ENABLE_API_CLASS,
             ENABLE_API_INDEX,
             self.device_id,
-            [0x00, 0xFF, 0xFF, 0x00] #TODO FIXME
+            [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF] #TODO FIXME not sure what's supposed to go here
         ).getMessage())
 
     def heartbeat(self): #TODO FIXME
@@ -72,19 +69,32 @@ class CANSparkMax():
             NONRIO_HEARTBEAT_API_CLASS,
             NONRIO_HEARTBEAT_API_INDEX,
             self.device_id,
-            [0x00, 0xFF, 0xFF, 0x00] #TODO FIXME
+            [0xFF, 0xFF, 0xFF, 0xFF] #TODO FIXME are these supposed to individually enable motors? this bytearray should enable all of them, maybe?
         ).getMessage())
+
+        self.set(0.1) #TODO TEMP HACK until we get controller working
     
     def set(self, output):
-        # self.enable()
+        self.enable() #TODO we should only send this if we are in fact enabled and in manual mode or whatever
 
-        #TODO clamp output or somthing idk
+        # clamp output TODO we should set the kMaxOutput values for each sparkmax too somewhere at some point
+        if output < -1:
+            output = -1
+        elif 1 < output:
+            output = 1
+
+        data_array = bytearray(pack('<f', output)) # NEOs expect little-endian format
         
+        # need to append 4*4=16 trailing bytes I think (like, 4 different pairs of hex digits, so 2*4*2 or something?)
+        for i in range(4):
+            data_array.append(0x00) #FIXME no idea if this is right or not
+
         self.canbus.send(REVMessage(
             PERCENT_OUTPUT_API_CLASS,
             PERCENT_OUTPUT_API_INDEX,
             self.device_id,
-            [0x0, 0x0, 0x0, 0x0] #TODO
+            # data_array
+            [0xCD, 0xCC, 0x4C, 0x3E, 0x00, 0x00, 0x00, 0x00] #FIXME testing with a known-working value from the reverse engineering google doc
         ).getMessage())
 
 
@@ -122,7 +132,8 @@ class SparkMAXNode(Node):
     
     def on_can_received(self, msg):
         #TODO TODO TODO FIXME
-        print(f"{hex(msg.arbitration_id)} | {msg.data.hex()}")
+        # print(f"{hex(msg.arbitration_id)} | {msg.data.hex()}")
+        pass
 
     def on_motor_input_received(self, msg):
         # self.can.send() #TODO
@@ -140,7 +151,7 @@ def main():
         rclpy.spin(can_node)
     except KeyboardInterrupt:
         # shutdown the CAN
-        can_node.notifier.shutdown()
+        can_node.notifier.stop()
         can_node.can.shutdown()
 
     rclpy.shutdown()
