@@ -38,8 +38,9 @@ class REVMessage():
         ret |= self.manufacturer_code << 16
         ret |= self.api_class << 10
         ret |= self.api_index << 6
+        ret |= self.device_number
 
-        return ret #TODO needs to be like 28 bits long or something? idk man
+        return ret
     
     def getMessage(self):
         # https://python-can.readthedocs.io/en/stable/message.html#can.Message
@@ -69,13 +70,11 @@ class CANSparkMax():
             NONRIO_HEARTBEAT_API_CLASS,
             NONRIO_HEARTBEAT_API_INDEX,
             self.device_id,
-            [0xFF, 0xFF, 0xFF, 0xFF] #TODO FIXME are these supposed to individually enable motors? this bytearray should enable all of them, maybe?
+            [0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00] #TODO FIXME are these supposed to individually enable motors? should this bytearray enable all of them? should we only enable if we are in manual?
         ).getMessage())
-
-        self.set(0.1) #TODO TEMP HACK until we get controller working
     
     def set(self, output):
-        self.enable() #TODO we should only send this if we are in fact enabled and in manual mode or whatever
+        # self.enable() #TODO we should only send this if we are in fact enabled and in manual mode or whatever
 
         # clamp output TODO we should set the kMaxOutput values for each sparkmax too somewhere at some point
         if output < -1:
@@ -87,17 +86,16 @@ class CANSparkMax():
         
         # need to append 4*4=16 trailing bytes I think (like, 4 different pairs of hex digits, so 2*4*2 or something?)
         for i in range(4):
-            data_array.append(0x00) #FIXME no idea if this is right or not
+            data_array.append(0x00) #FIXME when you print it something looks off about the bytearray (it has an '=' in it somewhere) but it works so
 
         self.canbus.send(REVMessage(
             PERCENT_OUTPUT_API_CLASS,
             PERCENT_OUTPUT_API_INDEX,
             self.device_id,
-            # data_array
-            [0xCD, 0xCC, 0x4C, 0x3E, 0x00, 0x00, 0x00, 0x00] #FIXME testing with a known-working value from the reverse engineering google doc
+            data_array,
         ).getMessage())
 
-
+#FIXME CanConfig doesn't do anything right now
 class CanConfig:
     def __init__(self):
         # self.canable_filepath = "/dev/ttyACM0"
