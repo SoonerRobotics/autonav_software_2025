@@ -1,5 +1,6 @@
 import numpy as np
-from swerve_drive import SUSwerveDriveModule
+from swerve.swerve_module import SUSwerveDriveModule
+from swerve.swerve_config import SUSwerveDriveConfig
 
 class SUSwerveDriveState:
     def __init__(self, x_vel: float, y_vel: float, angular_vel: float):
@@ -8,11 +9,13 @@ class SUSwerveDriveState:
         self.angular_vel = angular_vel # (radians/second) 
 
 class SUSwerveDrive:
-    def __init__(self, front_left_module_: SUSwerveDriveModule, front_right_module_: SUSwerveDriveModule, back_left_module_: SUSwerveDriveModule, back_right_module_: SUSwerveDriveModule):
-        self.front_left_module_ = front_left_module_
-        self.front_right_module_ = front_right_module_
-        self.back_left_module_ = back_left_module_
-        self.back_right_module_ = back_right_module_
+    def __init__(self, front_left_module: SUSwerveDriveModule, front_right_module: SUSwerveDriveModule, back_left_module: SUSwerveDriveModule, back_right_module: SUSwerveDriveModule, config: SUSwerveDriveConfig):
+        self.front_left_module_ = front_left_module
+        self.front_right_module_ = front_right_module
+        self.back_left_module_ = back_left_module
+        self.back_right_module_ = back_right_module
+
+        self.config = config
 
         # 8x1 matrix of the state of the modules
         self.desired_modules_state_ = np.zeros((8, 1), np.double)

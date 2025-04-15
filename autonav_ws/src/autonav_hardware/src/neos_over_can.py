@@ -6,10 +6,10 @@ from autonav_msgs.msg import MotorInput, MotorStatistics, ZeroEncoders
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 import can
-from swerve_drive.swerve_drive import SUSwerveDrive, SUSwerveDriveState
-from swerve_drive.swerve_module import SUSwerveDriveModule
-from swerve_drive.can_spark_max import CanSparkMax
-from swerve_drive.swerve_config import *
+from swerve.swerve_drive import SUSwerveDrive, SUSwerveDriveState
+from swerve.swerve_module import SUSwerveDriveModule
+from swerve.can_spark_max import CanSparkMax
+from swerve.swerve_config import *
 
 #FIXME CanConfig doesn't do anything right now
 class CanConfig:
@@ -44,7 +44,8 @@ class SparkMAXNode(Node):
             SUSwerveDriveModule(front_left_module_config, self.motors[0], self.motors[1]),
             SUSwerveDriveModule(front_right_module_config, self.motors[2], self.motors[3]),
             SUSwerveDriveModule(back_left_module_config, self.motors[4], self.motors[5]),
-            SUSwerveDriveModule(back_right_module_config, self.motors[6], self.motors[7])
+            SUSwerveDriveModule(back_right_module_config, self.motors[6], self.motors[7]),
+            swerve_config
         )
 
         # to the uninitiated: this is not a pointer. this is python argument unpacking

@@ -1,5 +1,5 @@
 from can import ThreadSafeBus, Message, Notifier
-from rev_messages import *
+from swerve.rev_messages import *
 
 class CanSparkMax:
     def __init__(self, id: int, canbus: ThreadSafeBus, reversed=False):

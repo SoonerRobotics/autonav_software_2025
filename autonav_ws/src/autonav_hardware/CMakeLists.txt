@@ -44,16 +44,20 @@ install(TARGETS
  #ament_python_install_package(${PROJECT_NAME})
  
  # Install Python programs
- install(PROGRAMS
-   # add programs in format:
-   src/can_node.py
-   src/swerve_drive/can_spark_max.py
-   src/swerve_drive/rev_messages.py
-   src/swerve_drive/swerve_config.py
-   src/swerve_drive/swerve_drive.py
-   src/swerve_drive/swerve_module.py
-   src/neos_over_can.py
-   DESTINATION lib/${PROJECT_NAME}
+install(PROGRAMS
+  src/swerve/can_spark_max.py
+  src/swerve/rev_messages.py
+  src/swerve/swerve_config.py
+  src/swerve/swerve_drive.py
+  src/swerve/swerve_module.py
+  DESTINATION lib/${PROJECT_NAME}/swerve
+)
+
+install(PROGRAMS
+  # add programs in format:
+  src/can_node.py
+  src/neos_over_can.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 

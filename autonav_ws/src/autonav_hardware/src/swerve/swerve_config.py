@@ -1,4 +1,4 @@
-from swerve_module import SUSwerveDriveModuleConfig
+from swerve.swerve_module import SUSwerveDriveModuleConfig
 
 class SUSwerveDriveConfig:
     def __init__(self, front_left: SUSwerveDriveModuleConfig, front_right: SUSwerveDriveModuleConfig, back_left: SUSwerveDriveModuleConfig, back_right: SUSwerveDriveModuleConfig, driveMotorGearRatio: float, angleMotorGearRatio: float, wheelRadius: float):
@@ -23,8 +23,6 @@ front_left_module_config = SUSwerveDriveModuleConfig(
     y_pos = 0.5,
     drive_motor_id = 1,
     angle_motor_id = 2,
-    drive_encoder_id = 0,
-    angle_encoder_id = 1,
     is_drive_motor_reversed = False,
     is_angle_motor_reversed = False
 )
@@ -34,8 +32,6 @@ front_right_module_config = SUSwerveDriveModuleConfig(
     y_pos = -0.5,
     drive_motor_id = 3,
     angle_motor_id = 4,
-    drive_encoder_id = 2,
-    angle_encoder_id = 3,
     is_drive_motor_reversed = False,
     is_angle_motor_reversed = False
 )
@@ -45,8 +41,6 @@ back_left_module_config = SUSwerveDriveModuleConfig(
     y_pos = 0.5,
     drive_motor_id = 5,
     angle_motor_id = 6,
-    drive_encoder_id = 4,
-    angle_encoder_id = 5,
     is_drive_motor_reversed = False,
     is_angle_motor_reversed = False
 )
@@ -56,8 +50,6 @@ back_right_module_config = SUSwerveDriveModuleConfig(
     y_pos = -0.5,
     drive_motor_id = 7,
     angle_motor_id = 8,
-    drive_encoder_id = 6,
-    angle_encoder_id = 7,
     is_drive_motor_reversed = False,
     is_angle_motor_reversed = False
 )

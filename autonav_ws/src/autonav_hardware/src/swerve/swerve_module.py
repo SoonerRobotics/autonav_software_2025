@@ -1,5 +1,5 @@
 from math import atan2, sqrt, cos, sin
-from can_spark_max import CanSparkMax
+from swerve.can_spark_max import CanSparkMax
 
 class SUSwerveDriveModuleConfig:
     def __init__(self, x_pos: float, y_pos: float, drive_motor_id: int, angle_motor_id: int, is_drive_motor_reversed: bool, is_angle_motor_reversed: bool):
@@ -16,8 +16,9 @@ class SUSwerveDriveModuleConfig:
         self.is_angle_motor_reversed = is_angle_motor_reversed
 
         # constants
-        self.driveMotorGearRatio = 1/1 #FIXME
-        self.steerMotorGearRatio = 1/5 * 1/5 # we don't need to use this, but it will be documented here
+        self.driveMotorGearRatio = 4*4 # 16:1
+        self.steerMotorGearRatio = 5*5 # 25:1
+        self.wheel_radius = 0.1016 # meters
 
         # ??? FIXME
         self.drive_motor_conversion_factor_ = self.driveMotorGearRatio * self.wheel_radius
