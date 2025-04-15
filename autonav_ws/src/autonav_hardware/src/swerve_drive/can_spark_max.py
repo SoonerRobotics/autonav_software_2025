@@ -1,45 +1,44 @@
-from can import ThreadSafeBus, Message
-
-#FIXME?
-CAN_SPARK_MAX_OFFSET = 0x02052C81
-CAN_SPARK_MAX_PWM_OFFSET = 0x00002C00
+from can import ThreadSafeBus, Message, Notifier
+from rev_messages import *
 
 class CanSparkMax:
-    def __init__(self, id: int, canbus: ThreadSafeBus, revered=False):
-        self.id = id + CAN_SPARK_MAX_OFFSET
+    def __init__(self, id: int, canbus: ThreadSafeBus, reversed=False):
+        self.id = id
 
         self.can = canbus
         self.value_ = 0.0
-        self.reversed_ = revered
-        
+        self.reversed_ = reversed
 
-    def setPWM(self, value: float) -> None:
-            self.value_ = value
+        # register CAN callback
+        self.notifier = Notifier(self.can, [self.canCallback])
 
-            # Clamp value to [-1, 1]
-            if self.value_ < -1:
-                self.value_ = -1
-            elif self.value_ > 1:
-                self.value_ = 1
+    def set(self, value: float) -> None:
+        self.value_ = value
 
-            # Apply reverse
-            if self.reversed_:
-                self.value_ *= -1
+        # Clamp value to [-1, 1]
+        if self.value_ < -1:
+            self.value_ = -1
+        elif self.value_ > 1:
+            self.value_ = 1
 
-            #TODO FIXME this is not what we're doing        
-            # Create CAN frame and set PWM mode
-            outframe = Message()
-            outframe.ext = True
-            outframe.id = self.id_
-            outframe.data[0] = 0x02
-        
-            ok = self.can_driver_.tryToSend(outframe)
-        
-            # Send PWM value
-            outframe.id = self.id_ - CAN_SPARK_MAX_PWM_OFFSET
-            outframe.data[3] = (self.value_ >> 24) & 0xFF
-            outframe.data[2] = (self.value_ >> 16) & 0xFF
-            outframe.data[1] = (self.value_ >> 8) & 0xFF
-            outframe.data[0] = (self.value_ >> 0) & 0xFF
-        
-            ok = self.can_driver_.tryToSend(outframe)
+        # Apply reverse
+        if self.reversed_:
+            self.value_ *= -1
+
+        #TODO FIXME actually send the message or something
+    
+    def setPosition(self, value: float) -> None:
+        self.can.send(REVMessage(POSITION_API_CLASS, POSITION_API_INDEX, self.id, floatToData(value)))
+    
+    def setVelocity(self, value: float) -> None:
+        self.can.send(REVMessage(VELOCITY_API_CLASS, VELOCITY_API_INDEX, self.id, floatToData(value)))
+    
+    # if you don't send this at a decent rate (at least 20Hz I think, probably faster if you can) the sparkMAX will disable itself
+    def sendHeartbeat(self) -> None:
+        self.can.send(REVMessage(NONRIO_HEARTBEAT_API_CLASS, NONRIO_HEARTBEAT_API_INDEX, self.id, NONRIO_HEARTBEAT_DATA))
+    
+    def canCallback(self, msg: Message) -> None:
+        pass
+        #TODO:
+        # - read absolute encoders
+        # - read periodic status frame so we can do reverse kinematics and odometry

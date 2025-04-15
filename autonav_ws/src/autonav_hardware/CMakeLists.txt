@@ -47,6 +47,11 @@ install(TARGETS
  install(PROGRAMS
    # add programs in format:
    src/can_node.py
+   src/swerve_drive/can_spark_max.py
+   src/swerve_drive/rev_messages.py
+   src/swerve_drive/swerve_config.py
+   src/swerve_drive/swerve_drive.py
+   src/swerve_drive/swerve_module.py
    src/neos_over_can.py
    DESTINATION lib/${PROJECT_NAME}
 )

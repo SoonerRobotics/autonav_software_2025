@@ -1,5 +1,16 @@
 from swerve_module import SUSwerveDriveModuleConfig
-from swerve_drive import SUSwerveDriveConfig
+
+class SUSwerveDriveConfig:
+    def __init__(self, front_left: SUSwerveDriveModuleConfig, front_right: SUSwerveDriveModuleConfig, back_left: SUSwerveDriveModuleConfig, back_right: SUSwerveDriveModuleConfig, driveMotorGearRatio: float, angleMotorGearRatio: float, wheelRadius: float):
+        self.front_left = front_left
+        self.front_right = front_right
+        self.back_left = back_left
+        self.back_right = back_right
+
+        self.driveMotorGearRatio = driveMotorGearRatio
+        self.angleMotorGearRatio = angleMotorGearRatio
+
+        self.wheelRadius = wheelRadius # (meters)
 
 MCP2515_SCK_MOTOR = 14
 MCP2515_MOSI_MOTOR = 15
