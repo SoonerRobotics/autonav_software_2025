@@ -45,13 +45,13 @@ class SUSwerveDrive:
 
         # 8x3 matrix of the inverse of the module positions
         # Pre-compute the pseudo-inverse of the module positions matrix
-        self.module_positions_matrix_pinv_ = self.module_positions_matrix_.completeOrthogonalDecomposition().pseudoInverse()
+        self.module_positions_matrix_pinv_ = np.linalg.pinv(self.module_positions_matrix_)
 
         # Apply the conversion factors to each module
-        front_left_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
-        front_right_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
-        back_left_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
-        back_right_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
+        self.front_left_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
+        self.front_right_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
+        self.back_left_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
+        self.back_right_module_.applyConversionFactor(self.config.driveMotorGearRatio, self.config.angleMotorGearRatio, self.config.wheelRadius)
 
     # Drive the robot
     # state: The desired state of the robot

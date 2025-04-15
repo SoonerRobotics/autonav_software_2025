@@ -71,8 +71,9 @@ def main():
         rclpy.spin(can_node)
     except KeyboardInterrupt:
         # shutdown the CAN
-        can_node.notifier.stop()
-        can_node.can.shutdown()
+        for motor in can_node.motors:
+            motor.notifier.stop()
+            motor.can.shutdown()
 
     rclpy.shutdown()
 
