@@ -38,13 +38,22 @@ class SparkMAXNode(Node):
         # Periodic heartbeat to keep motors enabled
         self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat) #TODO FIXME
 
-        self.motors = [CanSparkMax(x, self.can) for x in range(1, 9)]
+        self.motors = [
+            CanSparkMax(1, self.can),
+            CanSparkMax(2, self.can),
+            CanSparkMax(3, self.can),
+            CanSparkMax(4, self.can),
+            CanSparkMax(5, self.can),
+            CanSparkMax(6, self.can),
+            CanSparkMax(7, self.can),
+            CanSparkMax(8, self.can),
+        ]
 
         self.modules = (
             SUSwerveDriveModule(front_left_module_config, self.motors[0], self.motors[1]),
-            SUSwerveDriveModule(front_right_module_config, self.motors[2], self.motors[3]),
-            SUSwerveDriveModule(back_left_module_config, self.motors[4], self.motors[5]),
-            SUSwerveDriveModule(back_right_module_config, self.motors[6], self.motors[7]),
+            SUSwerveDriveModule(front_right_module_config, self.motors[3], self.motors[2]),
+            SUSwerveDriveModule(back_left_module_config, self.motors[5], self.motors[4]),
+            SUSwerveDriveModule(back_right_module_config, self.motors[7], self.motors[6]),
             swerve_config
         )
 
@@ -54,8 +63,20 @@ class SparkMAXNode(Node):
     #TODO: is there a better way to do this? maybe have a timer in each object itself? 
     # I feel like this should be more abstracted away, at least from this file
     def send_heartbeat(self):
-        for motor in self.motors:
+        for idx, motor in enumerate(self.motors):
             motor.sendHeartbeat()
+            
+            #TEMP TODO
+            # if idx % 2 == 0:
+            #     motor.setPosition(0) # rotations?
+            # else:
+            #     pass
+                # motor.setVelocity(1) # RPM?
+            
+            # if motor.id in (2, 3, 6, 7):
+                # motor.setPosition(0.5)
+            # else:
+                # motor.setVelocity(42)
 
     def on_motor_input_received(self, msg: MotorInput):
         self.swerve.updateState(SUSwerveDriveState(
