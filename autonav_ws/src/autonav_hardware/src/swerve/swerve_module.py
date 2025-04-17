@@ -33,8 +33,8 @@ class SUSwerveDriveModule:
     def __init__(self, config: SUSwerveDriveModuleConfig, drive_motor: CanSparkMax, angle_motor: CanSparkMax):
         self.config = config
         
-        self.drive_motor = drive_motor
-        self.angle_motor = angle_motor
+        self.drive_motor_ = drive_motor
+        self.angle_motor_ = angle_motor
 
     # Update the state of the module
     # state: The desired state of the robot
@@ -45,22 +45,26 @@ class SUSwerveDriveModule:
         desired_drive_speed = sqrt(desired_state.x_vel * desired_state.x_vel + desired_state.y_vel * desired_state.y_vel)
         desired_angle = atan2(desired_state.x_vel, desired_state.y_vel)
 
+        if desired_drive_speed < 0.1:
+            # if the desired speed is too low, set the angle to 0
+            desired_angle = 0.0
+
         # use the onboard PIDF controllers of the sparkMAXes to do everything for us
-        self.drive_motor_.setVelocity(desired_drive_speed)
-        self.angle_motor_.setPosition(desired_angle)
+        self.drive_motor_.setVelocity(desired_drive_speed * 42)
+        self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2))
 
         # Update encoders and calculate measured state
-        self.drive_encoder_.update(period)
-        self.angle_encoder_.update(period)
+        # self.drive_encoder_.update(period)
+        # self.angle_encoder_.update(period)
 
-        measured_drive_speed = self.drive_encoder_.getVelocity() * self.config.drive_motor_conversion_factor_
-        measured_angle = self.angle_encoder_.getAngle() * self.config.angle_motor_conversion_factor_
+        # measured_drive_speed = self.drive_encoder_.getVelocity() * self.config.drive_motor_conversion_factor_
+        # measured_angle = self.angle_encoder_.getAngle() * self.config.angle_motor_conversion_factor_
 
-        measured_state = SUSwerveDriveModuleState()
-        measured_state.x_vel = measured_drive_speed * cos(measured_angle)
-        measured_state.y_vel = measured_drive_speed * sin(measured_angle)
+        # measured_state = SUSwerveDriveModuleState()
+        # measured_state.x_vel = measured_drive_speed * cos(measured_angle)
+        # measured_state.y_vel = measured_drive_speed * sin(measured_angle)
 
-        return measured_state
+        return SUSwerveDriveModuleState(9,0)
 
     def applyConversionFactor(self, drive_motor_reduction: float, angle_motor_reduction: float, wheel_radius: float) -> None:
         # TODO: This is probably not the correct way to calculate the conversion factor
