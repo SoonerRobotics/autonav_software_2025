@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node as RclpyNode
 from autonav_shared.types import DeviceState, LogLevel, SystemState
 from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance, Log, ConfigurationBroadcast, ConfigurationUpdate
+from rclpy.executors import MultiThreadedExecutor
 import sty
 import time
 import inspect
@@ -246,3 +247,30 @@ class Node(RclpyNode):
             return
         
         print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.fg(r, g, b)}{level_str} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.fg(r, g, b)}{message}{sty.rs.all}")
+
+# Run Nodes currently don't exist here or anywhere else.. Pasting frm lst yrs code
+    def run_node(node):
+        """
+        Runs the node with the correct ROS parameters and specifications
+
+        :param node: The node to run.
+        """
+
+        executor = MultiThreadedExecutor()
+        executor.add_node(node)
+        executor.spin()
+        executor.remove_node(node)
+
+    def run_nodes(nodes):
+        """
+        Runs the nodes with the correct ROS parameters and specifications
+
+        :param nodes: The nodes to run.
+        """
+
+        executor = MultiThreadedExecutor()
+        for node in nodes:
+            executor.add_node(node)
+        executor.spin()
+        for node in nodes:
+            executor.remove_node(node)
