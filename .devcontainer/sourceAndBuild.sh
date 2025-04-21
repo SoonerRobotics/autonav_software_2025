@@ -7,7 +7,9 @@ source /opt/ros/jazzy/setup.bash
 
 cd autonav_software_2025/autonav_ws; pwd
 
-colcon build
+# colcon build
+colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+
 
 source install/setup.bash
 

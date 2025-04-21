@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3
 
 import asyncio
 import json
@@ -10,9 +10,8 @@ import cv_bridge
 import rclpy
 import aiohttp.web as web
 
-from autonav_shared.node import *
-from autonav_shared.types import *
-from autonav_shared.types import DeviceState, LogLevel, SystemState # Why can't I just use import * instead?
+from autonav_shared.node import Node
+from autonav_shared.types import DeviceState as AutonavDeviceState, LogLevel, SystemState  #Why can't I just use import * instead?
 from autonav_msgs.msg import *
 
 from std_msgs.msg import *
@@ -20,7 +19,7 @@ from sensor_msgs.msg import *
 
 from enum import Enum
 
-# from autonav_ws.src.autonav_shared.autonav_shared.node import Node
+
 
 
 class Topics(Enum):
@@ -99,8 +98,7 @@ class BroadcastNode(Node):
         self.host = "0.0.0.0"
         self.send_map = {}
         self.client_map = {}
-
-        self.QOS = 10 #TODO this was added to actually be able to build.. but not sure where it came from (check where it came frm last year)
+        self.QOS = 10
 
         # Limiter
         self.limiter = Limiter()
@@ -365,7 +363,7 @@ class BroadcastNode(Node):
     async def handler(self, request):
         unique_id = self.request(request)
         if unique_id in self.client_map or unique_id is None:
-            await request.close()
+            await request.release()# possible FIXME, changed to .release
             return
 
         self.client_map[unique_id] = request
@@ -453,12 +451,13 @@ class BroadcastNode(Node):
     #    )
 
     def init(self):
-        self.set_device_state(DeviceState.OPERATING)
+        self.set_device_state(AutonavDeviceState.OPERATING)  # Using renamed import
+#        self.set_device_state(DeviceState.OPERATING)# FIXME AttributeError: type object 'DeviceState' has no attribute 'OPERATING'
 
 def main():
     rclpy.init()
     node = BroadcastNode()
-    Node.run_node(node) #FIXME! AttributeError: type object 'Node' has no attribute 'run_node'
+    Node.run_node(node)
 
 if __name__ == "__main__":
     main()

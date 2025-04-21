@@ -269,17 +269,17 @@ const TOPIC_MOTOR_INPUT = "/autonav/MotorInput";
 const TOPIC_POSITION = "/autonav/position";
 
 const TOPIC_MOTOR_FEEDBACK = "/autonav/MotorFeedback";
-const TOPIC_NUCStatistics = '/autonav/statistic';
-const TOPIC_ULTRASONICS = '/autonav/ultrasonics';
+const TOPIC_NUCStatistics = '/autonav/statistic';// TOOD implement
+const TOPIC_ULTRASONICS = '/autonav/ultrasonics';// TOOD implement
 const TOPIC_CONBUS = "/autonav/conbus";
-const TOPIC_SAFETY_LIGHTS = '/autonav/safety_lights';
-const TOPIC_PERFORMANCE = 'autonav/performance';
+const TOPIC_SAFETY_LIGHTS = '/autonav/safety_lights';// TOOD implement
+const TOPIC_PERFORMANCE = 'autonav/performance';// TOOD implement
 
 // Raw camera
-const TOPIC_RAW_LEFT = 'autonav/camera/left';// TODO NEW NODES, IMPLEMENT
-const TOPIC_RAW_RIGHT = 'autonav/camera/right';// TODO NEW NODES, IMPLEMENT
-const TOPIC_RAW_FRONT = 'autonav/camera/front';// TODO NEW NODES, IMPLEMENT
-const TOPIC_RAW_BACK = 'autonav/camera/back';// TODO NEW NODES, IMPLEMENT
+const TOPIC_RAW_LEFT = 'autonav/camera/left';
+const TOPIC_RAW_RIGHT = 'autonav/camera/right';
+const TOPIC_RAW_FRONT = 'autonav/camera/front';
+const TOPIC_RAW_BACK = 'autonav/camera/back';
 
 //Other Camera Nodes
 const TOPIC_COMBINED_IMAGE = '/autonav/vision/combined/filtered'

@@ -11,34 +11,13 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
     }
 
     let websocket;
-    if (websocket)
-        websocket.onreadystatechange = function () {
-            //When do these happen?
-            if (!websocket) {
-                console.log("Websocket undefined");
-                ntf('Websocket undefined', 'error');
-            } else if (websocket.readyState === 1) {
-                ntf('Connected to the server', 'success');
-                console.log("Connected to the server")
-            } else if (websocket.readyState === 3) {
-                ntf('Disconnected from the server', 'alert');
-                console.log("Disconnected from the server")
-            }
-        }
 
-    const createWebsocket = () => {
+    const createWebsocket = () => {// check if pref.host is being overwritten somewhr? (See default values aren't being loaded in...)
         $("#main").show();
         const userID = generateUUID();
-
-        const url = `ws://${preferences.host}:${preferences.port}/?id=${userID}`
-        if (development_mode) {
-            websocket = new WebSocket("ws://localhost:8080");
-            console.log("Created websocket on ws://localhost:8080");
-        } else {
-            websocket = new WebSocket(url)
-            console.log("Created websocket with url: " + url);
-        }
-        ;
+        const url = `ws://${preferences.host}:${preferences.port}/?id=${userID}`;
+        websocket = development_mode ? new WebSocket("ws://localhost:8080") : websocket = new WebSocket(url);//Just to run on basic serv        websocket = development_mode ? new WebSocket("ws://localhost:8080") : websocket = new WebSocket(url);//Just to run on basic serv
+        console.log("url: \t" + url)
 
         websocket.onopen = function (event) {
             if (connected) {
@@ -164,7 +143,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
         websocket.onclose = function (event) {
             clearGlobals();
             if (!connected) {
-                console.log("ahh");
                 ntf('Disconnected from the server', 'error');
                 connected = !connected
             }
