@@ -52,7 +52,7 @@ class SparkMAXNode(Node):
         self.modules = (
             SUSwerveDriveModule(front_left_module_config, self.motors[0], self.motors[1]),
             SUSwerveDriveModule(front_right_module_config, self.motors[3], self.motors[2]),
-            SUSwerveDriveModule(back_left_module_config, self.motors[5], self.motors[4]),
+            SUSwerveDriveModule(back_left_module_config, self.motors[4], self.motors[5]),
             SUSwerveDriveModule(back_right_module_config, self.motors[7], self.motors[6]),
             swerve_config
         )
@@ -79,11 +79,12 @@ class SparkMAXNode(Node):
                 # motor.setVelocity(42)
 
     def on_motor_input_received(self, msg: MotorInput):
+        self.log(f"big swerve: {msg.sideways_velocity} - {-msg.forward_velocity} - {msg.angular_velocity}")
         self.swerve.updateState(SUSwerveDriveState(
             msg.sideways_velocity,
-            msg.fowards_velocity,
+            -msg.forward_velocity,
             msg.angular_velocity
-        ))
+        ), 0.02)
 
 def main():
     rclpy.init()

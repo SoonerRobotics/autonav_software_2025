@@ -36,10 +36,10 @@ namespace AutoNav
     {
         if (msg->device == get_name())
         {
-            log("Received update on our own configuration", Logging::LogLevel::DEBUG);
+            // log("Received update on our own configuration", Logging::LogLevel::DEBUG);
             this->config = json::parse(msg->json);
         } else {
-            log("Received update on " + msg->device + "'s configuration", Logging::LogLevel::DEBUG);
+            // log("Received update on " + msg->device + "'s configuration", Logging::LogLevel::DEBUG);
         }
 
         other_cfgs.insert_or_assign(msg->device, json::parse(msg->json));
@@ -143,7 +143,7 @@ namespace AutoNav
         // Log teh raw message
         if (msg->device == get_name())
         {
-            log("Received update on our device state from " + AutoNav::DEVICE_STATE_NAMES.at(device_states.at(msg->device)) + " to " + AutoNav::DEVICE_STATE_NAMES.at(static_cast<AutoNav::DeviceState>(msg->state)), Logging::LogLevel::DEBUG);
+            // log("Received update on our device state from " + AutoNav::DEVICE_STATE_NAMES.at(device_states.at(msg->device)) + " to " + AutoNav::DEVICE_STATE_NAMES.at(static_cast<AutoNav::DeviceState>(msg->state)), Logging::LogLevel::DEBUG);
         }
 
         if (msg->device != get_name())

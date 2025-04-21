@@ -1,5 +1,5 @@
 import numpy as np
-from swerve.swerve_module import SUSwerveDriveModule
+from swerve.swerve_module import SUSwerveDriveModule, SUSwerveDriveModuleState
 from swerve.swerve_config import SUSwerveDriveConfig
 
 class SUSwerveDriveState:
@@ -58,25 +58,25 @@ class SUSwerveDrive:
     # returns: The actual state of the robot
     def updateState(self, state: SUSwerveDriveState, period: float) -> SUSwerveDriveState:
         # Update the state of the robot
-        self.desired_robot_state_ = np.array([state.x_vel, state.y_vel, state.angular_vel], np.double)
-        
+        self.desired_robot_state_ = np.array([state.x_vel, state.y_vel, state.angular_vel * 3.14], np.double)
+
         # Compute the desired module state as module_positions * robot_state
         desired_modules_state_ = self.module_positions_matrix_ @ self.desired_robot_state_
-        
+
         # Update the state of each module
-        front_left_measured_state = self.front_left_module_.updateState({desired_modules_state_(0), desired_modules_state_(1)}, period)
-        front_right_measured_state = self.front_right_module_.updateState({desired_modules_state_(2), desired_modules_state_(3)}, period)
-        back_left_measured_state = self.back_left_module_.updateState({desired_modules_state_(4), desired_modules_state_(5)}, period)
-        back_right_measured_state = self.back_right_module_.updateState({desired_modules_state_(6), desired_modules_state_(7)}, period)
+        front_left_measured_state = self.front_left_module_.updateState(SUSwerveDriveModuleState(desired_modules_state_[0], desired_modules_state_[1]), period)
+        front_right_measured_state = self.front_right_module_.updateState(SUSwerveDriveModuleState(desired_modules_state_[2], desired_modules_state_[3]), period)
+        back_left_measured_state = self.back_left_module_.updateState(SUSwerveDriveModuleState(desired_modules_state_[4], desired_modules_state_[5]), period)
+        back_right_measured_state = self.back_right_module_.updateState(SUSwerveDriveModuleState(desired_modules_state_[6], desired_modules_state_[7]), period)
         
         # Use the feedback from each module to calculate the state of the robot
-        self.measured_modules_state_ = np.array([
-            front_left_measured_state.x_vel, front_left_measured_state.y_vel,
-            front_right_measured_state.x_vel, front_right_measured_state.y_vel,
-            back_left_measured_state.x_vel, back_left_measured_state.y_vel,
-            back_right_measured_state.x_vel, back_right_measured_state.y_vel
-        ], np.double)
+        # self.measured_modules_state_ = np.array([
+        #     front_left_measured_state.x_vel, front_left_measured_state.y_vel,
+        #     front_right_measured_state.x_vel, front_right_measured_state.y_vel,
+        #     back_left_measured_state.x_vel, back_left_measured_state.y_vel,
+        #     back_right_measured_state.x_vel, back_right_measured_state.y_vel
+        # ], np.double)
         
-        self.measured_robot_state_ = self.module_positions_matrix_pinv_ @ self.measured_modules_state_
+        # self.measured_robot_state_ = self.module_positions_matrix_pinv_ @ self.measured_modules_state_
         
-        return SUSwerveDriveState(self.measured_robot_state_(0), self.measured_robot_state_(1), self.measured_robot_state_(2))
+        return SUSwerveDriveState(self.measured_robot_state_[0], self.measured_robot_state_[1], self.measured_robot_state_[2])

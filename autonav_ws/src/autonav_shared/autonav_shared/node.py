@@ -56,10 +56,11 @@ class Node(RclpyNode):
         Callback for the configuration update topic.
         """
         if msg.device == self.get_name():
-            self.log(f"Received update on our own configuration", LogLevel.DEBUG)
+            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
             self.config = json.loads(msg.json)
         else:
-            self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
+            # self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
+            pass
         
         self.other_cfgs[msg.device] = json.loads(msg.json)
 
@@ -141,7 +142,8 @@ class Node(RclpyNode):
         Callback for the device state topic.
         """
         if msg.device == self.get_name():
-            self.log(f"Received update on our own device state from {DeviceState(self.device_states[msg.device]).name} to {DeviceState(msg.state).name}", LogLevel.DEBUG)
+            # self.log(f"Received update on our own device state from {DeviceState(self.device_states[msg.device]).name} to {DeviceState(msg.state).name}", LogLevel.DEBUG)
+            pass
 
         old_state = self.device_states[msg.device] if msg.device in self.device_states else None
         self.device_states[msg.device] = DeviceState(msg.state)

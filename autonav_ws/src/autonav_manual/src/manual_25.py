@@ -78,7 +78,7 @@ class Manual25Node(Node):
         self.change_controller_mode()
         self.change_system_state()
 
-        self.log(f"orientation: {self.orientation}")
+        # self.log(f"orientation: {self.orientation}")
         # local vs. global toggle
 
         if self.mode == ControllerMode.LOCAL:
