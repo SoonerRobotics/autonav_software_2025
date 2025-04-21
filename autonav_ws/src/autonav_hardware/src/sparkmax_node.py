@@ -14,9 +14,7 @@ from swerve.swerve_config import *
 #FIXME CanConfig doesn't do anything right now
 class CanConfig:
     def __init__(self):
-        # self.canable_filepath = "/dev/ttyACM0"
-        self.canable_filepath = "COM6"
-
+        self.canable_filepath = "/dev/ttyACM0"
 
 class SparkMAXNode(Node):
     def __init__(self):
@@ -27,16 +25,16 @@ class SparkMAXNode(Node):
         self.hasConfigured = False
     
     def init(self):
+        self.set_device_state(DeviceState.WARMING)
+
         # make the CAN object
-        # self.can = can.ThreadSafeBus(bustype="slcan", channel=self.config.get("canable_filepath"), bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
-        self.can = can.ThreadSafeBus(bustype="slcan", channel="/dev/ttyACM0", bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
-        self.set_device_state(DeviceState.OPERATING)
+        self.can = can.ThreadSafeBus(bustype="slcan", channel=self.config.get("canable_filepath"), bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
 
         # ROS motor message callback
         self.motorInputSubscriber = self.create_subscription(MotorInput, "/autonav/motor_input", self.on_motor_input_received, 20)
 
         # Periodic heartbeat to keep motors enabled
-        self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat) #TODO FIXME
+        self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat)
 
         self.motors = [
             CanSparkMax(1, self.can),
@@ -59,27 +57,21 @@ class SparkMAXNode(Node):
 
         # to the uninitiated: this is not a pointer. this is python argument unpacking
         self.swerve = SUSwerveDrive(*self.modules)
+        
+        self.set_device_state(DeviceState.READY)
     
     #TODO: is there a better way to do this? maybe have a timer in each object itself? 
     # I feel like this should be more abstracted away, at least from this file
     def send_heartbeat(self):
         for idx, motor in enumerate(self.motors):
             motor.sendHeartbeat()
-            
-            #TEMP TODO
-            # if idx % 2 == 0:
-            #     motor.setPosition(0) # rotations?
-            # else:
-            #     pass
-                # motor.setVelocity(1) # RPM?
-            
-            # if motor.id in (2, 3, 6, 7):
-                # motor.setPosition(0.5)
-            # else:
-                # motor.setVelocity(42)
 
     def on_motor_input_received(self, msg: MotorInput):
+        if self.get_device_state() != DeviceState.OPERATING:
+            self.set_device_state(DeviceState.OPERATING)
+
         self.log(f"big swerve: {msg.sideways_velocity} - {-msg.forward_velocity} - {msg.angular_velocity}")
+
         self.swerve.updateState(SUSwerveDriveState(
             msg.sideways_velocity,
             -msg.forward_velocity,
