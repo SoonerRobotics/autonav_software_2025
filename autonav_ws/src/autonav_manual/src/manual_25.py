@@ -5,7 +5,7 @@ from autonav_msgs.msg import ControllerInput, MotorInput, MotorFeedback
 import numpy as np
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import AudibleFeedback, ControllerInput
+from autonav_msgs.msg import AudibleFeedback, ControllerInput, ZeroEncoders
 from enum import IntEnum
 import time
 import json
@@ -66,6 +66,12 @@ class Manual25Node(Node):
             self.on_motor_feedback,
             10
         )
+
+        self.zeroEncodersPublisher = self.create_publisher(
+            ZeroEncoders,
+            'autonav/zero_encoders',
+            10
+        )
         
         self.motorPublisher = self.create_publisher(
             MotorInput,
@@ -91,6 +97,7 @@ class Manual25Node(Node):
 
         self.change_controller_mode()
         self.change_system_state()
+        self.handle_encoders()
 
         # local vs. global toggle
 
@@ -121,7 +128,6 @@ class Manual25Node(Node):
             self.orientation = 0
             self.mode = ControllerMode.LOCAL
 
-            
 
     def change_system_state(self):
         new_system_state = self.system_state
@@ -140,6 +146,16 @@ class Manual25Node(Node):
         elif self.controller_state['btn_select'] == 1.0:
             new_system_state = SystemState.DISABLED
             self.set_system_state(new_system_state)
+
+    
+    def handle_encoders(self):
+        if self.controller_state['btn_tl'] == 1.0:
+            # self.log("zeroing the encoders", LogLevel.INFO)
+            number_of_absolute_encoders = 4
+            for i in range(number_of_absolute_encoders):
+                encoder_msg = ZeroEncoders()
+                encoder_msg.which_encoder = i
+                self.zeroEncodersPublisher.publish(encoder_msg)
 
 
     def compose_motorinput_message_local(self):
