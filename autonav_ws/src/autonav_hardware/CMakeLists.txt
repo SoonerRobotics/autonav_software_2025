@@ -56,7 +56,7 @@ install(PROGRAMS
 install(PROGRAMS
   # add programs in format:
   src/can_node.py
-  src/neos_over_can.py
+  src/sparkmax_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
