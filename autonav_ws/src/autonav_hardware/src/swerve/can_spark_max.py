@@ -12,6 +12,8 @@ class CanSparkMax:
         # register CAN callback
         self.notifier = Notifier(self.can, [self.canCallback])
 
+        self.descriptor = [] # to keep track of if it's front left, drive vs steer, etc
+
     def set(self, value: float) -> None:
         self.value_ = value
 
