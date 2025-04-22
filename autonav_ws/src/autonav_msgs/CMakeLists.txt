@@ -26,6 +26,7 @@ set(msg_files
     "msg/MotorInput.msg"
     "msg/MotorStatistics.msg"
     "msg/NUCStatistics.msg"
+    "msg/Performance.msg"
     "msg/Position.msg"
     "msg/SafetyLights.msg"
     "msg/SystemState.msg"
