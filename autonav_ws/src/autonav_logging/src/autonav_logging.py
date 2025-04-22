@@ -255,7 +255,7 @@ class playback(Node):
         if not self.config.record_gps:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_GPS, {msg.latitude}, {msg.longitude}, {msg.altitude}, {msg.gps_fix}, {msg.is_locked}, {msg.satellites}")
+        self.write_file(f"{self.makeTimestamp()}, ENTRY_GPS, {msg.latitude}, {msg.longitude}, {msg.altitude}, {msg.gps_fix}, {msg.num_satellites}")
     
     def mfeedback_feedback(self, msg):
         if not self.config.record_motor:
