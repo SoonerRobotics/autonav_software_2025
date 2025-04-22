@@ -375,7 +375,7 @@ public:
         safetyLightsMsg.red = 255;
         safetyLightsMsg.blue = 0;
         safetyLightsMsg.green = 0;
-        safetyLightsMsg.autonomous = true; // if we passed the system state check at the beginning of the function and reach this line of code then we're in auto
+        safetyLightsMsg.mode = 1; // 1 is auto, if we passed the system state check at the beginning of the function and reach this line of code then we're in auto
 
         // if we are allowed to move (earlier check means we are already in auto and operating, so don't have to recheck those)
         if (this->is_mobility()) {

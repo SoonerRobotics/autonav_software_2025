@@ -16,9 +16,12 @@ set(msg_files
     "msg/AudibleFeedback.msg"
     "msg/CanStats.msg"
     "msg/Conbus.msg"
+    "msg/ConfigurationBroadcast.msg"
+    "msg/ConfigurationUpdate.msg"
     "msg/ControllerInput.msg"
     "msg/DeviceState.msg"
     "msg/GPSFeedback.msg"
+    "msg/HardwarePerformance.msg"
     "msg/IMUData.msg"
     "msg/LinearPIDStatistics.msg"
     "msg/Log.msg"
@@ -31,11 +34,7 @@ set(msg_files
     "msg/SafetyLights.msg"
     "msg/SystemState.msg"
     "msg/Ultrasonic.msg"
-    "msg/Performance.msg"
-    "msg/ConfigurationBroadcast.msg"
-    "msg/ConfigurationUpdate.msg"
     "msg/ZeroEncoders.msg"
-    "msg/HardwarePerformance.msg"
 )
 
 set(srv_files
