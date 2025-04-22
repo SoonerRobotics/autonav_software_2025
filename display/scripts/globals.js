@@ -7,7 +7,7 @@ let systemState = {
 let preferences = {
     gpsFormat: "DD",
     host: "127.0.0.1",
-    port: 8023,
+    port: 8020,
     theme: "dark"
 };
 let config = {};

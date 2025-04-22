@@ -94,7 +94,7 @@ class BroadcastNode(Node):
     def __init__(self):
         super().__init__("autonav_display_broadcast")
 
-        self.port = 8023
+        self.port = 8080
         self.host = "0.0.0.0"
         self.send_map = {}
         self.client_map = {}
@@ -361,25 +361,47 @@ class BroadcastNode(Node):
         )
 
     async def handler(self, request):
-        unique_id = self.request(request)
-        if unique_id in self.client_map or unique_id is None:
-            await request.release()# possible FIXME, changed to .release
-            return
+        # 1) perform the WS handshake
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
 
-        self.client_map[unique_id] = request
-        self.send_map[unique_id] = []
+        # 2) register it
+        uid = request.query.get("id")
+        if uid is None or uid in self.client_map:
+            await ws.close()
+            return ws
 
-        consumer_task = asyncio.create_task(self.consumer(request))
-        producer_task = asyncio.create_task(self.producer(request))
-        pending = await asyncio.wait(
-            [consumer_task, producer_task], return_when=asyncio.FIRST_COMPLETED
-        )
-        for task in pending:
-            for t in task:
-                t.cancel()
+        self.client_map[uid] = ws
+        self.send_map[uid] = []
 
-        del self.client_map[unique_id]
-        del self.send_map[unique_id]
+        # 3) start your producer / consumer loops against `ws`
+        async def producer():
+            while not ws.closed:
+                if self.send_map[uid]:
+                    await ws.send_str(self.send_map[uid].pop(0))
+                else:
+                    await asyncio.sleep(0.01)
+
+        async def consumer():
+            async for msg in ws:
+                if msg.type == web.WSMsgType.TEXT:
+                    obj = json.loads(msg.data)
+                    # handle your ops (broadcast, get_nodes, etc.)
+                    await self.handle_ws_message(obj, uid)
+                elif msg.type == web.WSMsgType.ERROR:
+                    break
+
+        # 4) wait for either side to finish
+        tasks = [asyncio.create_task(t()) for t in (producer, consumer)]
+        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in tasks:
+            t.cancel()
+
+        # 5) clean up
+        del self.client_map[uid]
+        del self.send_map[uid]
+        await ws.close()
+        return ws
 
     def systemStateCallback(self, msg: SystemState):
         self.push(Topics.SYSTEM_STATE, msg)

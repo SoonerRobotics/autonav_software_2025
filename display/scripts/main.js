@@ -542,10 +542,10 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
         switch (this.id) {
             case "input_port":
                 const intt = parseInt($(this).val());
-                preferences.port = isNaN(intt) ? 8023 : intt;
+                preferences.port = isNaN(intt) ? 8080 : intt;
 
                 if (/\D/.test($(this).val())) {//check for non-integer vals
-                    $(this).val(8023);
+                    $(this).val(8080);
                     ntf('Port must be an integer, assigned to default 8023', 'error');
                     console.log("Port must be an integer, assigned to default 8023. Delete following if statement " +
                         "to unforce this: if (/\\D/.test($(this).val())) {//check for non-integer vals");
