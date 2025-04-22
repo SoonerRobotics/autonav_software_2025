@@ -1,4 +1,4 @@
-from math import atan2, sqrt, cos, sin
+from math import atan2, sqrt, cos, sin, pi
 from swerve.can_spark_max import CanSparkMax
 
 class SUSwerveDriveModuleConfig:
@@ -57,14 +57,21 @@ class SUSwerveDriveModule:
         # self.drive_encoder_.update(period)
         # self.angle_encoder_.update(period)
 
+        measured_drive_angle = self.angle_motor_.getAbsolutePosition() # the absolute position straight from the sparkmax
+        measured_rpm = self.drive_motor_.getRevolutionsPerMinute() # the RPM straight from the sparkmax
+        # calculate meters per second using the config and measured_rpm
+        # should be: speed (m/s) = RPM * ((pi * diameter) / 60)
+        measured_speed_mps = measured_rpm * (self.config.wheel_radius * 2 * pi / 60) # m/s
+
+
         # measured_drive_speed = self.drive_encoder_.getVelocity() * self.config.drive_motor_conversion_factor_
         # measured_angle = self.angle_encoder_.getAngle() * self.config.angle_motor_conversion_factor_
 
-        # measured_state = SUSwerveDriveModuleState()
-        # measured_state.x_vel = measured_drive_speed * cos(measured_angle)
-        # measured_state.y_vel = measured_drive_speed * sin(measured_angle)
+        measured_state = SUSwerveDriveModuleState()
+        measured_state.x_vel = measured_speed_mps * cos(measured_drive_angle)
+        measured_state.y_vel = measured_speed_mps * sin(measured_drive_angle)
 
-        return SUSwerveDriveModuleState(9,0)
+        return measured_state
 
     def applyConversionFactor(self, drive_motor_reduction: float, angle_motor_reduction: float, wheel_radius: float) -> None:
         # TODO: This is probably not the correct way to calculate the conversion factor

@@ -2,7 +2,7 @@
 
 import rclpy
 from autonav_shared.node import Node
-from autonav_msgs.msg import MotorInput, MotorStatistics, ZeroEncoders
+from autonav_msgs.msg import MotorInput, MotorStatistics, ZeroEncoders, MotorFeedback
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 import can
@@ -32,6 +32,7 @@ class SparkMAXNode(Node):
 
         # ROS motor message callback
         self.motorInputSubscriber = self.create_subscription(MotorInput, "/autonav/motor_input", self.on_motor_input_received, 20)
+        self.motorFeedbackPublisher = self.create_publisher(MotorFeedback, "/autonav/motor_feedback", 20)
 
         # Periodic heartbeat to keep motors enabled
         self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat)
@@ -70,13 +71,18 @@ class SparkMAXNode(Node):
         if self.get_device_state() != DeviceState.OPERATING:
             self.set_device_state(DeviceState.OPERATING)
 
-        self.log(f"big swerve: {msg.sideways_velocity} - {-msg.forward_velocity} - {msg.angular_velocity}")
-
-        self.swerve.updateState(SUSwerveDriveState(
+        swerve_feedback = self.swerve.updateState(SUSwerveDriveState(
             msg.sideways_velocity,
             -msg.forward_velocity,
             msg.angular_velocity
         ), 0.02)
+
+        # publish feedback
+        feedback_msg = MotorFeedback()
+        feedback_msg.delta_x = swerve_feedback.x_vel
+        feedback_msg.delta_y = swerve_feedback.y_vel
+        feedback_msg.delta_theta = swerve_feedback.angular_vel
+        self.motorFeedbackPublisher.publish(feedback_msg)
 
 def main():
     rclpy.init()

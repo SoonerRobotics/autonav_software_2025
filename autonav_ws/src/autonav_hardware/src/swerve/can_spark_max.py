@@ -7,6 +7,8 @@ class CanSparkMax:
 
         self.can = canbus
         self.value_ = 0.0
+        self.absolute_position_ = 0.0
+        self.revolutions_per_minute_ = 0.0
         self.reversed_ = reversed
 
         # register CAN callback
@@ -32,13 +34,30 @@ class CanSparkMax:
     
     def setVelocity(self, value: float) -> None:
         self.can.send(REVMessage(VELOCITY_API_CLASS, VELOCITY_API_INDEX, self.id, floatToData(value)))
+
+    def getAbsolutePosition(self) -> float:
+        return self.absolute_position_
+    
+    def getRevolutionsPerMinute(self) -> float:
+        return self.revolutions_per_minute_
     
     # if you don't send this at a decent rate (at least 20Hz I think, probably faster if you can) the sparkMAX will disable itself
     def sendHeartbeat(self) -> None:
         self.can.send(REVMessage(NONRIO_HEARTBEAT_API_CLASS, NONRIO_HEARTBEAT_API_INDEX, self.id, NONRIO_HEARTBEAT_DATA))
     
     def canCallback(self, msg: Message) -> None:
-        pass
-        #TODO:
-        # - read absolute encoders
-        # - read periodic status frame so we can do reverse kinematics and odometry
+        breakdown = REVMessageBreakdown(msg.arbitration_id)
+
+        # First check if we are receiving feedback for a device that is not ours
+        if breakdown.device_number != self.id:
+            return
+        
+        if breakdown.api_class == ABSOLUTE_ENCODER_FEEDBACK_API_CLASS and breakdown.api_index == ABSOLUTE_ENCODER_FEEDBACK_API_INDEX:
+            absolute_position = dataToFloat(msg.data)
+            self.absolute_position_ = absolute_position
+            pass
+        
+        if breakdown.api_classs == DRIVE_ENCODER_FEEDBACK_API_CLASS and breakdown.api_index == DRIVE_ENCODER_FEEDBACK_API_INDEX:
+            revolutions_per_minute = dataToFloat(msg.data)
+            self.revolutions_per_minute_ = revolutions_per_minute
+            pass

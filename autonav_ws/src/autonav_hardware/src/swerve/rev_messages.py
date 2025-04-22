@@ -1,5 +1,5 @@
 import time
-from struct import pack
+from struct import pack, unpack
 from can import Message
 
 # from the FRC WPILib docs at https://docs.wpilib.org/en/stable/docs/software/can-devices/can-addressing.html
@@ -15,6 +15,12 @@ ENABLE_DATA = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF] #TODO FIXME not s
 NONRIO_HEARTBEAT_API_CLASS = 11
 NONRIO_HEARTBEAT_API_INDEX = 2
 NONRIO_HEARTBEAT_DATA = [0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00] #TODO FIXME are these supposed to individually enable motors? should this bytearray enable all of them? should we only enable if we are in manual?
+
+ABSOLUTE_ENCODER_FEEDBACK_API_CLASS = 6
+ABSOLUTE_ENCODER_FEEDBACK_API_INDEX = 37
+
+DRIVE_ENCODER_FEEDBACK_API_CLASS = 6
+DRIVE_ENCODER_FEEDBACK_API_INDEX = 33
 
 PERCENT_OUTPUT_API_CLASS = 0
 PERCENT_OUTPUT_API_INDEX = 2
@@ -43,6 +49,22 @@ def floatToData(f: float) -> bytearray:
         data_array.append(0x00) #FIXME I don't like this part
 
     return data_array
+
+def dataToFloat(data: bytearray) -> float:
+    """Converts a bytearray from the SparkMAXes into a floating-point value"""
+    
+    if len(data) < 4:
+        raise ValueError("Data must be at least 4 bytes long to extract a float")
+    
+    return unpack('<f', data[:4])[0]
+
+class REVMessageBreakdown:
+    def __init__(self, arbitration_id: int):
+        self.device_number = arbitration_id & 0x3F
+        self.api_index = (arbitration_id >> 6) & 0x3F
+        self.api_class = (arbitration_id >> 10) & 0x3F
+        self.manufacturer_code = (arbitration_id >> 16) & 0xFF
+        self.device_type = (arbitration_id >> 24) & 0xFF
 
 class REVMessage(Message):
     def __init__(self, api_class: int, api_index: int, device_number: int, data=[]):
