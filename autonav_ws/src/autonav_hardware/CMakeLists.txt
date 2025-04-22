@@ -51,6 +51,7 @@ install(PROGRAMS
   src/audible_feedback.py
   src/simple_audible_feedback_publisher.py
   src/can_node.py
+  src/camera_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
