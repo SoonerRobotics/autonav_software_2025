@@ -8,8 +8,7 @@ from autonav_msgs.msg import HardwarePerformance
 
 import psutil
 
-class Config():
-    
+class PerformanceConfig():
     def __init__(self):
         self.CELSIUS = False
 
@@ -17,16 +16,17 @@ class PerformanceNode(Node):
     
     def __init__(self):
         super().__init__("autonav_hardware_performance")
-        # Initiliza config
-        self.config = Config()
+        # Initiliaze config
+        self.config = PerformanceConfig()
         
         # setup cpu and mem
         self.cpu_utilization = psutil.cpu_percent()
         self.update_cpu()
-        self.memory = psutil.virtual_memory()
+        self.memory = psutil.virtual_memory().percent
         
         # Publisher
         self.performance_publisher = self.create_publisher(HardwarePerformance, "/autonav/hardware_performance", 10)
+
         timer_period = 0.1
         self.timer = self.create_timer(timer_period, self.timer_callback)
     
@@ -34,12 +34,16 @@ class PerformanceNode(Node):
     def timer_callback(self):
         self.update_cpu()
         self.update_memory()
+
         temp = self.query_temps()
-        self.log(f"{temp}, {self.cpu_utilization}, {self.memory}")
+        
+        # self.log(f"{temp}, {self.cpu_utilization}, {self.memory}")
+        
         msg = HardwarePerformance()
         msg.cpu = self.cpu_utilization
         msg.memory = self.memory
         msg.temp = str(temp)
+        
         self.performance_publisher.publish(msg)
         
     
@@ -68,8 +72,7 @@ class PerformanceNode(Node):
         self.cpu_utilization = psutil.cpu_percent(interval)
 
     def update_memory(self):
-        self.memory = psutil.virtual_memory()
-        self.memory = self.memory.percent
+        self.memory = psutil.virtual_memory().percent
 
 def main(args=None):
     rclpy.init(args=args)

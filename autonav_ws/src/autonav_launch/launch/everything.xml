@@ -18,6 +18,6 @@
     <node pkg="autonav_hardware" exec="can_node.py" output="screen" emulate_tty="true" />
 
     <!-- other -->
-    <node pkg="autonav_logging" exec="logging.py" output="screen" emulate_tty="true" />
+    <node pkg="autonav_logging" exec="autonav_logging.py" output="screen" emulate_tty="true" />
     <node pkg="autonav_performance_node" exec="performance.py" output="screen" emulate_tty="true"/>
 </launch>

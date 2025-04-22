@@ -22,6 +22,11 @@ python3 -m pip config set global.break-system-packages true
 sudo python3 -m pip config set global.break-system-packages true
 pip3 install python-can[serial]
 pip3 install websockets
+pip3 install just_playback
+pip3 install PySoundSphere
+
+# ffmpeg for pysoundsphere and stuff
+sudo apt install ffmpeg
 
 # Copy the udev rules to the correct location
 sudo cp etc/autonav.rules /etc/udev/rules.d/autonav.rules
