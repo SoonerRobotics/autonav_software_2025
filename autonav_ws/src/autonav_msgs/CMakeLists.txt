@@ -35,6 +35,7 @@ set(msg_files
     "msg/ConfigurationBroadcast.msg"
     "msg/ConfigurationUpdate.msg"
     "msg/ZeroEncoders.msg"
+    "msg/HardwarePerformance.msg"
 )
 
 set(srv_files
