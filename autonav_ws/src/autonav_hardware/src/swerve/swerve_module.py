@@ -67,10 +67,7 @@ class SUSwerveDriveModule:
         # measured_drive_speed = self.drive_encoder_.getVelocity() * self.config.drive_motor_conversion_factor_
         # measured_angle = self.angle_encoder_.getAngle() * self.config.angle_motor_conversion_factor_
 
-        measured_state = SUSwerveDriveModuleState()
-        measured_state.x_vel = measured_speed_mps * cos(measured_drive_angle)
-        measured_state.y_vel = measured_speed_mps * sin(measured_drive_angle)
-
+        measured_state = SUSwerveDriveModuleState(measured_speed_mps * cos(measured_drive_angle), measured_speed_mps * sin(measured_drive_angle))
         return measured_state
 
     def applyConversionFactor(self, drive_motor_reduction: float, angle_motor_reduction: float, wheel_radius: float) -> None:
