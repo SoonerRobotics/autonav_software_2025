@@ -61,7 +61,7 @@ class SUSwerveDriveModule:
         measured_rpm = self.drive_motor_.getRevolutionsPerMinute() # the RPM straight from the sparkmax
         # calculate meters per second using the config and measured_rpm
         # should be: speed (m/s) = RPM * ((pi * diameter) / 60)
-        measured_speed_mps = measured_rpm * (self.drive_motor_conversion_factor_ * 2 * pi / 60) # m/s
+        measured_speed_mps = (measured_rpm / 60) * ((2 * pi * self.wheel_radius) / self.driveMotorGearRatio) # m/s
 
 
         # measured_drive_speed = self.drive_encoder_.getVelocity() * self.config.drive_motor_conversion_factor_
