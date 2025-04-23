@@ -14,7 +14,7 @@ from swerve.swerve_config import *
 #FIXME CanConfig isn't working right right now
 class CanNodeConfig:
     def __init__(self):
-        self.canable_filepath = "/dev/ttyACM0"
+        self.canable_filepath = "/dev/ttyACM1" #TODO this may or may not be right, there are two CANables so not sure
 
 class SparkMAXNode(Node):
     def __init__(self):

@@ -107,7 +107,7 @@ public:
 
             this->gpsPublisher->publish(msg);
         } else {
-            log("Unrecognized VectorNav message", AutoNav::Logging::ERROR);
+            // log("Unrecognized VectorNav message", AutoNav::Logging::ERROR);
             this->set_device_state(AutoNav::DeviceState::ERROR);
         }
     }

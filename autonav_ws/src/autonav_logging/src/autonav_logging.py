@@ -32,13 +32,13 @@ class LogConfig:
         self.record_safetylights = True
         self.record_performance = True
 
-class playback(Node):
+class LoggingNode(Node):
     """
     This Node does logs some stuff :)
     """
     
     def __init__(self):
-        super().__init__('autonav_playback')
+        super().__init__('autonav_logging')
         
         self.file = None
         
@@ -72,16 +72,18 @@ class playback(Node):
         self.record_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', str(self.FRAMERATE), '-s', '640x480', '-i', '-']
         
         # Raw Camera Topics
-        self.camera1 = self.create_subscription(CompressedImage, 'autonav/camera/left', lambda msg: self.cameraCallback(msg, 'left'), self.QOS)
-        self.camera2 = self.create_subscription(CompressedImage, 'autonav/camera/right', lambda msg: self.cameraCallback(msg, 'right'), self.QOS)
-        self.camera3 = self.create_subscription(CompressedImage, 'autonav/camera/front', lambda msg: self.cameraCallback(msg, 'front'), self.QOS)
-        self.camera4 = self.create_subscription(CompressedImage, 'autonav/camera/back', lambda msg: self.cameraCallback(msg, 'back'), self.QOS)
+        cameraQOS = rclpy.qos.qos_profile_sensor_data
+        self.camera1 = self.create_subscription(CompressedImage, 'autonav/camera/left', lambda msg: self.cameraCallback(msg, 'left'), cameraQOS)
+        self.camera2 = self.create_subscription(CompressedImage, 'autonav/camera/right', lambda msg: self.cameraCallback(msg, 'right'), cameraQOS)
+        self.camera3 = self.create_subscription(CompressedImage, 'autonav/camera/front', lambda msg: self.cameraCallback(msg, 'front'), cameraQOS)
+        self.camera4 = self.create_subscription(CompressedImage, 'autonav/camera/back', lambda msg: self.cameraCallback(msg, 'back'), cameraQOS)
         # Additional Video Feeds
         self.combined = self.create_subscription(CompressedImage, '/autonav/vision/combined/filtered', lambda msg: self.cameraCallback(msg, 'combined'), self.QOS)
         self.feelers = self.create_subscription(CompressedImage, '/autonav/feelers/debug', lambda msg: self.cameraCallback(msg, 'feelers'), self.QOS)
         
         # FFmpeg Process Dict - Stores the ffmpeg pipes
         self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None, 'combined':None, 'feelers':None}
+        
         # Tracks pipe status
         self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False, 'combined':False, 'feelers':False}
         
@@ -97,9 +99,6 @@ class playback(Node):
         self.performance_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
 
 
-        
-        
-    
     def cameraCallback(self, msg, id):
         if not self.system_state == 1 or self.system_state == 2:
             return
@@ -177,9 +176,6 @@ class playback(Node):
         
         for c in self.closed_dict:
             self.closed_dict[c] = True
-        
-    
-    
     
     
     def systemStateCallback(self, msg):
@@ -306,15 +302,12 @@ class playback(Node):
         self.write_file(f"{self.makeTimestamp()}, ENTRY_PERFORMANCE, {msg.name}, {msg.duration}")
     
     
-    
         
-def main(args=None):
-    rclpy.init(args=args)
-
-    playback_sub = playback()
-
-    rclpy.spin(playback_sub)
-    playback_sub.destroy_node()
+def main():
+    rclpy.init()
+    node = LoggingNode()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 
