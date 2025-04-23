@@ -47,7 +47,7 @@ class DisplayBackend(Node):
             MotorFeedback, "/autonav/gps", self.gps_feedback, 10
         )
         self.motor_input_sub = self.create_subscription(
-            MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
+            MotorInput, "/autonav/MotorInput", self.motor_input_callback, 10
         )
 
         self.left_cam = None
