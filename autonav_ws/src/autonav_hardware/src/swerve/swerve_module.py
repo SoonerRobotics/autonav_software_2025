@@ -64,6 +64,9 @@ class SUSwerveDriveModule:
             measured_drive_angle += 1.0
         measured_drive_angle = (measured_drive_angle * 2 * pi) - pi
 
+        # remap
+        measured_drive_angle = -measured_drive_angle
+
         measured_rpm = self.drive_motor_.getRevolutionsPerMinute() # the RPM straight from the sparkmax
         # calculate meters per second using the config and measured_rpm
         # should be: speed (m/s) = RPM * ((pi * diameter) / 60)
