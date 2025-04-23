@@ -57,7 +57,7 @@ class CanSparkMax:
             self.absolute_position_ = absolute_position
             pass
         
-        if breakdown.api_classs == DRIVE_ENCODER_FEEDBACK_API_CLASS and breakdown.api_index == DRIVE_ENCODER_FEEDBACK_API_INDEX:
+        if breakdown.api_class == DRIVE_ENCODER_FEEDBACK_API_CLASS and breakdown.api_index == DRIVE_ENCODER_FEEDBACK_API_INDEX:
             revolutions_per_minute = dataToFloat(msg.data)
             self.revolutions_per_minute_ = revolutions_per_minute
             pass
