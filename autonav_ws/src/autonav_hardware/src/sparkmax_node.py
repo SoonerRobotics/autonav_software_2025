@@ -28,7 +28,7 @@ class SparkMAXNode(Node):
         self.set_device_state(DeviceState.WARMING)
 
         # make the CAN object
-        self.can = can.ThreadSafeBus(bustype="slcan", channel=self.config.get("canable_filepath"), bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
+        self.can = can.ThreadSafeBus(bustype="slcan", channel="/dev/ttyACM0", bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
 
         # ROS motor message callback
         self.motorInputSubscriber = self.create_subscription(MotorInput, "/autonav/motor_input", self.on_motor_input_received, 20)
