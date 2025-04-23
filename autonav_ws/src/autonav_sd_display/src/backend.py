@@ -18,7 +18,7 @@ import json
 
 class DisplayBackendConfig:
     def __init__(self):
-        self.host = "127.0.0.1"
+        self.host = "0.0.0.0"
         self.port = 4029
         self.camera_fps = 24
 
