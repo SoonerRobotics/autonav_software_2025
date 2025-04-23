@@ -52,6 +52,8 @@ class CanSparkMax:
         if breakdown.device_number != self.id:
             return
         
+        self.log(f"Received message: {msg}")
+        
         if breakdown.api_class == ABSOLUTE_ENCODER_FEEDBACK_API_CLASS and breakdown.api_index == ABSOLUTE_ENCODER_FEEDBACK_API_INDEX:
             absolute_position = dataToFloat(msg.data)
             self.absolute_position_ = absolute_position
