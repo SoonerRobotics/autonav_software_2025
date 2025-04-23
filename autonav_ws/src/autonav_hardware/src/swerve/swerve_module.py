@@ -58,6 +58,12 @@ class SUSwerveDriveModule:
         # self.angle_encoder_.update(period)
 
         measured_drive_angle = self.angle_motor_.getAbsolutePosition() # the absolute position straight from the sparkmax
+
+        # remap drive angle from 0 to 1 to radians (i.e. 0 is 0 degrees, 1 is 360 degrees)
+        if measured_drive_angle < 0:
+            measured_drive_angle += 1.0
+        measured_drive_angle = (measured_drive_angle * 2 * pi) - pi
+
         measured_rpm = self.drive_motor_.getRevolutionsPerMinute() # the RPM straight from the sparkmax
         # calculate meters per second using the config and measured_rpm
         # should be: speed (m/s) = RPM * ((pi * diameter) / 60)
