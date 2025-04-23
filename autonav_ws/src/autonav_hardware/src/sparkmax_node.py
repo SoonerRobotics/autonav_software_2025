@@ -71,6 +71,8 @@ class SparkMAXNode(Node):
         if self.get_device_state() != DeviceState.OPERATING:
             self.set_device_state(DeviceState.OPERATING)
 
+        self.log(f"we do a swerve: {msg.forward_velocity}")
+
         swerve_feedback = self.swerve.updateState(SUSwerveDriveState(
             msg.sideways_velocity,
             -msg.forward_velocity,
