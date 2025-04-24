@@ -46,7 +46,7 @@ class SUSwerveDriveModule:
         desired_angle = atan2(desired_state.x_vel, desired_state.y_vel)
 
         self.drive_motor_.setVelocity(desired_drive_speed * 42)
-        if desired_drive_speed > 0.1:
+        if desired_drive_speed > 0.4:
             self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2))
 
         # use the onboard PIDF controllers of the sparkMAXes to do everything for us
