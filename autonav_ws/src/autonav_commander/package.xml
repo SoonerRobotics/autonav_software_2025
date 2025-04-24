@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-    <name>autonav_example_py</name>
+    <name>autonav_commander</name>
     <version>2025.0.1</version>
-    <description>Example Python</description>
+    <description>Autonav Commander</description>
     <maintainer email="dylan.zemlin@gmail.com">Dylan Zemlin</maintainer>
     <license>MIT</license>
 

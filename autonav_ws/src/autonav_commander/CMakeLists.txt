@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(autonav_example_py)
+project(autonav_commander)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -15,7 +15,7 @@ ament_python_install_package(${PROJECT_NAME})
 
 # Install Python programs
 install(PROGRAMS
-  src/example.py
+  src/commander.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

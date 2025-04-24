@@ -34,8 +34,6 @@ class Node(RclpyNode):
         self.performance_pub = self.create_publisher(Performance, "/autonav/shared/performance", 10)
         self.log_pub = self.create_publisher(Log, "/autonav/shared/log", 10)
 
-        self.set_device_state(DeviceState.WARMING)
-
     def init(self) -> None:
         """
         Called when the node synchronizes with the system.
@@ -56,30 +54,42 @@ class Node(RclpyNode):
         Callback for the configuration update topic.
         """
         if msg.device == self.get_name():
-            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
+            self.log(f"Received update on our own configuration", LogLevel.DEBUG)
             self.config = json.loads(msg.json)
+            self.on_config_update(self.config)
         else:
             # self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
             pass
         
         self.other_cfgs[msg.device] = json.loads(msg.json)
 
+    def on_config_update(self, config) -> None:
+        """
+        Called when the configuration is updated.
+        """
+        pass
+
     def config_broadcast_callback(self, msg: ConfigurationBroadcast) -> None:
         """
         Callback for the configuration broadcast topic.
         """
         if msg.target_nodes == [] or self.get_name() in msg.target_nodes:
-            self.log(f"Received request for our own configuration to be broadcasted", LogLevel.DEBUG)
             self.broadcast_config()
+
+    def _broadcast_config(self, name, config) -> None:
+        """
+        Broadcast our configuration to the system.
+        """
+        msg = ConfigurationUpdate()
+        msg.device = name
+        msg.json = self._smart_dump_config(config)
+        self.config_pub.publish(msg)
 
     def broadcast_config(self) -> None:
         """
         Broadcast our configuration to the system.
         """
-        msg = ConfigurationUpdate()
-        msg.device = self.get_name()
-        msg.json = self._smart_dump_config(self.config)
-        self.config_pub.publish(msg)
+        self._broadcast_config(self.get_name(), self.config)
 
     def request_all_configs(self) -> None:
         """
@@ -141,24 +151,27 @@ class Node(RclpyNode):
         """
         Callback for the device state topic.
         """
-        if msg.device == self.get_name():
-            # self.log(f"Received update on our own device state from {DeviceState(self.device_states[msg.device]).name} to {DeviceState(msg.state).name}", LogLevel.DEBUG)
-            pass
-
         old_state = self.device_states[msg.device] if msg.device in self.device_states else None
         self.device_states[msg.device] = DeviceState(msg.state)
-
         if (old_state == None or old_state == DeviceState.OFF) and DeviceState(msg.state) == DeviceState.WARMING and msg.device == self.get_name():
+            self.broadcast_config()
             self.init()
 
     def set_device_state(self, state: DeviceState) -> None:
         """
-        Set the state of our device.
+        Set the state of the current node.
+        """
+        self._set_device_state(self.get_name(), state)
+
+    def _set_device_state(self, device: str, state: DeviceState) -> None:
+        """
+        Set the state of a specific device.
         """
         msg = DeviceStateMsg()
-        msg.device = self.get_name()
+        msg.device = device
         msg.state = state.value
         self.device_state_pub.publish(msg)
+
         
     def set_system_state(self, state: SystemState) -> None:
         """
@@ -186,7 +199,6 @@ class Node(RclpyNode):
             device = self.get_name()
 
         if device not in self.device_states:
-            self.log(f"Device {device} not found in device states", LogLevel.ERROR)
             return DeviceState.UNKNOWN
         
         return self.device_states[device]

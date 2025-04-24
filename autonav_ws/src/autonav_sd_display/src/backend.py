@@ -2,19 +2,47 @@
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback
 from sensor_msgs.msg import CompressedImage
+from std_msgs.msg import String
 import rclpy
 
 from flask import Flask, Response, jsonify
 from flask_socketio import SocketIO, emit
 import threading
 from threading import Lock
+import logging
 import time
 import cv2
 import numpy as np
 import json
 
+
+class Limiter:
+    def __init__(self) -> None:
+        self.limits = {}
+        self.nextAllowance = {}
+
+    # Sets a limit for how many times per second a key can be used
+    def setLimit(self, key, limit):
+        self.limits[key] = limit
+        self.nextAllowance[key] = 0
+
+    # If it can be used, returns true and decrements the remaining uses
+    def use(self, key):
+        if key not in self.limits:
+            return True
+
+        nextUsageAfter = self.nextAllowance[key]
+        if nextUsageAfter == 0:
+            self.nextAllowance[key] = time.time() + (1.0 / self.limits[key])
+            return True
+
+        if time.time() >= nextUsageAfter:
+            self.nextAllowance[key] = time.time() + (1.0 / self.limits[key])
+            return True
+
+        return False
 
 class DisplayBackendConfig:
     def __init__(self):
@@ -22,12 +50,29 @@ class DisplayBackendConfig:
         self.port = 4029
         self.camera_fps = 24
 
-
 class DisplayBackend(Node):
     def __init__(self):
         super().__init__("autonav_sd_display")
-        self.write_config(DisplayBackendConfig())
+        self.config = DisplayBackendConfig() # Set the default config
 
+        self.left_cam = None
+        self.right_cam = None
+        self.front_cam = None
+        self.back_cam = None
+
+        self.limiter = Limiter()
+        self.limiter.setLimit("motor_input", 2)
+        self.limiter.setLimit("gps_feedback", 2)
+        self.limiter.setLimit("motor_feedback", 4)
+        self.limiter.setLimit("absolute", 16)
+
+    def init(self):
+        self.log("Initialized")
+        self.init_flask_server()
+        self.set_device_state(DeviceState.READY)
+
+
+        # Subscribers
         self.camera_left_sub = self.create_subscription(
             CompressedImage, "/autonav/camera/left", self.camera_left_callback, 10
         )
@@ -49,17 +94,24 @@ class DisplayBackend(Node):
         self.motor_input_sub = self.create_subscription(
             MotorInput, "/autonav/MotorInput", self.motor_input_callback, 10
         )
+        self.system_state_sub = self.create_subscription(
+            SystemStateMsg, "/autonav/system_state", self._system_state_callback, 10
+        )
+        self.device_state_sub = self.create_subscription(
+            DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
+        )
+        self.absolute_encoder_sub = self.create_subscription(
+            SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10
+        )        
 
-        self.left_cam = None
-        self.right_cam = None
-        self.front_cam = None
-        self.back_cam = None
+        # Publishers
+        self.load_preset_pub = self.create_publisher(
+            String, "/autonav/presets/load", 10
+        )
+        self.save_preset_pub = self.create_publisher(
+            String, "/autonav/presets/save", 10
+        )
 
-        self.init_flask_server()
-
-    def init(self):
-        self.log("Initialized")
-        self.set_device_state(DeviceState.READY)
 
     def camera_left_callback(self, msg):
         self.left_cam = msg
@@ -73,7 +125,22 @@ class DisplayBackend(Node):
     def camera_back_callback(self, msg):
         self.back_cam = msg
 
+    def _system_state_callback(self, msg: SystemState):
+        self.socketio.emit("system_state", json.dumps({
+            "state": msg.state,
+            "mobility": msg.mobility
+        }))
+
+    def _device_state_callback(self, msg: DeviceState):
+        self.socketio.emit("device_state", json.dumps({
+            "device": msg.device,
+            "state": msg.state
+        }))
+
     def motor_feedback_callback(self, msg: MotorFeedback):
+        if not self.limiter.use("motor_feedback"):
+            return
+
         self.socketio.emit("motor_feedback", json.dumps({
             "delta_x": msg.delta_x,
             "delta_y": msg.delta_y,
@@ -81,12 +148,18 @@ class DisplayBackend(Node):
         }))
 
     def motor_input_callback(self, msg: MotorInput):
+        if not self.limiter.use("motor_input"):
+            return
+
         self.socketio.emit("motor_input", json.dumps({
             "angular_velocity": msg.angular_velocity,
             "forward_velocity": msg.forward_velocity
         }))
 
     def gps_feedback(self, msg: GPSFeedback):
+        if not self.limiter.use("gps_feedback"):
+            return
+
         self.socketio.emit("gps_feedback", json.dumps({
             "latitude": msg.latitude,
             "longitude": msg.longitude,
@@ -100,8 +173,12 @@ class DisplayBackend(Node):
         """Initialize Flask server in a separate thread."""
         app = Flask(__name__)
         socketio = SocketIO(app, cors_allowed_origins="*")
-        self.socketio = socketio
         config = self.config
+        self.socketio = socketio
+
+        # set log level to error
+        flasklog = logging.getLogger("werkzeug")
+        flasklog.setLevel(logging.ERROR)
 
         @app.route("/")
         def get_time():
@@ -121,7 +198,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config.camera_fps)
+                    time.sleep(1 / config["camera_fps"])
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Right camera stream that updates based on the camera fps configuration
@@ -136,7 +213,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config.camera_fps)
+                    time.sleep(1 / config["camera_fps"])
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Front camera stream that updates based on the camera fps configuration
@@ -151,7 +228,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config.camera_fps)
+                    time.sleep(1 / config["camera_fps"])
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Back camera stream that updates based on the camera fps configuration
@@ -166,7 +243,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config.camera_fps)
+                    time.sleep(1 / config["camera_fps"])
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
         # return an image of the current time as a stream
@@ -182,31 +259,56 @@ class DisplayBackend(Node):
                         b"--frame\r\n"
                         b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                     )
-                    time.sleep(1 / config.camera_fps)
+                    time.sleep(1 / config["camera_fps"])
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        
+        @socketio.on("load_preset")
+        def handle_load_preset(preset_id):
+            """Handle loading a preset."""
+            if preset_id:
+                self.load_preset_pub.publish(String(data=preset_id))
+                self.log(f"Loading preset {preset_id}", LogLevel.INFO)
+            else:
+                self.log("No preset ID provided", LogLevel.ERROR)
+
+        @socketio.on("save_preset")
+        def handle_save_preset(preset_id):
+            """Handle saving a preset."""
+            if preset_id:
+                self.save_preset_pub.publish(String(data=preset_id))
+                self.log(f"Saving preset {preset_id}", LogLevel.INFO)
+            else:
+                self.log("No preset ID provided", LogLevel.ERROR)
 
         @socketio.on("connect")
         def handle_connect():
             """Handle a new client connection."""
-            self.log("Client connected")
+            # Send the current system state
+            system_state = {
+                "state": self.get_system_state(),
+                "mobility": self.is_mobility()
+            }
+            self.socketio.emit("system_state", json.dumps(system_state))
+
+            # Loop through the device_states map and send each device state
+            for device, state in self.device_states.items():
+                device_state = {
+                    "device": device,
+                    "state": state
+                }
+                self.socketio.emit("device_state", json.dumps(device_state))
 
         @socketio.on("disconnect")
         def handle_disconnect():
             """Handle a client disconnect."""
-            self.log("Client disconnected")
-
-        @socketio.on("test")
-        def handle_test(data):
-            """Handle a test event."""
-            self.log("Received test event: {}".format(data))
-            emit("test_response", {"data": "Test response"})
+            pass
 
         # Run Flask server in a separate thread to avoid blocking the ROS node.
         thread = threading.Thread(
             target=app.run,
             kwargs={
-                "host": config.host,
-                "port": config.port,
+                "host": config["host"],
+                "port": config["port"],
                 "debug": False,
                 "use_reloader": False,
                 "threaded": True,
