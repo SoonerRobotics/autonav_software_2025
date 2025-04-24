@@ -15,9 +15,13 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
     const createWebsocket = () => {// check if pref.host is being overwritten somewhr? (See default values aren't being loaded in...)
         $("#main").show();
         const userID = generateUUID();
-        const url = `ws://${preferences.host}:${preferences.port}/?id=${userID}`;
-        websocket = development_mode ? new WebSocket("ws://localhost:8080") : websocket = new WebSocket(url);//Just to run on basic serv        websocket = development_mode ? new WebSocket("ws://localhost:8080") : websocket = new WebSocket(url);//Just to run on basic serv
-        console.log("url: \t" + url)
+        const fallbackHost = 'localhost';
+        const host = development_mode ? fallbackHost : preferences.host;
+        const port = preferences.port;
+        const wsUrl = `ws://${host}:${port}/?id=${userID}`;
+
+        console.log("Connecting to WebSocket:", wsUrl);
+        websocket = new WebSocket(wsUrl);
 
         websocket.onopen = function (event) {
             if (connected) {
