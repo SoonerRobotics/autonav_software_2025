@@ -54,16 +54,25 @@ class Node(RclpyNode):
         Callback for the configuration update topic.
         """
         if msg.device == self.get_name():
-            self.log(f"Received update on our own configuration", LogLevel.DEBUG)
-            self.config = json.loads(msg.json)
-            self.on_config_update(self.config)
+            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
+            old_cfg = self.config
+            new_cfg = json.loads(msg.json)
+            self.apply_config(new_cfg)
+            self.on_config_update(old_cfg, self.config)
         else:
             # self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
             pass
         
         self.other_cfgs[msg.device] = json.loads(msg.json)
 
-    def on_config_update(self, config) -> None:
+    def apply_config(self, config) -> None:
+        """
+        Apply a configuration to the node.
+        Override this to use type hints for the config.
+        """
+        self.config = config
+
+    def on_config_update(self, old_cfg, new_cfg) -> None:
         """
         Called when the configuration is updated.
         """
@@ -144,8 +153,29 @@ class Node(RclpyNode):
         """
         Callback for the system state topic.
         """
+        old_state = self.system_state
+        old_mobility = self.mobility
+
         self.system_state = SystemState(msg.state)
         self.mobility = msg.mobility
+
+        if old_state != self.system_state:
+            self.on_system_state_updated(old_state, self.system_state)
+
+        if old_mobility != self.mobility:
+            self.on_mobility_updated(old_mobility, self.mobility)
+
+    def on_system_state_updated(self, old: SystemState, new: SystemState) -> None:
+        """
+        Called when the system state is updated.
+        """
+        pass
+
+    def on_mobility_updated(self, old: bool, new: bool) -> None:
+        """
+        Called when the mobility state is updated.
+        """
+        pass
         
     def device_state_callback(self, msg: DeviceStateMsg) -> None:
         """
@@ -154,7 +184,6 @@ class Node(RclpyNode):
         old_state = self.device_states[msg.device] if msg.device in self.device_states else None
         self.device_states[msg.device] = DeviceState(msg.state)
         if (old_state == None or old_state == DeviceState.OFF) and DeviceState(msg.state) == DeviceState.WARMING and msg.device == self.get_name():
-            self.broadcast_config()
             self.init()
 
     def set_device_state(self, state: DeviceState) -> None:

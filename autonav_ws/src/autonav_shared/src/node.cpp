@@ -37,7 +37,10 @@ namespace AutoNav
         if (msg->device == get_name())
         {
             // log("Received update on our own configuration", Logging::LogLevel::DEBUG);
-            this->config = json::parse(msg->json);
+            json old_config = this->_config;
+            // this->_config = json::parse(msg->json);
+            apply_config(json::parse(msg->json));
+            this->on_config_updated(old_config, this->_config);
         } else {
             // log("Received update on " + msg->device + "'s configuration", Logging::LogLevel::DEBUG);
         }
@@ -58,7 +61,7 @@ namespace AutoNav
     {
         autonav_msgs::msg::ConfigurationUpdate msg;
         msg.device = get_name();
-        msg.json = config.dump();
+        msg.json = _config.dump();
         configuration_update_pub->publish(msg);
     }
 
@@ -77,7 +80,7 @@ namespace AutoNav
 
     void Node::write_config(const json & config)
     {
-        this->config = config;
+        this->_config = config;
         broadcast_config();
     }
 
@@ -134,18 +137,25 @@ namespace AutoNav
 
     void Node::system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg)
     {
+        AutoNav::SystemState old_state = system_state;
+        bool old_mobility = has_mobility;
+
         system_state = static_cast<AutoNav::SystemState>(msg->state);
         has_mobility = msg->mobility;
+
+        if (system_state != old_state)
+        {
+            on_system_state_updated(old_state, system_state);
+        }
+
+        if (has_mobility != old_mobility)
+        {
+            on_mobility_updated(old_mobility, has_mobility);
+        }
     }
 
     void Node::device_state_callback(const autonav_msgs::msg::DeviceState::SharedPtr msg)
     {
-        // Log teh raw message
-        if (msg->device == get_name())
-        {
-            // log("Received update on our device state from " + AutoNav::DEVICE_STATE_NAMES.at(device_states.at(msg->device)) + " to " + AutoNav::DEVICE_STATE_NAMES.at(static_cast<AutoNav::DeviceState>(msg->state)), Logging::LogLevel::DEBUG);
-        }
-
         if (msg->device != get_name())
         {
             device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));

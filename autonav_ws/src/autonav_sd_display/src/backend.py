@@ -66,6 +66,14 @@ class DisplayBackend(Node):
         self.limiter.setLimit("motor_feedback", 4)
         self.limiter.setLimit("absolute", 16)
 
+    def apply_config(self, config: dict):
+        self.log(f"Config updated from {self.config} to {config}")
+        # This is called BEFORE on_config_update
+        # The point of this is to convert from the generic json dict to our config object
+        self.config.host = str(config["host"])
+        self.config.port = int(config["port"])
+        self.config.camera_fps = int(config["camera_fps"])
+
     def init(self):
         self.log("Initialized")
         self.init_flask_server()
@@ -198,7 +206,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config["camera_fps"])
+                    time.sleep(1 / config.camera_fps)
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Right camera stream that updates based on the camera fps configuration
@@ -213,7 +221,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config["camera_fps"])
+                    time.sleep(1 / config.camera_fps)
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Front camera stream that updates based on the camera fps configuration
@@ -228,7 +236,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config["camera_fps"])
+                    time.sleep(1 / config.camera_fps)
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Back camera stream that updates based on the camera fps configuration
@@ -243,7 +251,7 @@ class DisplayBackend(Node):
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config["camera_fps"])
+                    time.sleep(1 / config.camera_fps)
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
         # return an image of the current time as a stream
@@ -259,7 +267,7 @@ class DisplayBackend(Node):
                         b"--frame\r\n"
                         b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                     )
-                    time.sleep(1 / config["camera_fps"])
+                    time.sleep(1 / config.camera_fps)
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         @socketio.on("load_preset")
@@ -307,8 +315,8 @@ class DisplayBackend(Node):
         thread = threading.Thread(
             target=app.run,
             kwargs={
-                "host": config["host"],
-                "port": config["port"],
+                "host": config.host,
+                "port": config.port,
                 "debug": False,
                 "use_reloader": False,
                 "threaded": True,

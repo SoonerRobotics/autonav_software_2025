@@ -7,6 +7,7 @@ from std_msgs.msg import String
 import rclpy
 import os
 import json
+import time
 
 
 IGNORE_NODES = [
@@ -32,6 +33,13 @@ class Commander(Node):
             String, "/autonav/presets/save", self.preset_save_callback, 10
         )
 
+        # Initialize the presets directory and load the active preset
+        self.initialize_presets()
+
+        # A timer that runs every 250ms
+        self.tick_timer = self.create_timer(0.25, self.on_tick, autostart=True)
+
+    def initialize_presets(self):
         # Ensure the presets directory exists
         if not os.path.exists(PRESETS_DIR):
             os.makedirs(PRESETS_DIR)
@@ -54,9 +62,6 @@ class Commander(Node):
             self.log(f"Loaded preset {self.preset_id} from {preset_path}", LogLevel.INFO)
         else:
             self.log(f"Preset {self.preset_id} not found. Using default configuration.", LogLevel.WARN)
-
-        # A timer that runs every 250ms
-        self.tick_timer = self.create_timer(0.25, self.on_tick, autostart=True)
 
     def preset_load_callback(self, msg: String):
         # Read the json file given by msg
@@ -121,6 +126,8 @@ class Commander(Node):
             if node_cfg is not None:
                 self.log(f"node cfg: {node_cfg}", LogLevel.DEBUG)
                 self._broadcast_config(node, node_cfg)
+
+            time.sleep(0.5)
 
             # Send their updated device state to warming
             self._set_device_state(node, DeviceState.WARMING)

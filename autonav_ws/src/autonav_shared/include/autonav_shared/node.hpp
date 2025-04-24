@@ -94,12 +94,24 @@ namespace AutoNav
         /// @brief Called when the node synchronizes with the system
         virtual void init() = 0;
 
+        virtual void apply_config(const json &new_cfg) 
+        {
+            // Default implementation just sets the local config
+            this->_config = new_cfg;
+        }
+
+        virtual void on_config_updated(const json &old_cfg, const json &new_cfg) {}
+
+        virtual void on_system_state_updated(const AutoNav::SystemState old, const AutoNav::SystemState new_state) {}
+
+        virtual void on_mobility_updated(const bool old, const bool new_state) {}
+
         void perf_start(const std::string &name);
 
         void perf_stop(const std::string &name, const bool print_to_console = false);
 
         // Configuration
-        json config;
+        json _config;
         std::map<std::string, json> other_cfgs;
 
     private:

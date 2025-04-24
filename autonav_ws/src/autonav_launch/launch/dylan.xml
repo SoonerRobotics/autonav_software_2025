@@ -12,6 +12,10 @@
   <!-- hardware -->
   <!-- <node pkg="autonav_hardware" exec="sparkmax_node.py" output="screen" emulate_tty="true"/> -->
 
+  <!-- example nodes -->
+  <node pkg="example_py" exec="main.py" output="screen" emulate_tty="true"/>
+  <node pkg="example_cpp" exec="example_cpp" output="screen" emulate_tty="true"/>
+
   <!-- dylan :) -->
   <node pkg="autonav_sd_display" exec="backend.py" output="screen" emulate_tty="true"/>
 </launch>

@@ -2,7 +2,7 @@
 
 import rclpy
 from autonav_shared.node import Node
-from autonav_msgs.msg import MotorInput, MotorStatistics, ZeroEncoders, MotorFeedback
+from autonav_msgs.msg import MotorInput, MotorStatistics, ZeroEncoders, MotorFeedback, SwerveAbsoluteFeedback
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 import can
@@ -34,18 +34,22 @@ class SparkMAXNode(Node):
         self.motorInputSubscriber = self.create_subscription(MotorInput, "/autonav/motor_input", self.on_motor_input_received, 20)
         self.motorFeedbackPublisher = self.create_publisher(MotorFeedback, "/autonav/motor_feedback", 20)
 
+        # feedback publisher
+        self.absoluteEncoderPublisher = self.create_publisher(SwerveAbsoluteFeedback, "/autonav/swerve/absolute", 20)
+
         # Periodic heartbeat to keep motors enabled
         self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat)
+        self.feedback_timer = self.create_timer(0.2, self.send_motor_feedbacK)
 
         self.motors = [
-            CanSparkMax(1, self.can),
-            CanSparkMax(2, self.can),
-            CanSparkMax(3, self.can),
-            CanSparkMax(4, self.can),
-            CanSparkMax(5, self.can),
-            CanSparkMax(6, self.can),
-            CanSparkMax(7, self.can),
-            CanSparkMax(8, self.can),
+            CanSparkMax(1, self.can), # drive
+            CanSparkMax(2, self.can), # angle
+            CanSparkMax(3, self.can), # angle
+            CanSparkMax(4, self.can), # drive
+            CanSparkMax(5, self.can), # drive
+            CanSparkMax(6, self.can), # angle
+            CanSparkMax(7, self.can), # angle
+            CanSparkMax(8, self.can), # drive
         ]
 
         self.modules = (
@@ -66,6 +70,29 @@ class SparkMAXNode(Node):
     def send_heartbeat(self):
         for idx, motor in enumerate(self.motors):
             motor.sendHeartbeat()
+
+    def send_motor_feedbacK(self):
+        feedback_fl = SwerveAbsoluteFeedback()
+        feedback_fl.module = 0
+        feedback_fl.position = self.motors[0].getAbsolutePosition()
+
+        feedback_fr = SwerveAbsoluteFeedback()
+        feedback_fr.module = 1
+        feedback_fr.position = self.motors[3].getAbsolutePosition()
+
+        feedback_bl = SwerveAbsoluteFeedback()
+        feedback_bl.module = 2
+        feedback_bl.position = self.motors[4].getAbsolutePosition()
+
+        feedback_br = SwerveAbsoluteFeedback()
+        feedback_br.module = 3
+        feedback_br.position = self.motors[7].getAbsolutePosition()
+
+        # Publish the feedbacks
+        self.absoluteEncoderPublisher.publish(feedback_fl)
+        self.absoluteEncoderPublisher.publish(feedback_fr)
+        self.absoluteEncoderPublisher.publish(feedback_bl)
+        self.absoluteEncoderPublisher.publish(feedback_br)
 
     def on_motor_input_received(self, msg: MotorInput):
         if self.get_device_state() != DeviceState.OPERATING:
