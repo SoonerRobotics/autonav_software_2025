@@ -22,8 +22,7 @@ TRIGGER_MAX = 1023
 
 class ControllerInputConfig():
     def __init__(self):
-        self.deadzone = 20.0
-
+        self.deadzone = 30.0
 
 class ControllerInputNode(Node):
     def __init__(self):
