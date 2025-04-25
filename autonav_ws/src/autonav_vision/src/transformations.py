@@ -2,14 +2,12 @@
 
 import rclpy
 import cv2
-import numpy as np
 
-import rclpy.qos
 from sensor_msgs.msg import CompressedImage
 from cv_bridge import CvBridge
 
 from autonav_shared.node import Node
-from autonav_shared.types import LogLevel, DeviceState, SystemState
+from autonav_shared.types import DeviceState
 
 
 bridge = CvBridge()
@@ -58,9 +56,8 @@ class ImageTransformerConfig:
 class ImageTransformer(Node):
     def __init__(self, dir = "left"):
         super().__init__("autonav_vision_transformer")
+        self.config = ImageTransformerConfig()
         self.dir = dir
-
-        self.write_config(ImageTransformerConfig())
 
     def directionify(self, topic):
         return topic + "/" + self.dir

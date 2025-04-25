@@ -52,20 +52,16 @@ class SparkMAXNode(Node):
             CanSparkMax(8, self.can), # drive
         ]
 
-            self.modules = (
-                SUSwerveDriveModule(front_left_module_config, self.motors[0], self.motors[1]),
-                SUSwerveDriveModule(front_right_module_config, self.motors[3], self.motors[2]),
-                SUSwerveDriveModule(back_left_module_config, self.motors[4], self.motors[5]),
-                SUSwerveDriveModule(back_right_module_config, self.motors[7], self.motors[6]),
-                swerve_config
-            )
+        self.modules = (
+            SUSwerveDriveModule(front_left_module_config, self.motors[0], self.motors[1]),
+            SUSwerveDriveModule(front_right_module_config, self.motors[3], self.motors[2]),
+            SUSwerveDriveModule(back_left_module_config, self.motors[4], self.motors[5]),
+            SUSwerveDriveModule(back_right_module_config, self.motors[7], self.motors[6]),
+            swerve_config
+        )
 
-            # to the uninitiated: this is not a pointer. this is python argument unpacking
-            self.swerve = SUSwerveDrive(*self.modules)
-        except Exception as e:
-            self.set_device_state(DeviceState.ERROR)
-            self.log(f"Can't connect to SparkMAX CAN: {e}", LogLevel.ERROR)
-            self.reconnect_timer = self.create_timer(5, self.reconnect_can)
+        # to the uninitiated: this is not a pointer. this is python argument unpacking
+        self.swerve = SUSwerveDrive(*self.modules)
 
         self.set_device_state(DeviceState.READY)
     

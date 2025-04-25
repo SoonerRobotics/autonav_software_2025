@@ -2,7 +2,7 @@
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, ConfigurationUpdate
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 import rclpy
@@ -111,6 +111,9 @@ class DisplayBackend(Node):
         self.absolute_encoder_sub = self.create_subscription(
             SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10
         )        
+        self.config_web_sub = self.create_subscription(
+            ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10
+        )
 
         # Publishers
         self.load_preset_pub = self.create_publisher(
@@ -132,6 +135,11 @@ class DisplayBackend(Node):
 
     def camera_back_callback(self, msg):
         self.back_cam = msg
+
+    def on_web_config_updated(self, msg: ConfigurationUpdate):
+        self.socketio.emit("configs", json.dumps({
+            "configs": self.other_cfgs
+        }))
 
     def _system_state_callback(self, msg: SystemState):
         self.socketio.emit("system_state", json.dumps({
@@ -305,6 +313,11 @@ class DisplayBackend(Node):
                     "state": state
                 }
                 self.socketio.emit("device_state", json.dumps(device_state))
+
+            # Send current configs
+            self.socketio.emit("configs", json.dumps({
+                "configs": self.other_cfgs
+            }))
 
         @socketio.on("disconnect")
         def handle_disconnect():
