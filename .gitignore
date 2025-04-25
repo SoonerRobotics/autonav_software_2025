@@ -9,6 +9,7 @@ __pycache__
 # Visual Studio Code
 .vscode
 
+
 # VNav
 setup/vectornav.zip
 setup/vectorsecrets.txt
@@ -27,3 +28,10 @@ autonav_ws/src/scr/include/scr/websocketpp/**/*:Zone.Identifier
 
 # temporary feeler node testing
 autonav_ws/data
+
+.idea/
+.idea/git_toolbox_blame.xml
+.idea/autonav_software_2025.iml
+
+# ignore video logs
+data/*.mp4

@@ -11,15 +11,15 @@ from swerve.swerve_module import SUSwerveDriveModule
 from swerve.can_spark_max import CanSparkMax
 from swerve.swerve_config import *
 
-#FIXME CanConfig doesn't do anything right now
-class CanConfig:
+#FIXME CanConfig isn't working right right now
+class CanNodeConfig:
     def __init__(self):
-        self.canable_filepath = "/dev/ttyACM0"
+        self.canable_filepath = "/dev/ttyACM1" #TODO this may or may not be right, there are two CANables so not sure
 
 class SparkMAXNode(Node):
     def __init__(self):
         super().__init__("sparkmax_can_node")
-        self.write_config(CanConfig())
+        self.write_config(CanNodeConfig())
         self.can = None
         self.motors = []
         self.hasConfigured = False
@@ -52,17 +52,21 @@ class SparkMAXNode(Node):
             CanSparkMax(8, self.can), # drive
         ]
 
-        self.modules = (
-            SUSwerveDriveModule(front_left_module_config, self.motors[0], self.motors[1]),
-            SUSwerveDriveModule(front_right_module_config, self.motors[3], self.motors[2]),
-            SUSwerveDriveModule(back_left_module_config, self.motors[4], self.motors[5]),
-            SUSwerveDriveModule(back_right_module_config, self.motors[7], self.motors[6]),
-            swerve_config
-        )
+            self.modules = (
+                SUSwerveDriveModule(front_left_module_config, self.motors[0], self.motors[1]),
+                SUSwerveDriveModule(front_right_module_config, self.motors[3], self.motors[2]),
+                SUSwerveDriveModule(back_left_module_config, self.motors[4], self.motors[5]),
+                SUSwerveDriveModule(back_right_module_config, self.motors[7], self.motors[6]),
+                swerve_config
+            )
 
-        # to the uninitiated: this is not a pointer. this is python argument unpacking
-        self.swerve = SUSwerveDrive(*self.modules)
-        
+            # to the uninitiated: this is not a pointer. this is python argument unpacking
+            self.swerve = SUSwerveDrive(*self.modules)
+        except Exception as e:
+            self.set_device_state(DeviceState.ERROR)
+            self.log(f"Can't connect to SparkMAX CAN: {e}", LogLevel.ERROR)
+            self.reconnect_timer = self.create_timer(5, self.reconnect_can)
+
         self.set_device_state(DeviceState.READY)
     
     #TODO: is there a better way to do this? maybe have a timer in each object itself? 
@@ -112,6 +116,22 @@ class SparkMAXNode(Node):
         feedback_msg.delta_y = swerve_feedback.y_vel
         feedback_msg.delta_theta = swerve_feedback.angular_vel
         self.motorFeedbackPublisher.publish(feedback_msg)
+
+        # publish feedback
+        feedback_msg = MotorFeedback()
+        feedback_msg.delta_x = swerve_feedback.x_vel
+        feedback_msg.delta_y = swerve_feedback.y_vel
+        feedback_msg.delta_theta = swerve_feedback.angular_vel
+        self.motorFeedbackPublisher.publish(feedback_msg)
+
+    def reconnect_can(self):
+        try:
+            self.log("Attempting to reconnect SparkMAX CAN bus...", LogLevel.INFO)
+            self.can = can.ThreadSafeBus(bustype="slcan", channel=self.config.canable_filepath, bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
+            self.reconnect_timer.destroy() # can is connected, don't need to keep trying
+            self.set_device_state(DeviceState.READY)
+        except:
+            self.set_device_state(DeviceState.ERROR)
 
 def main():
     rclpy.init()

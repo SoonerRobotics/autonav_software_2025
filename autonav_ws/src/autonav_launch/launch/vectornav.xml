@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="autonav_shared" exec="synchronizer" output="screen" emulate_tty="true" />
+    <node pkg="autonav_hardware" exec="vectornav_node" output="screen" emulate_tty="true" />
+</launch>

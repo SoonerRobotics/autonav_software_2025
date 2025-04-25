@@ -304,6 +304,8 @@ class CanNode(Node):
         
         try:
             self.can.send(can_msg)
+        except AttributeError:
+            pass # means the CAN object hasn't been created yet
         except can.CanError:
             pass
 
@@ -318,6 +320,8 @@ class CanNode(Node):
 
         try:
             self.can.send(can_msg)
+        except AttributeError:
+            pass
         except can.CanError:
             pass
 
@@ -333,6 +337,8 @@ class CanNode(Node):
 
         try:
             self.can.send(can_msg)
+        except AttributeError:
+            pass
         except can.CanError:
             pass
 
@@ -350,12 +356,11 @@ class CanNode(Node):
         
         try:
             self.can.send(can_msg)
-        except can.CanError:
+        except AttributeError:
             pass
-        # except Exception as e:
-        #     self.log(f"{e}", LogLevel.DEBUG)
-        #     pass
-    
+        except can.CanError:
+            pass    
+
 
     def publish_can_stats(self):
         self.can_stats_publisher.publish(self.can_stats_record)
