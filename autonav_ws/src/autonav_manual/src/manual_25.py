@@ -26,8 +26,8 @@ class Manual25Config:
         self.max_angular_speed = -np.pi
         self.odom_fudge_factor = 1
         self.sound_buffer = 0.5 # seconds
-        self.main_song_path = '~/Documents/vivalavida.wav'
-        self.x_button_sound = '~/Documents/vine-boom.mp3'
+        self.main_song_path = '~/autonav_software_2025/music/vivalavida.wav'
+        self.x_button_sound = '~/autonav_software_2025/music/vine-boom.mp3'
 
 
 class Manual25Node(Node):
