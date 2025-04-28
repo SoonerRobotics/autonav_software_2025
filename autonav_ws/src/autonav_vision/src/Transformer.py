@@ -1,14 +1,19 @@
+from types import SimpleNamespace
+import rclpy
 import cv2 as cv
 import numpy as np
-import rclpy
-from types import SimpleNamespace
-from cv_bridge import CvBridge
+
 from nav_msgs.msg import MapMetaData, OccupancyGrid
 import rclpy.qos
 from sensor_msgs.msg import CompressedImage
 from geometry_msgs.msg import Pose
 from cv_bridge import CvBridge
+from scr.states import SystemModeEnum
 import json
+
+from scr.node import Node
+from scr.states import DeviceStateEnum
+from scr.utils import clamp
 
 g_bridge = CvBridge()
 
@@ -64,7 +69,7 @@ class FrameTransformerConfig:
         # ROI picker
         self.reduction_percentage = 10
         
-        # Disabling
+        # Disabling method
         self.disable_blur = False
         self.disable_hsv = False
         self.disable_perspective_transform = False
@@ -78,6 +83,9 @@ class FrameTransformer(Node):
         self.config = self.get_default_config()
         self.dir = dir
 
+    def directionify(self, topic):
+        return topic + "/" + self.dir
+    
     def init(self):
         self.camera_subscriber = self.create_subscription(CompressedImage, self.directionify("/autonav/camera/compressed") , self.onImageReceived, self.qos_profile)
         self.calibration_subscriber = self.create_subscription(CameraCalibration, "/camera/autonav/calibration", self.onCalibrate)
@@ -86,24 +94,24 @@ class FrameTransformer(Node):
         self.grid_image_publisher = self.create_publisher(CompressedImage, self.directionify("/autonav/cfg_space/raw/image") + "_small", self.qos_profile)
         self.set_device_state(DeviceStateEnum.OPERATING)
 
-    # ways to do the auto hsv calibration
-    # (1) auto hsv color picking
-    # (2) Otsu's ?
-    def onCalibrate(self, msg: CameraCalibration):
-        return
     def config_updated(self, jsonobject):
         self.config = json.loads(self.jdump(jsonobject), object_hook = lambda d: SimpleNamespace(**d))
 
     def get_default_config(self):
         return FrameTransformerConfig
 
-    # set up the Gaussian blur kernel size  
-    def get_blur_level(self):
-        blur_size = self.config.blur_size
-        return (blur_size, blur_size)
+    def hough_transform(self, image):
+        """Hough Transform(detect any shape in the image/frame, if the shape can be expressed in a math form)"""
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+        edges = cv.Canny(gray, self.config.edge_thresholdOne, self.config.edge_thresholdTwo)
+        lines = cv.HoughLines(edges, self.config.rho_resolution, np.deg2rad(self.config.theta_resolution), self.config.line_threshold)
+        return lines
 
-    # get the order of points for image transform
     def order_points(self, pts):
+        """
+        Get the order of points for image transform. Use a convex hull approach combined
+        with geometric sorting to avoid the failure of drawing four corner points for skewed shapes
+        """
         # first create a list of points that form a rectangle
         rect = np.zeros((4,2), dtype = "float32")
         s = pts.sum(axis = 1)
@@ -116,8 +124,8 @@ class FrameTransformer(Node):
 
         return rect
     
-    # Compute the width and height of the new image/frame
     def compute_max_width_height(self, rect):
+        """Compute the width and height of the new image/frame"""
         (tl, tr, br, bl) = rect
         widthA = np.linalg.norm(br - bl)
         widthB = np.linalg.norm(tr - tl)
@@ -129,31 +137,8 @@ class FrameTransformer(Node):
 
         return maxWidth, maxheight
 
-    # Hough Transform(detect any shape in the image/frame, if the shape can be expressed in a math form)
-    def hough_transform(self, image):
-        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-        edges = cv.Canny(gray, self.config.edge_thresholdOne, self.config.edge_thresholdTwo)
-        lines = cv.HoughLines(edges, self.config.rho_resolution, np.deg2rad(self.config.theta_resolution), self.config.line_threshold)
-        return lines
-
-    def draw_detected_lines(image, lines):
-        image_with_lines = image.copy()
-        if lines is not None:
-            for line in lines:
-                rho, theta = line[0]
-                a = np.cos(theta)
-                b = np.sin(theta)
-                x0 = a * rho
-                y0 = b * rho
-                x1 = int(x0 + 1000 * (-b))
-                y1 = int(y0 + 1000 * (a))
-                x2 = int(x0 - 1000 * (-b))
-                y2 = int(y0 - 1000 * (a))
-                cv.line(image_with_lines, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        return image_with_lines
-
-    # Four point transform for bird view of the frame
     def four_point_transform(self, image, pts):
+        """Four point transform for bird eye view of the frame"""
         if pts.shape != (4, 2):
             raise ValueError("Input Points should be a 4x2 array representing four points.")
 
@@ -173,8 +158,13 @@ class FrameTransformer(Node):
 
         return warped
 
-    # Blurred the image to reduced the noise before convert it into hsv colorspaces to prevent external environments interfere
+    def get_blur_level(self):
+        """Set up the Gaussian blur kernel size"""
+        blur_size = self.config.blur_size
+        return (blur_size, blur_size)
+    
     def blur(self, img):
+        """Blurred the image to reduced the noise before convert it into hsv colorspaces to prevent external environment interfere"""
         if self.config.disable_blur:
             return img
         for _ in range(self.config.blur_iterations):
@@ -182,8 +172,11 @@ class FrameTransformer(Node):
 
         return img 
     
-    # Publish the modified image with roi, hough Transform and Pespective Transform
+    def apply_perspective_tranform(self, img):
+        #TODO
+        
     def publish_debug_image(self, img):
+        """Publish the modified image with roi, hough Transform and Perspective Transform"""
         img_copy = img.copy()
 
         # Draw region of interest (parallelogram)
@@ -272,7 +265,7 @@ class FrameTransformer(Node):
                         self.roi_end[1] - self.roi_start[1])
             return True
         
-        def calibrate(self, frame):
+        def initialCalibrate(self, frame):
             """perform initial calibration"""
             hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
             x, y, w, h = self.roi
@@ -292,6 +285,7 @@ class FrameTransformer(Node):
                 min(255, s_mean + 2*s_std),
                 min(255, v_mean + 2*v_std)
             ])
+        
         
         def process_frame(self, frame):
             """Process a single frame and return results"""
@@ -355,24 +349,6 @@ class FrameTransformer(Node):
             cv.destroyAllWindows()
 
 
-
-    # Convert the Colorspace
-    # For the detected object, modify the hsv value until it becomes white
-    # return the value to config the upper and lower hsv values
-    # Object in the detected image with white color will be desired.
-    def get_limits(color):
-        c = np.uint8([[color]])
-        hsvC = cv.cvtColor(c, cv.COLOR_BGR2HSV)
-
-        lower_limits = hsvC[0][0][0] - 10, 100, 100
-        upper_limits = hsvC[0][0][0] + 10, 255, 255
-
-        lower_limits = np.array(lower_limits, dtype = np.uint8)
-        upper_limits = np.array(upper_limits, dtype = np.uint8)
-
-        return lower_limits, upper_limits
-    # Pixel rejection(2D convolution and filtering, maybe smoothing?)
-
     def onImageReceived(self, image: CompressedImage):
         # Decompress image
         img = g_bridge.compressed_imgmsg_to_cv2(image)
@@ -388,7 +364,7 @@ class FrameTransformer(Node):
         
         # Get the ROI
         img = self.ColorTracker.select_roi(img)
-        
+
         # Apply perspective transform
         img = self.apply_perspective_transform(img)
 
