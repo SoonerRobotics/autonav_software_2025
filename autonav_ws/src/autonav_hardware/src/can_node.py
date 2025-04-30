@@ -3,7 +3,7 @@
 import rclpy
 from autonav_shared.node import Node
 from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Ultrasonic, Conbus, CanStats
-from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatistics
+from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatistics, ZeroEncoders
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
@@ -33,6 +33,7 @@ arbitration_ids = {
     "AngularPIDStatistics": 51,
     "MotorStatisticsFrontMotors": 52,
     "MotorStatisticsBackMotors": 53,
+    "ZeroEncoders": 60,
     "ConbusLowerBound": 1000,
     "ConbusUpperBound": 1400
 }
@@ -84,6 +85,14 @@ class CanNode(Node):
         self.motorFeedbackPublisher = self.create_publisher(
             MotorFeedback,
             "/autonav/motor_feedback", 
+            20
+        )
+
+        # encoders
+        self.zeroEncodersListener = self.create_subscription(
+            ZeroEncoders,
+            "/autonav/zero_encoders",
+            self.on_zero_encoders_received,
             20
         )
 
@@ -306,6 +315,21 @@ class CanNode(Node):
             return
         data = struct.pack(">hhh", int(msg.forward_velocity * 1000), int(msg.sideways_velocity * 1000), int(msg.angular_velocity * 1000))
         can_msg = can.Message(arbitration_id = arbitration_ids["MotorsCommand"], data = data)
+
+        try:
+            self.can.send(can_msg)
+        except can.CanError:
+            pass
+
+
+    def on_zero_encoders_received(self, msg:ZeroEncoders):
+        self.can_stats_record.tx = self.can_stats_record.tx + 1
+
+        if self.get_device_state() !=  DeviceState.OPERATING:
+            return
+        
+        data = bytes(msg.which_encoder)
+        can_msg = can.Message(arbitration_id= arbitration_ids["ZeroEncoders"], data = data)
 
         try:
             self.can.send(can_msg)
