@@ -118,6 +118,7 @@ namespace AutoNav
     void Node::set_device_state(const std::string & device, AutoNav::DeviceState state)
     {
         // Publish the update
+        device_states.insert_or_assign(device, state);
         autonav_msgs::msg::DeviceState msg;
         msg.device = device;
         msg.state = static_cast<uint8_t>(state);
@@ -131,6 +132,8 @@ namespace AutoNav
         msg.state = static_cast<uint8_t>(state);
         msg.mobility = has_mobility;
         system_state_pub->publish(msg);
+        system_state = state;
+        this->has_mobility = has_mobility;
     }
 
     void Node::system_state_callback(const autonav_msgs::msg::SystemState::SharedPtr msg)
