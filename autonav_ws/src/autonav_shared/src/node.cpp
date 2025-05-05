@@ -23,8 +23,6 @@ namespace AutoNav
         system_state_pub = this->create_publisher<autonav_msgs::msg::SystemState>("/autonav/shared/system", 10);
         configuration_broadcast_pub = this->create_publisher<autonav_msgs::msg::ConfigurationBroadcast>("/autonav/shared/config/requests", 10);
         configuration_update_pub = this->create_publisher<autonav_msgs::msg::ConfigurationUpdate>("/autonav/shared/config/updates", 10);
-
-        set_device_state(AutoNav::DeviceState::WARMING);
     }
 
     Node::~Node()
@@ -162,10 +160,10 @@ namespace AutoNav
             return;
         }
         
-        bool new_device = device_states.find(msg->device) == device_states.end();
         bool is_warming_up = device_states.at(msg->device) == AutoNav::DeviceState::OFF && static_cast<AutoNav::DeviceState>(msg->state) == AutoNav::DeviceState::WARMING;
-        if (new_device || is_warming_up)
+        if (is_warming_up)
         {
+            log("Received warming up state from " + msg->device, Logging::LogLevel::DEBUG);
             init();
         }
         device_states.insert_or_assign(msg->device, static_cast<AutoNav::DeviceState>(msg->state));

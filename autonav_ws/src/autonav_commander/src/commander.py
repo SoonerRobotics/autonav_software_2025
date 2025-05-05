@@ -76,7 +76,8 @@ class Commander(Node):
             for node in self.alive_nodes:
                 node_cfg = self.preset.get(node)
                 if node_cfg is not None:
-                    self._broadcast_config(node, node_cfg)
+                    # self._broadcast_config(node, node_cfg)
+                    pass
 
             # Write the active_preset file
             active_preset_path = os.path.join(PRESETS_DIR, "active_preset")
@@ -125,9 +126,9 @@ class Commander(Node):
             node_cfg = self.preset.get(node)
             if node_cfg is not None:
                 self.log(f"node cfg: {node_cfg}", LogLevel.DEBUG)
-                self._broadcast_config(node, node_cfg)
+                # self._broadcast_config(node, node_cfg)
 
-            time.sleep(0.5)
+            time.sleep(0.3)
 
             # Send their updated device state to warming
             self._set_device_state(node, DeviceState.WARMING)

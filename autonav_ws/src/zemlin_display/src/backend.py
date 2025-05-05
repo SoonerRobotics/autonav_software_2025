@@ -2,7 +2,7 @@
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, ConfigurationUpdate
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, ConfigurationUpdate, Position
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 import rclpy
@@ -55,15 +55,17 @@ class DisplayBackend(Node):
         super().__init__("autonav_sd_display")
         self.config = DisplayBackendConfig() # Set the default config
 
-        self.left_cam = None
-        self.right_cam = None
-        self.front_cam = None
+        self.camera_last_frame = None
+        self.filtered_last_frame = None
+        self.expanded_last_frame = None
         self.back_cam = None
+        self.filtered_image = None
 
         self.limiter = Limiter()
         self.limiter.setLimit("motor_input", 2)
         self.limiter.setLimit("gps_feedback", 2)
         self.limiter.setLimit("motor_feedback", 4)
+        self.limiter.setLimit("position", 4)
         self.limiter.setLimit("absolute", 16)
 
     def apply_config(self, config: dict):
@@ -81,39 +83,40 @@ class DisplayBackend(Node):
 
 
         # Subscribers
-        self.camera_left_sub = self.create_subscription(
-            CompressedImage, "/autonav/camera/left", self.camera_left_callback, 10
-        )
-        self.camera_right_sub = self.create_subscription(
-            CompressedImage, "/autonav/camera/right", self.camera_right_callback, 10
-        )
-        self.camera_front_sub = self.create_subscription(
-            CompressedImage, "/autonav/camera/front", self.camera_front_callback, 10
-        )
-        self.camera_back_sub = self.create_subscription(
-            CompressedImage, "/autonav/camera/back", self.camera_back_callback, 10
-        )
-        self.motor_feedback_sub = self.create_subscription(
-            MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
-        )
-        self.gps_feedback_sub = self.create_subscription(
-            MotorFeedback, "/autonav/gps", self.gps_feedback, 10
-        )
-        self.motor_input_sub = self.create_subscription(
-            MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
-        )
-        self.system_state_sub = self.create_subscription(
-            SystemStateMsg, "/autonav/system_state", self._system_state_callback, 10
-        )
-        self.device_state_sub = self.create_subscription(
-            DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
-        )
-        self.absolute_encoder_sub = self.create_subscription(
-            SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10
-        )        
-        self.config_web_sub = self.create_subscription(
-            ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10
-        )
+        # self.camera_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
+        # )
+        # self.filered_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
+        # )
+        # self.expanded_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/cfg_space/expanded/image", self.expanded_callback, 10
+        # )
+
+        # self.motor_feedback_sub = self.create_subscription(
+        #     MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
+        # )
+        # self.gps_feedback_sub = self.create_subscription(
+        #     GPSFeedback, "/autonav/gps", self.gps_feedback, 10
+        # )
+        # self.motor_input_sub = self.create_subscription(
+        #     MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
+        # )
+        # self.position_sub = self.create_subscription(
+        #     Position, "/autonav/position", self.position_callback, 10
+        # )
+        # self.system_state_sub = self.create_subscription(
+        #     SystemStateMsg, "/autonav/system_state", self._system_state_callback, 10
+        # )
+        # self.device_state_sub = self.create_subscription(
+        #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
+        # )
+        # self.absolute_encoder_sub = self.create_subscription(
+        #     SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10
+        # )        
+        # self.config_web_sub = self.create_subscription(
+        #     ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10
+        # )
 
         # Publishers
         self.load_preset_pub = self.create_publisher(
@@ -124,17 +127,14 @@ class DisplayBackend(Node):
         )
 
 
-    def camera_left_callback(self, msg):
-        self.left_cam = msg
+    def camera_callback(self, msg):
+        self.camera_last_frame = msg
 
-    def camera_right_callback(self, msg):
-        self.right_cam = msg
+    def filtered_callback(self, msg):
+        self.filtered_last_frame = msg
 
-    def camera_front_callback(self, msg):
-        self.front_cam = msg
-
-    def camera_back_callback(self, msg):
-        self.back_cam = msg
+    def expanded_callback(self, msg):
+        self.expanded_last_frame = msg
 
     def on_web_config_updated(self, msg: ConfigurationUpdate):
         self.socketio.emit("configs", json.dumps({
@@ -163,6 +163,16 @@ class DisplayBackend(Node):
             "delta_theta": msg.delta_theta
         }))
 
+    def position_callback(self, msg: Position):
+        if not self.limiter.use("position"):
+            return
+
+        self.socketio.emit("position", json.dumps({
+            "x": msg.x,
+            "y": msg.y,
+            "theta": msg.theta
+        }))
+
     def motor_input_callback(self, msg: MotorInput):
         if not self.limiter.use("motor_input"):
             return
@@ -181,8 +191,8 @@ class DisplayBackend(Node):
             "longitude": msg.longitude,
             "altitude": msg.altitude,
             "gps_fix": msg.gps_fix,
-            "is_locked": msg.is_locked,
-            "satellites": msg.satellites
+            # "is_locked": msg.is_locked,
+            "num_satellites": msg.num_satellites
         }))
 
     def init_flask_server(self):
@@ -203,12 +213,12 @@ class DisplayBackend(Node):
             return jsonify({"current_time_ms": millis})
         
         # Left camera stream that updates based on the camera fps configuration
-        @app.route("/left_cam")
+        @app.route("/camera")
         def left_cam():
             def generate():
                 while True:
-                    if self.left_cam is not None:
-                        frame = cv2.imdecode(np.frombuffer(self.left_cam.data, np.uint8), cv2.IMREAD_COLOR)
+                    if self.camera_last_frame is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.camera_last_frame.data, np.uint8), cv2.IMREAD_COLOR)
                         _, jpeg = cv2.imencode(".jpg", frame)
                         yield (
                             b"--frame\r\n"
@@ -218,12 +228,12 @@ class DisplayBackend(Node):
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Right camera stream that updates based on the camera fps configuration
-        @app.route("/right_cam")
+        @app.route("/filtered")
         def right_cam():
             def generate():
                 while True:
-                    if self.right_cam is not None:
-                        frame = cv2.imdecode(np.frombuffer(self.right_cam.data, np.uint8), cv2.IMREAD_COLOR)
+                    if self.filtered_last_frame is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.filtered_last_frame.data, np.uint8), cv2.IMREAD_COLOR)
                         _, jpeg = cv2.imencode(".jpg", frame)
                         yield (
                             b"--frame\r\n"
@@ -233,12 +243,12 @@ class DisplayBackend(Node):
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
         # Front camera stream that updates based on the camera fps configuration
-        @app.route("/front_cam")
+        @app.route("/expanded")
         def front_cam():
             def generate():
                 while True:
-                    if self.front_cam is not None:
-                        frame = cv2.imdecode(np.frombuffer(self.front_cam.data, np.uint8), cv2.IMREAD_COLOR)
+                    if self.expanded_last_frame is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.expanded_last_frame.data, np.uint8), cv2.IMREAD_COLOR)
                         _, jpeg = cv2.imencode(".jpg", frame)
                         yield (
                             b"--frame\r\n"
@@ -247,34 +257,17 @@ class DisplayBackend(Node):
                     time.sleep(1 / config.camera_fps)
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
-        # Back camera stream that updates based on the camera fps configuration
-        @app.route("/back_cam")
-        def back_cam():
+        @app.route("/filtered_image")
+        def filtered_image():
             def generate():
                 while True:
-                    if self.back_cam is not None:
-                        frame = cv2.imdecode(np.frombuffer(self.back_cam.data, np.uint8), cv2.IMREAD_COLOR)
+                    if self.filtered_image is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.filtered_image.data, np.uint8), cv2.IMREAD_COLOR)
                         _, jpeg = cv2.imencode(".jpg", frame)
                         yield (
                             b"--frame\r\n"
                             b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
                         )
-                    time.sleep(1 / config.camera_fps)
-            return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
-
-        # return an image of the current time as a stream
-        @app.route("/time")
-        def time_stream():
-            def generate():
-                while True:
-                    millis = int(time.time() * 1000)
-                    img = np.zeros((100, 300, 3), dtype=np.uint8)
-                    cv2.putText(img, str(millis), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-                    _, jpeg = cv2.imencode(".jpg", img)
-                    yield (
-                        b"--frame\r\n"
-                        b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
-                    )
                     time.sleep(1 / config.camera_fps)
             return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
         
@@ -295,6 +288,34 @@ class DisplayBackend(Node):
                 self.log(f"Saving preset {preset_id}", LogLevel.INFO)
             else:
                 self.log("No preset ID provided", LogLevel.ERROR)
+
+        @socketio.on("set_system_state")
+        def handle_set_system_state(state):
+            """Handle setting the system state."""
+            if state:
+                self.set_system_state(state)
+                self.log(f"Setting system state to {state}", LogLevel.INFO)
+
+                self.socketio.emit("system_state", json.dumps({
+                    "state": state,
+                    "mobility": self.is_mobility()
+                }))
+            else:
+                self.log("No state provided", LogLevel.ERROR)
+
+        @socketio.on("set_mobility")
+        def handle_set_mobility(mobility):
+            """Handle setting the mobility state."""
+            if mobility is not None:
+                self.set_mobility(mobility)
+                self.log(f"Setting mobility to {mobility}", LogLevel.INFO)
+
+                self.socketio.emit("system_state", json.dumps({
+                    "state": self.get_system_state(),
+                    "mobility": mobility
+                }))
+            else:
+                self.log("No mobility state provided", LogLevel.ERROR)
 
         @socketio.on("connect")
         def handle_connect():

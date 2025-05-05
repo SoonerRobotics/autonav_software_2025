@@ -199,7 +199,7 @@ class Node(RclpyNode):
         """
         msg = DeviceStateMsg()
         msg.device = device
-        msg.state = state.value
+        msg.state = state
         self.device_state_pub.publish(msg)
 
         
@@ -208,7 +208,7 @@ class Node(RclpyNode):
         Set the state of the system.
         """
         msg = SystemStateMsg()
-        msg.state = state.value
+        msg.state = state
         msg.mobility = self.mobility
         self.system_state_pub.publish(msg)
 

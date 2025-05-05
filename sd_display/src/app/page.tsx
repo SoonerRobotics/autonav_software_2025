@@ -22,6 +22,11 @@ type DisplayData = {
         forward_velocity: number;
         angular_velocity: number;
     };
+    position: {
+        x: number;
+        y: number;
+        theta: number;
+    },
     gps_feedback: {
         latitude: number;
         longitude: number;
@@ -42,6 +47,11 @@ export default function Home() {
         motor_input: {
             forward_velocity: 0,
             angular_velocity: 0,
+        },
+        position: {
+            x: 0,
+            y: 0,
+            theta: 0,
         },
         gps_feedback: {
             latitude: 0,
@@ -117,6 +127,18 @@ export default function Home() {
             }));
         }
 
+        const onPosition = (data: any) => {
+            data = JSON.parse(data);
+            setDisplay((prev) => ({
+                ...prev,
+                position: {
+                    x: data.x,
+                    y: data.y,
+                    theta: data.theta,
+                },
+            }));
+        }
+
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
         socket.on('motor_feedback', onMotorFeedback);
@@ -124,6 +146,7 @@ export default function Home() {
         socket.on('gps_feedback', onGps);
         socket.on('system_state', onSystemState);
         socket.on('device_state', onDeviceState);
+        socket.on('position', onPosition);
 
         return () => {
             socket.off('connect', onConnect);
@@ -133,6 +156,7 @@ export default function Home() {
             socket.off('gps_feedback', onGps);
             socket.off('system_state', onSystemState);
             socket.off('device_state', onDeviceState);
+            socket.off('position', onPosition);
         }
     }, []);
 
@@ -144,31 +168,38 @@ export default function Home() {
     return (
         <div className="flex flex-row gap-4 p-8">
             <button onClick={() => {
-                // prompt user for name
-                const name = prompt("Enter preset name");
-                if (name) {
-                    socket.emit("save_preset", name);
-                    toast.success(`Saved preset as ${name}`);
-                } else {
-                    toast.error("No name provided");
+                // prompt for a number and then send it 
+                const state = prompt("Enter a system state (0-4):");
+                if (state === null) {
+                    return;
                 }
+
+                const state_num = parseInt(state);
+                if (isNaN(state_num) || state_num < 0 || state_num > 4) {
+                    toast.error("Invalid system state");
+                    return;
+                }
+
+                socket.emit("set_system_state", state_num);
+                toast.success(`Set system state to ${state_num}`);
             }}>
-                Save Preset
-            </button>
-            
-            <button onClick={() => {
-                // prompt user for name
-                const name = prompt("Enter preset name");
-                if (name) {
-                    socket.emit("load_preset", name);
-                    toast.success(`Loaded preset ${name}`);
-                } else {
-                    toast.error("No name provided");
-                }
-            }}>   
-                Load Preset
+                set system state
             </button>
 
+            {/* mobility, prompt fo true/false */}
+            <button onClick={() => {
+                const mobility = prompt("Is mobility enabled? (true/false):");
+                if (mobility === null) {
+                    return;
+                }
+
+                const mobility_bool = mobility.toLowerCase() === "true";
+                socket.emit("set_mobility", mobility_bool);
+                toast.success(`Set mobility to ${mobility_bool}`);
+            }}>
+                set mobility
+            </button>
+            
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                     {/* display the system state */}
@@ -184,7 +215,7 @@ export default function Home() {
                     {/* dispaly all device states */}
                     <div className="flex flex-col gap-2">
                         <h2 className="text-xl font-bold">Device States:</h2>
-                        <div className="overflow-auto h-full flex flex-col items-center justify-center">
+                        <div className="overflow-auto h-full flex flex-col items-start ml-8 justify-center">
                             {Object.entries(display.device_states).map(([device, state]) => (
                                 <div key={device} className="text-lg">
                                     {device}: {device_state_to_str(state)}
@@ -198,7 +229,17 @@ export default function Home() {
                         <h2 className="text-center text-xl font-bold">Motor Feedback:</h2>
                         <div className="overflow-auto h-full flex flex-col items-center justify-center">
                             <div className="text-lg">
-                                ({decimals(display.motor_feedback.delta_x, 2)}, {decimals(display.motor_feedback.delta_y, 2)}, {decimals(display.motor_feedback.delta_theta, 2)})
+                                ({decimals(display.motor_feedback.delta_x, 5)}, {decimals(display.motor_feedback.delta_y, 5)}, {decimals(display.motor_feedback.delta_theta, 5)})
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* display the latest position */}
+                    <div className="flex flex-row gap-2">
+                        <h2 className="text-center text-xl font-bold">Position:</h2>
+                        <div className="overflow-auto h-full flex flex-col items-center justify-center">
+                            <div className="text-lg">
+                                ({decimals(display.position.x, 5)}, {decimals(display.position.y, 5)}, {decimals(display.position.theta, 5)})
                             </div>
                         </div>
                     </div>
@@ -208,7 +249,7 @@ export default function Home() {
                         <h2 className="text-center text-xl font-bold">Motor Input:</h2>
                         <div className="overflow-auto h-full flex flex-col items-center justify-center">
                             <div className="text-lg">
-                                ({decimals(display.motor_input.forward_velocity, 2)}, {decimals(display.motor_input.angular_velocity, 2)})
+                                ({decimals(display.motor_input.forward_velocity, 4)}, {decimals(display.motor_input.angular_velocity, 4)})
                             </div>
                         </div>
                     </div>
@@ -218,18 +259,17 @@ export default function Home() {
                         <h2 className="text-center text-xl font-bold">GPS:</h2>
                         <div className="overflow-auto h-full flex flex-col items-center justify-center">
                             <div className="text-lg">
-                                ({decimals(display.gps_feedback.latitude, 2)}, {decimals(display.gps_feedback.longitude, 2)}, {decimals(display.gps_feedback.altitude, 2)})
+                                ({decimals(display.gps_feedback.latitude, 7)}, {decimals(display.gps_feedback.longitude, 7)})
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div className="flex flex-col gap-4 ml-auto items-center justify-center">
-                <div className="grid grid-cols-2 gap-4 w-fit">
-                    <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/left_cam" />
-                    <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/right_cam" />
-                    <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/front_cam" />
-                    <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/back_cam" />
+                <div className="grid grid-cols-3 gap-4 w-fit">
+                    <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/camera" />
+                    <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/filtered" />
+                    <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/expanded" />
                 </div>
                 <div className="grid grid-cols-2 gap-4 w-fit">
                     <SwerveModule id={"Front Left"} angle={0} />
