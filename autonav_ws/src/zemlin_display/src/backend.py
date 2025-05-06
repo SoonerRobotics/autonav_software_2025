@@ -83,34 +83,34 @@ class DisplayBackend(Node):
 
 
         # Subscribers
-        self.camera_sub = self.create_subscription(
-            CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
-        )
-        self.filered_sub = self.create_subscription(
-            CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
-        )
-        self.expanded_sub = self.create_subscription(
-            CompressedImage, "/autonav/cfg_space/expanded/image", self.expanded_callback, 10
-        )
+        # self.camera_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
+        # )
+        # self.filered_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
+        # )
+        # self.expanded_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
+        # )
 
-        self.motor_feedback_sub = self.create_subscription(
-            MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
-        )
-        self.gps_feedback_sub = self.create_subscription(
-            GPSFeedback, "/autonav/gps", self.gps_feedback, 10
-        )
-        self.motor_input_sub = self.create_subscription(
-            MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
-        )
-        self.position_sub = self.create_subscription(
-            Position, "/autonav/position", self.position_callback, 10
-        )
-        self.system_state_sub = self.create_subscription(
-            SystemStateMsg, "/autonav/system_state", self._system_state_callback, 10
-        )
-        self.device_state_sub = self.create_subscription(
-            DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
-        )
+        # self.motor_feedback_sub = self.create_subscription(
+        #     MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
+        # )
+        # self.gps_feedback_sub = self.create_subscription(
+        #     GPSFeedback, "/autonav/gps", self.gps_feedback, 10
+        # )
+        # self.motor_input_sub = self.create_subscription(
+        #     MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
+        # )
+        # self.position_sub = self.create_subscription(
+        #     Position, "/autonav/position", self.position_callback, 10
+        # )
+        # self.system_state_sub = self.create_subscription(
+        #     SystemStateMsg, "/autonav/system_state", self._system_state_callback, 10
+        # )
+        # self.device_state_sub = self.create_subscription(
+        #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
+        # )
         self.absolute_encoder_sub = self.create_subscription(
             SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10
         )        

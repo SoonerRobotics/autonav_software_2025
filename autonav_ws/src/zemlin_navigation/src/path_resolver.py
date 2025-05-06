@@ -17,13 +17,13 @@ BACK_SPEED = 0.40
 
 class PathResolverConfig:
     def __init__(self):
-        self.forward_speed = 2.1
+        self.forward_speed = 1.3
         self.reverse_speed = -0.4
         self.radius_multiplier = 1.2
         self.radius_max = 4.0
         self.radius_start = 0.7
         self.angular_aggressiveness = 2.2
-        self.max_angular_speed = 0.5
+        self.max_angular_speed = 1.3
 
 
 class PathResolverNode(Node):
@@ -145,8 +145,8 @@ class PathResolverNode(Node):
                 
                 angle_to_pp_goal = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
                 forward_speed = self.config.forward_speed * math.cos(angle_to_pp_goal)
-                sideways_speed = self.config.forward_speed * math.sin(angle_to_pp_goal)
-                angular_speed = self.clamp(self.angle_diff(angle_to_pp_goal, self.position.theta) * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
+                sideways_speed = -self.config.forward_speed * math.sin(angle_to_pp_goal)
+                angular_speed = -self.clamp(self.angle_diff(angle_to_pp_goal, self.position.theta) * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
                 
                 input.forward_velocity = forward_speed
                 input.sideways_velocity = sideways_speed
