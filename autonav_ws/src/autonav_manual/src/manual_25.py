@@ -23,7 +23,7 @@ class Manual25Config:
     def __init__(self):
         self.max_forward_speed = -3
         self.max_sideways_speed = -3
-        self.max_angular_speed = -np.pi
+        self.max_angular_speed = -np.pi / 3
         self.odom_fudge_factor = 1
         self.sound_buffer = 0.5 # seconds
         self.main_song_path = '~/autonav_software_2025/music/vivalavida.wav'

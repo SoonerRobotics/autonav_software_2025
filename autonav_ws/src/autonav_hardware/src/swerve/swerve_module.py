@@ -1,4 +1,4 @@
-from math import atan2, sqrt, cos, sin
+from math import atan2, sqrt, cos, sin, pi, radians
 from swerve.can_spark_max import CanSparkMax
 
 class SUSwerveDriveModuleConfig:
@@ -16,12 +16,12 @@ class SUSwerveDriveModuleConfig:
         self.is_angle_motor_reversed = is_angle_motor_reversed
 
         # constants
-        self.driveMotorGearRatio = 4*4 # 16:1
+        self.driveMotorGearRatio = (10/60) * (24/60) # 15:1 (10t to 60t) * (24t * 60t)
         self.steerMotorGearRatio = 5*5 # 25:1
         self.wheel_radius = 0.1016 # meters
 
-        # ??? FIXME
-        self.drive_motor_conversion_factor_ = self.driveMotorGearRatio * self.wheel_radius
+        # final units should be motor rotations per second I think
+        self.drive_motor_conversion_factor_ = self.driveMotorGearRatio / (2 * self.wheel_radius * pi)
         self.angle_motor_conversion_factor_ = self.steerMotorGearRatio
 
 class SUSwerveDriveModuleState:
@@ -45,12 +45,23 @@ class SUSwerveDriveModule:
         desired_drive_speed = sqrt(desired_state.x_vel * desired_state.x_vel + desired_state.y_vel * desired_state.y_vel)
         desired_angle = atan2(desired_state.x_vel, desired_state.y_vel)
 
+        # never turn more than 90 degrees
+        if abs(abs(desired_angle) - abs(self.angle_motor_.getAngle())) > radians(90):
+            desired_drive_speed *= -1
+            desired_angle -= radians(90)
+            
+            # clamp FIXME does this work????
+            if desired_angle > 2*pi:
+                desired_angle -= 2*pi
+            elif desired_angle < 0:
+                desired_angle += 2*pi
+
         # use the onboard PIDF controllers of the sparkMAXes to do everything for us
-        self.drive_motor_.setVelocity(desired_drive_speed * 42 * (-1 if self.config.is_drive_motor_reversed else 1))
+        self.drive_motor_.setVelocity(desired_drive_speed * self.config.drive_motor_conversion_factor_ * 60 * (-1 if self.config.is_drive_motor_reversed else 1)) # * 60 because drive_motor_ expects RPM but desired_speed is in m/s
+        #TODO do cosine speed correction based on steer angle
 
-        if desired_drive_speed > 0.6:
+        if desired_drive_speed > 0.2:
             self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2) * (-1 if self.config.is_angle_motor_reversed else 1))
-
 
         # Update encoders and calculate measured state
         # self.drive_encoder_.update(period)
@@ -62,7 +73,7 @@ class SUSwerveDriveModule:
         # measured_state = SUSwerveDriveModuleState()
         # measured_state.x_vel = measured_drive_speed * cos(measured_angle)
         # measured_state.y_vel = measured_drive_speed * sin(measured_angle)
-    
+
         return SUSwerveDriveModuleState(9,0)
 
     def applyConversionFactor(self, drive_motor_reduction: float, angle_motor_reduction: float, wheel_radius: float) -> None:

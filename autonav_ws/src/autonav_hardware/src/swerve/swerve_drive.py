@@ -61,7 +61,7 @@ class SUSwerveDrive:
     # returns: The actual state of the robot    
     def updateState(self, state: SUSwerveDriveState, period: float) -> SUSwerveDriveState:
         # Update the state of the robot
-        self.desired_robot_state_ = np.array([state.x_vel, state.y_vel, state.angular_vel * 3.14], np.double)
+        self.desired_robot_state_ = np.array([state.x_vel, state.y_vel, state.angular_vel], np.double)
 
         # Compute the desired module state as module_positions * robot_state
         desired_modules_state_ = self.module_positions_matrix_ @ self.desired_robot_state_
