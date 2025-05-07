@@ -32,14 +32,17 @@ class SUSwerveDrive:
         # 0 1  X1
         # ...
         mod_pos_mat = [
-            [1, 0, -self.config.front_left.y_pos],
-            [0, 1, self.config.front_left.x_pos],
+            [1, 0, self.config.front_left.y_pos],
+            [0, 1, -self.config.front_left.x_pos],
+
             [1, 0, -self.config.front_right.y_pos],
             [0, 1, self.config.front_right.x_pos],
+
             [1, 0, -self.config.back_left.y_pos],
             [0, 1, self.config.back_left.x_pos],
-            [1, 0, -self.config.back_right.y_pos],
-            [0, 1, self.config.back_right.x_pos]
+
+            [1, 0, self.config.back_right.y_pos],
+            [0, 1, -self.config.back_right.x_pos],
         ]
         self.module_positions_matrix_ = np.array(mod_pos_mat, np.double)
 
@@ -55,7 +58,7 @@ class SUSwerveDrive:
 
     # Drive the robot
     # state: The desired state of the robot
-    # returns: The actual state of the robot
+    # returns: The actual state of the robot    
     def updateState(self, state: SUSwerveDriveState, period: float) -> SUSwerveDriveState:
         # Update the state of the robot
         self.desired_robot_state_ = np.array([state.x_vel, state.y_vel, state.angular_vel * 3.14], np.double)

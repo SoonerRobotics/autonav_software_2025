@@ -14,7 +14,7 @@ from swerve.swerve_config import *
 #FIXME CanConfig isn't working right right now
 class CanNodeConfig:
     def __init__(self):
-        self.canable_filepath = "/dev/ttyACM1" #TODO this may or may not be right, there are two CANables so not sure
+        self.canable_filepath = "/dev/ttyACM0" #TODO this may or may not be right, there are two CANables so not sure
 
 class SparkMAXNode(Node):
     def __init__(self):
@@ -75,7 +75,7 @@ class SparkMAXNode(Node):
         if self.get_device_state() != DeviceState.OPERATING:
             self.set_device_state(DeviceState.OPERATING)
 
-        self.log(f"big swerve: {msg.sideways_velocity} - {-msg.forward_velocity} - {msg.angular_velocity}")
+        self.log(f"big swerve: {msg.sideways_velocity} - {msg.forward_velocity} - {msg.angular_velocity}")
 
         self.swerve.updateState(SUSwerveDriveState(
             msg.sideways_velocity,

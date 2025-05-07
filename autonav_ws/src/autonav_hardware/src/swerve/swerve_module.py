@@ -45,13 +45,12 @@ class SUSwerveDriveModule:
         desired_drive_speed = sqrt(desired_state.x_vel * desired_state.x_vel + desired_state.y_vel * desired_state.y_vel)
         desired_angle = atan2(desired_state.x_vel, desired_state.y_vel)
 
-        if desired_drive_speed < 0.1:
-            # if the desired speed is too low, set the angle to 0
-            desired_angle = 0.0
-
         # use the onboard PIDF controllers of the sparkMAXes to do everything for us
-        self.drive_motor_.setVelocity(desired_drive_speed * 42)
-        self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2))
+        self.drive_motor_.setVelocity(desired_drive_speed * 42 * (-1 if self.config.is_drive_motor_reversed else 1))
+
+        if desired_drive_speed > 0.6:
+            self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2) * (-1 if self.config.is_angle_motor_reversed else 1))
+
 
         # Update encoders and calculate measured state
         # self.drive_encoder_.update(period)
@@ -63,7 +62,7 @@ class SUSwerveDriveModule:
         # measured_state = SUSwerveDriveModuleState()
         # measured_state.x_vel = measured_drive_speed * cos(measured_angle)
         # measured_state.y_vel = measured_drive_speed * sin(measured_angle)
-
+    
         return SUSwerveDriveModuleState(9,0)
 
     def applyConversionFactor(self, drive_motor_reduction: float, angle_motor_reduction: float, wheel_radius: float) -> None:
