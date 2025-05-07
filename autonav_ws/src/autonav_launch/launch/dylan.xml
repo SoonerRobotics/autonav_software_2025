@@ -11,20 +11,23 @@
   <node pkg="zemlin_display" exec="standalone.py" output="screen" emulate_tty="true"/>
 
   <!-- manual stuff -->
-  <!-- <node pkg="autonav_manual" exec="controller_input.py" output="screen" emulate_tty="true"/> -->
-  <!-- <node pkg="autonav_manual" exec="manual_25.py" output="screen" emulate_tty="true"/> -->
+  <node pkg="autonav_manual" exec="controller_input.py" output="screen" emulate_tty="true"/>
+  <node pkg="autonav_manual" exec="manual_25.py" output="screen" emulate_tty="true"/>
 
   <!-- hardware -->
-  <!-- <node pkg="autonav_hardware" exec="sparkmax_node.py" output="screen" emulate_tty="true"/> -->
+  <node pkg="autonav_hardware" exec="sparkmax_node.py" output="screen" emulate_tty="true"/>
+
+  <node pkg="autonav_hardware" exec="audible_feedback.py" output="screen" emulate_tty="true" />
+
 
   <!-- example nodes -->
   <!-- <node pkg="example_py" exec="main.py" output="screen" emulate_tty="true"/> -->
   <!-- <node pkg="example_cpp" exec="example_cpp" output="screen" emulate_tty="true"/> -->
 
   <!-- zemlin code :) -->
-  <node pkg="zemlin_vision" exec="expandify" output="screen" emulate_tty="true"/> -->
-  <node pkg="zemlin_vision" exec="transformations.py" output="screen" emulate_tty="true"/>
-  <node pkg="zemlin_filters" exec="filters.py" output="screen" emulate_tty="true"/>
-  <node pkg="zemlin_navigation" exec="astar.py" output="screen" emulate_tty="true"/>
-  <node pkg="zemlin_navigation" exec="path_resolver.py" output="screen" emulate_tty="true"/>
+  <!-- <node pkg="zemlin_vision" exec="expandify" output="screen" emulate_tty="true"/> -->
+  <!-- <node pkg="zemlin_vision" exec="transformations.py" output="screen" emulate_tty="true"/> -->
+  <!-- <node pkg="zemlin_filters" exec="filters.py" output="screen" emulate_tty="true"/> -->
+  <!-- <node pkg="zemlin_navigation" exec="astar.py" output="screen" emulate_tty="true"/> -->
+  <!-- <node pkg="zemlin_navigation" exec="path_resolver.py" output="screen" emulate_tty="true"/> -->
 </launch>
