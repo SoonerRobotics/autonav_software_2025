@@ -64,9 +64,9 @@ class DisplayBackend(Node):
         self.limiter = Limiter()
         self.limiter.setLimit("motor_input", 2)
         self.limiter.setLimit("gps_feedback", 2)
-        self.limiter.setLimit("motor_feedback", 4)
-        self.limiter.setLimit("position", 4)
-        self.limiter.setLimit("absolute", 16)
+        self.limiter.setLimit("motor_feedback", 2)
+        self.limiter.setLimit("position", 2)
+        self.limiter.setLimit("absolute", 2)
 
     def apply_config(self, config: dict):
         self.log(f"Config updated from {self.config} to {config}")
@@ -83,34 +83,31 @@ class DisplayBackend(Node):
 
 
         # Subscribers
-        # self.camera_sub = self.create_subscription(
-        #     CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
-        # )
-        # self.filered_sub = self.create_subscription(
-        #     CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
-        # )
-        # self.expanded_sub = self.create_subscription(
-        #     CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
-        # )
+        self.camera_sub = self.create_subscription(
+            CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
+        )
+        self.filered_sub = self.create_subscription(
+            CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
+        )
+        self.expanded_sub = self.create_subscription(
+            CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
+        )
 
-        # self.motor_feedback_sub = self.create_subscription(
-        #     MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
-        # )
-        # self.gps_feedback_sub = self.create_subscription(
-        #     GPSFeedback, "/autonav/gps", self.gps_feedback, 10
-        # )
-        # self.motor_input_sub = self.create_subscription(
-        #     MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
-        # )
-        # self.position_sub = self.create_subscription(
-        #     Position, "/autonav/position", self.position_callback, 10
-        # )
-        # self.system_state_sub = self.create_subscription(
-        #     SystemStateMsg, "/autonav/system_state", self._system_state_callback, 10
-        # )
-        # self.device_state_sub = self.create_subscription(
-        #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
-        # )
+        self.motor_feedback_sub = self.create_subscription(
+            MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
+        )
+        self.gps_feedback_sub = self.create_subscription(
+            GPSFeedback, "/autonav/gps", self.gps_feedback, 10
+        )
+        self.motor_input_sub = self.create_subscription(
+            MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
+        )
+        self.position_sub = self.create_subscription(
+            Position, "/autonav/position", self.position_callback, 10
+        )
+        self.device_state_sub = self.create_subscription(
+            DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
+        )
         self.absolute_encoder_sub = self.create_subscription(
             SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10
         )        
@@ -141,16 +138,22 @@ class DisplayBackend(Node):
             "configs": self.other_cfgs
         }))
 
-    def _system_state_callback(self, msg: SystemState):
-        self.socketio.emit("system_state", json.dumps({
-            "state": msg.state,
-            "mobility": msg.mobility
-        }))
-
     def _device_state_callback(self, msg: DeviceState):
         self.socketio.emit("device_state", json.dumps({
             "device": msg.device,
             "state": msg.state
+        }))
+
+    def on_mobility_updated(self, old, new):
+        self.socketio.emit("system_state", json.dumps({
+            "state": self.get_system_state(),
+            "mobility": new
+        }))    
+    
+    def on_system_state_updated(self, old, new):
+        self.socketio.emit("system_state", json.dumps({
+            "state": new,
+            "mobility": self.is_mobility()
         }))
 
     def motor_feedback_callback(self, msg: MotorFeedback):
@@ -179,6 +182,7 @@ class DisplayBackend(Node):
 
         self.socketio.emit("motor_input", json.dumps({
             "angular_velocity": msg.angular_velocity,
+            "sideways_velocity": msg.sideways_velocity,
             "forward_velocity": msg.forward_velocity
         }))
 
@@ -293,7 +297,7 @@ class DisplayBackend(Node):
         def handle_set_system_state(state):
             """Handle setting the system state."""
             if state:
-                self.set_system_state(state)
+                self.set_system_state(int(state))
                 self.log(f"Setting system state to {state}", LogLevel.INFO)
 
                 self.socketio.emit("system_state", json.dumps({
@@ -307,12 +311,12 @@ class DisplayBackend(Node):
         def handle_set_mobility(mobility):
             """Handle setting the mobility state."""
             if mobility is not None:
-                self.set_mobility(mobility)
+                self.set_mobility(bool(mobility))
                 self.log(f"Setting mobility to {mobility}", LogLevel.INFO)
 
                 self.socketio.emit("system_state", json.dumps({
                     "state": self.get_system_state(),
-                    "mobility": mobility
+                    "mobility": bool(mobility)
                 }))
             else:
                 self.log("No mobility state provided", LogLevel.ERROR)

@@ -2,7 +2,10 @@
 
 import IdleScreen from "@/components/IdleScreen";
 import { SwerveModule } from "@/components/SwerveModule";
-import { socket } from "@/lib/socket"; 
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { socket } from "@/lib/socket";
 import { decimals, device_state_to_str, system_state_to_str } from "@/lib/text";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
@@ -20,6 +23,7 @@ type DisplayData = {
     };
     motor_input: {
         forward_velocity: number;
+        sideways_velocity: number;
         angular_velocity: number;
     };
     position: {
@@ -46,6 +50,7 @@ export default function Home() {
         },
         motor_input: {
             forward_velocity: 0,
+            sideways_velocity: 0,
             angular_velocity: 0,
         },
         position: {
@@ -90,6 +95,7 @@ export default function Home() {
                 ...prev,
                 motor_input: {
                     forward_velocity: data.forward_velocity,
+                    sideways_velocity: data.sideways_velocity,
                     angular_velocity: data.angular_velocity,
                 },
             }));
@@ -111,8 +117,8 @@ export default function Home() {
             data = JSON.parse(data);
             setDisplay((prev) => ({
                 ...prev,
-                system_state: data.state,
-                is_mobility: data.is_mobility,
+                system_state: parseInt(data.state),
+                is_mobility: data.mobility,
             }));
         }
 
@@ -160,46 +166,46 @@ export default function Home() {
         }
     }, []);
 
-    if (!connected)
-    {
+    if (!connected) {
         return <IdleScreen />
     }
 
     return (
-        <div className="flex flex-row gap-4 p-8">
-            <button onClick={() => {
-                // prompt for a number and then send it 
-                const state = prompt("Enter a system state (0-4):");
-                if (state === null) {
-                    return;
-                }
+        <div className="flex flex-row gap-8 p-8">
+            <div className="flex flex-col gap-4 items-start">
+                <div className="flex flex-row gap-2 items-center justify-center h-fit">
+                    <Label className="text-center w-full text-xl font-bold">System State:</Label>
+                    <Select
+                        onValueChange={(value) => {
+                            socket.emit("set_system_state", value);
+                            toast.success(`Set system state to ${system_state_to_str(parseInt(value))}`);
+                        }}
+                    >
+                        <SelectTrigger>
+                            <div className="flex flex-row gap-2">
+                                <div className="text-lg">
+                                    {system_state_to_str(display.system_state)}
+                                </div>
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="0">Disabled</SelectItem>
+                            <SelectItem value="1">Manual</SelectItem>
+                            <SelectItem value="2">Autonomous</SelectItem>
+                            <SelectItem value="3">Shutdown</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                const state_num = parseInt(state);
-                if (isNaN(state_num) || state_num < 0 || state_num > 4) {
-                    toast.error("Invalid system state");
-                    return;
-                }
+                <div className="flex flex-row gap-2 items-center justify-center h-fit">
+                    <Label className="text-center text-xl font-bold">Mobility:</Label>
+                    <Switch checked={display.is_mobility} onCheckedChange={(checked) => {
+                        socket.emit("set_mobility", checked);
+                        toast.success(`Set mobility to ${checked}`);
+                    }} />
+                </div>
+            </div>
 
-                socket.emit("set_system_state", state_num);
-                toast.success(`Set system state to ${state_num}`);
-            }}>
-                set system state
-            </button>
-
-            {/* mobility, prompt fo true/false */}
-            <button onClick={() => {
-                const mobility = prompt("Is mobility enabled? (true/false):");
-                if (mobility === null) {
-                    return;
-                }
-
-                const mobility_bool = mobility.toLowerCase() === "true";
-                socket.emit("set_mobility", mobility_bool);
-                toast.success(`Set mobility to ${mobility_bool}`);
-            }}>
-                set mobility
-            </button>
-            
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                     {/* display the system state */}
@@ -208,6 +214,16 @@ export default function Home() {
                         <div className="overflow-auto h-full flex flex-col items-center justify-center">
                             <div className="text-lg">
                                 {system_state_to_str(display.system_state)}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* display the mobility state */}
+                    <div className="flex flex-row gap-2">
+                        <h2 className="text-center text-xl font-bold">Mobility:</h2>
+                        <div className="overflow-auto h-full flex flex-col items-center justify-center">
+                            <div className="text-lg">
+                                {display.is_mobility ? "True" : "False"}
                             </div>
                         </div>
                     </div>
@@ -249,7 +265,7 @@ export default function Home() {
                         <h2 className="text-center text-xl font-bold">Motor Input:</h2>
                         <div className="overflow-auto h-full flex flex-col items-center justify-center">
                             <div className="text-lg">
-                                ({decimals(display.motor_input.forward_velocity, 4)}, {decimals(display.motor_input.angular_velocity, 4)})
+                                ({decimals(display.motor_input.forward_velocity, 4)}, {decimals(display.motor_input.sideways_velocity, 4)}, {decimals(display.motor_input.angular_velocity, 4)})
                             </div>
                         </div>
                     </div>

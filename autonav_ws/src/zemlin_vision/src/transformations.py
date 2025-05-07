@@ -33,10 +33,10 @@ class TransformationsConfig:
         self.upper_hue = 255
         self.upper_saturation = 95
         self.upper_value = 210
-        self.flatten_param = 0.26
+        self.flatten_param = 0.35
         self.blur = 5
         self.blur_iterations = 3
-        self.region_of_disinterest_offset = 130
+        self.region_of_disinterest_offset = 45
 
 
 class ImageTransformer(Node):
@@ -118,14 +118,25 @@ class ImageTransformer(Node):
         mask = 255 - mask
 
         # Apply region of disinterest and flattening
-        height = img.shape[0]
-        width = img.shape[1]
-        region_of_disinterest_vertices=[
-            (0, height),
-            (width / 2, height / 2 + self.config.region_of_disinterest_offset),
-            (width, height)
+        # height = img.shape[0]
+        # width = img.shape[1]
+        # region_of_disinterest_vertices=[
+        #     (0, height),
+        #     (width / 2, height / 2 + self.config.region_of_disinterest_offset),
+        #     (width, height)
+        # ]
+        # mask = self.region_of_interest(mask, np.array([region_of_disinterest_vertices], np.int32))
+        # mask[mask < 250] = 0
+
+        # Cut off the a square from the bottom of the image, roughly 200px by 200px
+        # we cut it off by setting the pixels to 0
+        square_vertices = [
+            (0, 480),
+            (640, 480),
+            (640, 300), 
+            (0, 300)
         ]
-        mask = self.region_of_interest(mask, np.array([region_of_disinterest_vertices], np.int32))
+        mask = self.region_of_interest(mask, np.array([square_vertices], np.int32))
         mask[mask < 250] = 0
 
         mask = self.flatten(mask)
@@ -134,7 +145,7 @@ class ImageTransformer(Node):
         self.publish_map(mask)
 
         preview_image = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-        cv2.polylines(preview_image, np.array([region_of_disinterest_vertices], np.int32), True, (0, 255, 0), 2)
+        # cv2.polylines(preview_image, np.array([region_of_disinterest_vertices], np.int32), True, (0, 255, 0), 2)
         preview_msg = g_bridge.cv2_to_compressed_imgmsg(preview_image)
         preview_msg.header = image.header
         preview_msg.format = "jpeg"

@@ -16,6 +16,7 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python programs
 install(PROGRAMS
   src/backend.py
+  src/standalone.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

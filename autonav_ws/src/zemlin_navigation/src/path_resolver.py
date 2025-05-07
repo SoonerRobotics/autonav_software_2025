@@ -174,8 +174,8 @@ class PathResolverNode(Node):
             # self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
             self.motorPublisher.publish(input)
             
-            # 10hz
-            time.sleep(10 / 1000.0)
+            # sleep such that it runs 5 times a second
+            time.sleep(0.1)
 
  
 def main():
