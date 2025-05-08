@@ -2,7 +2,7 @@
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, SwerveFeedback, Position
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, PathingDebug, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, SwerveFeedback, Position
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 import rclpy
@@ -33,6 +33,7 @@ class AppBackend(Node):
         self.create_subscription(GPSFeedback, "/autonav/gps", self.gps_feedback, 10)
         self.create_subscription(MotorInput, "/autonav/motor_input", self.motor_input_callback, 10)
         self.create_subscription(Position, "/autonav/position", self.position_callback, 10)
+        self.create_subscription(PathingDebug, "/autonav/pathing_debug", self.pathing_debug_callback, 10)
         # self.create_subscription(DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10)
         self.create_subscription(SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.absolute_callback, 10)        
         self.create_subscription(SwerveFeedback, "/autonav/swerve/feedback", self.swerve_callback, 10)
@@ -102,6 +103,21 @@ class AppBackend(Node):
         if self.app.motor_feedback_label:
             self.update_label(self.app.motor_feedback_label, f"Absolute Feedback: {msg.position_fl}, {msg.position_fr}, {msg.position_bl}, {msg.position_br}")
 
+    def pathing_debug_callback(self, msg: PathingDebug):
+        if self.app.pathing_debug_label:
+            self.update_label(self.app.pathing_debug_label, f"Desired Heading: {msg.desired_heading}")
+        if self.app.pathing_debug_label2:
+            self.update_label(self.app.pathing_debug_label2, f"Desired Latitude: {msg.desired_latitude}")
+        if self.app.pathing_debug_label3:
+            self.update_label(self.app.pathing_debug_label3, f"Desired Longitude: {msg.desired_longitude}")
+        if self.app.pathing_debug_label4:
+            self.update_label(self.app.pathing_debug_label4, f"Distance to Waypoint: {msg.distance_to_destination}")
+        if self.app.pathing_debug_label5:
+            waypoints_str = ", ".join([f"({msg.waypoints[i]}, {msg.waypoints[i+1]})" for i in range(0, len(msg.waypoints), 2)])
+            self.update_label(self.app.pathing_debug_label5, f"Waypoint List: {waypoints_str}")
+        if self.app.pathing_debug_label6:
+            self.update_label(self.app.pathing_debug_label6, f"Time Until Use Waypoints: {msg.time_until_use_waypoints}")
+
     def swerve_callback(self, msg: SwerveFeedback):
         # update last swerve feedbacks
         self.app.last_swerve_feedbacks[msg.module] = msg
@@ -127,6 +143,13 @@ class App(tk.Tk):
         self.motor_input_label = None
         self.position_label = None
         self.system_state_label = None
+        self.device_state_label = None
+        self.pathing_debug_label = None
+        self.pathing_debug_label2 = None
+        self.pathing_debug_label3 = None
+        self.pathing_debug_label4 = None
+        self.pathing_debug_label5 = None
+        self.pathing_debug_label6 = None
         
         # swerve stuff
         self.last_swerve_feedbacks = [None, None, None, None]
@@ -246,6 +269,24 @@ class App(tk.Tk):
 
         self.device_state_label = tk.Label(frame, text="Mobility Enabled: ")
         self.device_state_label.grid(row=6, column=0, sticky="w", padx=20, pady=5)
+        
+        # horizontal line
+        separator = ttk.Separator(frame, orient='horizontal')
+        separator.grid(row=7, column=0, columnspan=2, sticky='ew', padx=20, pady=10)
+        
+        # pathing debug (desired heading, latitude, longitude, distance to current waypoint, waypoint list, and time_until_use_waypoints)
+        self.pathing_debug_label = tk.Label(frame, text="Desired Heading: ")
+        self.pathing_debug_label.grid(row=8, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label2 = tk.Label(frame, text="Desured Latitude: ")
+        self.pathing_debug_label2.grid(row=9, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label3 = tk.Label(frame, text="Desired Longitude: ")
+        self.pathing_debug_label3.grid(row=10, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label4 = tk.Label(frame, text="Distance to Waypoint: ")
+        self.pathing_debug_label4.grid(row=11, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label5 = tk.Label(frame, text="Waypoint List: ")
+        self.pathing_debug_label5.grid(row=12, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label6 = tk.Label(frame, text="Time Until Use Waypoints: ")
+        self.pathing_debug_label6.grid(row=13, column=0, sticky="w", padx=20, pady=5)
 
         # Checkbox for System Mobility
         self.mobility_var = tk.BooleanVar()

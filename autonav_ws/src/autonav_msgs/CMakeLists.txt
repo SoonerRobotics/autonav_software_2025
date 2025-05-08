@@ -37,6 +37,8 @@ set(msg_files
     "msg/ZeroEncoders.msg"
     "msg/SwerveAbsoluteFeedback.msg"
     "msg/SwerveFeedback.msg"
+    "msg/PathingDebug.msg"
+    "msg/Command.msg"
 )
 
 set(srv_files

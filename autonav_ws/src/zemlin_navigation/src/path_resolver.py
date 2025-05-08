@@ -100,9 +100,15 @@ class PathResolverNode(Node):
                 lookahead = self.purePursuit.get_lookahead_point(cur_pos[0], cur_pos[1], radius)
                 radius *= self.config.radius_multiplier
 
-            # inputPacket = MotorInput()
-            # inputPacket.forward_velocity = 0.0
-            # inputPacket.angular_velocity = 0.0
+            inputPacket = MotorInput()
+            inputPacket.forward_velocity = 0.0
+            inputPacket.sideways_velocity = 0.0
+            inputPacket.angular_velocity = 0.0
+            
+            if not self.is_mobility():
+                self.motorPublisher.publish(inputPacket)
+                time.sleep(0.05)
+                continue
 
             # if self.backCount == -1 and (lookahead is not None and ((lookahead[1] - cur_pos[1]) ** 2 + (lookahead[0] - cur_pos[0]) ** 2) > 0.25):
             #     angle_diff = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
@@ -164,12 +170,6 @@ class PathResolverNode(Node):
                 input.forward_velocity = self.config.reverse_speed
                 input.angular_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
                 input.sideways_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
-                
-            if not self.is_mobility:
-                # self.log("Not mobility, stopping")
-                input.forward_velocity = 0.0
-                input.angular_velocity = 0.0
-                input.sideways_velocity = 0.0
                 
             # self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
             self.motorPublisher.publish(input)

@@ -66,6 +66,10 @@ class Node(RclpyNode):
         
         self.other_cfgs[msg.device] = json.loads(msg.json)
 
+    def get_time_seconds(self) -> int:
+        time_nanoseconds = self.get_clock().now().nanoseconds
+        return time_nanoseconds / 1_000_000_000
+
     def apply_config(self, config) -> None:
         """
         Apply a configuration to the node.
