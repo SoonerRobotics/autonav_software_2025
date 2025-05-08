@@ -93,18 +93,18 @@ class DisplayBackend(Node):
         #     CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
         # )
 
-        # self.motor_feedback_sub = self.create_subscription(
-        #     MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
-        # )
+        self.motor_feedback_sub = self.create_subscription(
+            MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
+        )
         # self.gps_feedback_sub = self.create_subscription(
         #     GPSFeedback, "/autonav/gps", self.gps_feedback, 10
         # )
-        # self.motor_input_sub = self.create_subscription(
-        #     MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
-        # )
-        # self.position_sub = self.create_subscription(
-        #     Position, "/autonav/position", self.position_callback, 10
-        # )
+        self.motor_input_sub = self.create_subscription(
+            MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
+        )
+        self.position_sub = self.create_subscription(
+            Position, "/autonav/position", self.position_callback, 10
+        )
         # self.device_state_sub = self.create_subscription(
         #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
         # )

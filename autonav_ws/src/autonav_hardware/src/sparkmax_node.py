@@ -94,9 +94,9 @@ class SparkMAXNode(Node):
 
         # publish feedback
         feedback_msg = MotorFeedback()
-        feedback_msg.delta_x = swerve_feedback.x_vel
-        feedback_msg.delta_y = swerve_feedback.y_vel
-        feedback_msg.delta_theta = swerve_feedback.angular_vel
+        feedback_msg.delta_x = swerve_feedback.x_vel / 10
+        feedback_msg.delta_y = swerve_feedback.y_vel / 10
+        feedback_msg.delta_theta = swerve_feedback.angular_vel / 10
         self.motorFeedbackPublisher.publish(feedback_msg)
 
     def on_motor_setpoint_callback(self, module, desired_x_vel, desired_y_vel, desired_angular_vel, measured_x_vel, measured_y_vel, measured_angular_vel):

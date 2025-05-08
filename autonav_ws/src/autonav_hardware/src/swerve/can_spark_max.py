@@ -15,7 +15,7 @@ class CanSparkMax:
         # self.notifier = Notifier(self.can, [self.canCallback])
 
         # register CAN callback with a smaller timeout to avoid long wait periods between some messages
-        self.notifier = Notifier(self.can, [self.canCallback], timeout=0.01)
+        self.notifier = Notifier(self.can, [self.canCallback], timeout=0)
 
     def set(self, value: float) -> None:
         self.value_ = value
@@ -55,12 +55,14 @@ class CanSparkMax:
     def canCallback(self, msg: Message) -> None:
         breakdown = REVMessageBreakdown(msg.arbitration_id)
 
+
         # First check if we are receiving feedback for a device that is not ours
         if breakdown.device_number != self.id:
             return
         
         if breakdown.api_class == ABSOLUTE_ENCODER_FEEDBACK_API_CLASS and breakdown.api_index == ABSOLUTE_ENCODER_FEEDBACK_API_INDEX:
             absolute_position = dataToFloat(msg.data)
+            print(f"absolute callback: {absolute_position} for {self.id}")
             self.absolute_position_ = absolute_position
             pass
         
