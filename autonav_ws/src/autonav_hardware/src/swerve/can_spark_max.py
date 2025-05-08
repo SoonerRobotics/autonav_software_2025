@@ -37,6 +37,10 @@ class CanSparkMax:
 
     def getAbsolutePosition(self) -> float:
         return self.absolute_position_
+
+    def getAngle(self) -> float:
+        # remap from 0 to 1 to radians (i.e. 0 is 0 radians, 1 is 2 * pi radians)
+        return self.absolute_position_ * 2 * 3.14159265358979323846264338327950
     
     def getRevolutionsPerMinute(self) -> float:
         return self.revolutions_per_minute_

@@ -16,7 +16,7 @@ class SUSwerveDriveModuleConfig:
         self.is_angle_motor_reversed = is_angle_motor_reversed
 
         # constants
-        self.driveMotorGearRatio = (10/60) * (24/60) # 15:1 (10t to 60t) * (24t * 60t)
+        self.driveMotorGearRatio = 1 / ((10/60) * (24/60)) # 15:1 (10t to 60t) * (24t * 60t)
         self.steerMotorGearRatio = 5*5 # 25:1
         self.wheel_radius = 0.1016 # meters
 
@@ -35,6 +35,8 @@ class SUSwerveDriveModule:
         
         self.drive_motor_ = drive_motor
         self.angle_motor_ = angle_motor
+        
+        self.last_set_angle_ = 0.0 # radians
 
     # Update the state of the module
     # state: The desired state of the robot
@@ -46,22 +48,31 @@ class SUSwerveDriveModule:
         desired_angle = atan2(desired_state.x_vel, desired_state.y_vel)
 
         # never turn more than 90 degrees
-        if abs(abs(desired_angle) - abs(self.angle_motor_.getAngle())) > radians(90):
+        angle_error = desired_angle - self.last_set_angle_
+        if angle_error > pi:
+            angle_error = (2 * pi) - angle_error
+        elif angle_error < -pi:
+            angle_error = (2 * pi) + angle_error
+
+        if abs(angle_error) > radians(90):
             desired_drive_speed *= -1
-            desired_angle -= radians(90)
-            
-            # clamp FIXME does this work????
-            if desired_angle > 2*pi:
-                desired_angle -= 2*pi
-            elif desired_angle < 0:
-                desired_angle += 2*pi
+            desired_angle = desired_angle + radians(180)
+
+        if desired_angle > pi:
+            desired_angle = desired_angle - (2 * pi)
+        elif desired_angle < -pi:
+            desired_angle = desired_angle + (2 * pi)
+
+        if abs(desired_drive_speed) > 0.2:
+            self.last_set_angle_ = desired_angle
+            self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2) * (-1 if self.config.is_angle_motor_reversed else 1))
+
+        # cosine correction
+        # desired_drive_speed *= cos(desired_angle - self.angle_motor_.getAngle())
 
         # use the onboard PIDF controllers of the sparkMAXes to do everything for us
-        self.drive_motor_.setVelocity(desired_drive_speed * self.config.drive_motor_conversion_factor_ * 60 * (-1 if self.config.is_drive_motor_reversed else 1)) # * 60 because drive_motor_ expects RPM but desired_speed is in m/s
-        #TODO do cosine speed correction based on steer angle
-
-        if desired_drive_speed > 0.2:
-            self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2) * (-1 if self.config.is_angle_motor_reversed else 1))
+        # self.drive_motor_.setVelocity(desired_drive_speed * self.config.drive_motor_conversion_factor_ * 60 * (-1 if self.config.is_drive_motor_reversed else 1)) # * 60 because drive_motor_ expects RPM but desired_speed is in m/s
+        self.drive_motor_.setVelocity(desired_drive_speed * 42 * (-1 if self.config.is_drive_motor_reversed else 1))
 
         # Update encoders and calculate measured state
         # self.drive_encoder_.update(period)

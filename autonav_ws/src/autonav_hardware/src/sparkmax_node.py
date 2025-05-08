@@ -72,33 +72,18 @@ class SparkMAXNode(Node):
             motor.sendHeartbeat()
 
     def send_motor_feedbacK(self):
-        feedback_fl = SwerveAbsoluteFeedback()
-        feedback_fl.module = 0
-        feedback_fl.position = self.motors[0].getAbsolutePosition()
-
-        feedback_fr = SwerveAbsoluteFeedback()
-        feedback_fr.module = 1
-        feedback_fr.position = self.motors[3].getAbsolutePosition()
-
-        feedback_bl = SwerveAbsoluteFeedback()
-        feedback_bl.module = 2
-        feedback_bl.position = self.motors[4].getAbsolutePosition()
-
-        feedback_br = SwerveAbsoluteFeedback()
-        feedback_br.module = 3
-        feedback_br.position = self.motors[7].getAbsolutePosition()
+        feedback = SwerveAbsoluteFeedback()
+        feedback.position_fl = self.motors[6].getAbsolutePosition() #7
+        feedback.position_fr = self.motors[5].getAbsolutePosition() #6
+        feedback.position_bl = self.motors[2].getAbsolutePosition() #3
+        feedback.position_br = self.motors[1].getAbsolutePosition() #2
 
         # Publish the feedbacks
-        self.absoluteEncoderPublisher.publish(feedback_fl)
-        self.absoluteEncoderPublisher.publish(feedback_fr)
-        self.absoluteEncoderPublisher.publish(feedback_bl)
-        self.absoluteEncoderPublisher.publish(feedback_br)
+        self.absoluteEncoderPublisher.publish(feedback)
 
     def on_motor_input_received(self, msg: MotorInput):
         if self.get_device_state() != DeviceState.OPERATING:
             self.set_device_state(DeviceState.OPERATING)
-
-        self.log(f"big swerve: {msg.sideways_velocity} - {msg.forward_velocity} - {msg.angular_velocity}")
 
         swerve_feedback = self.swerve.updateState(SUSwerveDriveState(
             msg.sideways_velocity,

@@ -66,7 +66,7 @@ class DisplayBackend(Node):
         self.limiter.setLimit("gps_feedback", 2)
         self.limiter.setLimit("motor_feedback", 2)
         self.limiter.setLimit("position", 2)
-        self.limiter.setLimit("absolute", 2)
+        self.limiter.setLimit("absolute", 8)
 
     def apply_config(self, config: dict):
         self.log(f"Config updated from {self.config} to {config}")
@@ -83,37 +83,37 @@ class DisplayBackend(Node):
 
 
         # Subscribers
-        self.camera_sub = self.create_subscription(
-            CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
-        )
-        self.filered_sub = self.create_subscription(
-            CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
-        )
-        self.expanded_sub = self.create_subscription(
-            CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
-        )
+        # self.camera_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
+        # )
+        # self.filered_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
+        # )
+        # self.expanded_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
+        # )
 
-        self.motor_feedback_sub = self.create_subscription(
-            MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
-        )
-        self.gps_feedback_sub = self.create_subscription(
-            GPSFeedback, "/autonav/gps", self.gps_feedback, 10
-        )
-        self.motor_input_sub = self.create_subscription(
-            MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
-        )
-        self.position_sub = self.create_subscription(
-            Position, "/autonav/position", self.position_callback, 10
-        )
-        self.device_state_sub = self.create_subscription(
-            DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
-        )
+        # self.motor_feedback_sub = self.create_subscription(
+        #     MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
+        # )
+        # self.gps_feedback_sub = self.create_subscription(
+        #     GPSFeedback, "/autonav/gps", self.gps_feedback, 10
+        # )
+        # self.motor_input_sub = self.create_subscription(
+        #     MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
+        # )
+        # self.position_sub = self.create_subscription(
+        #     Position, "/autonav/position", self.position_callback, 10
+        # )
+        # self.device_state_sub = self.create_subscription(
+        #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
+        # )
         self.absolute_encoder_sub = self.create_subscription(
-            SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10
+            SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.absolute_encoder_callback, 10
         )        
-        self.config_web_sub = self.create_subscription(
-            ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10
-        )
+        # self.config_web_sub = self.create_subscription(
+        #     ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10
+        # )
 
         # Publishers
         self.load_preset_pub = self.create_publisher(
@@ -164,6 +164,18 @@ class DisplayBackend(Node):
             "delta_x": msg.delta_x,
             "delta_y": msg.delta_y,
             "delta_theta": msg.delta_theta
+        }))
+
+    def absolute_encoder_callback(self, msg: SwerveAbsoluteFeedback):
+        if not self.limiter.use("absolute"):
+            return
+
+        # self.log(f"Absolute encoder callback: {msg.module} {msg.position}")
+        self.socketio.emit("absolute_encoder", json.dumps({
+            "position_fl": msg.position_fl,
+            "position_fr": msg.position_fr,
+            "position_bl": msg.position_bl,
+            "position_br": msg.position_br
         }))
 
     def position_callback(self, msg: Position):

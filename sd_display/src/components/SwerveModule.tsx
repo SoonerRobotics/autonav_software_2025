@@ -14,7 +14,7 @@ export function SwerveModule(props: {
                     <motion.div
                         className="w-1 h-10 bg-blue-500 absolut"
                         animate={{ rotate: normalizedAngle }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.05 }}
                     />
                 </div>
                 <div className="mt-4 text-lg">{normalizedAngle.toFixed(1)}&deg;</div>

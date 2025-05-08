@@ -35,6 +35,12 @@ type DisplayData = {
         latitude: number;
         longitude: number;
         altitude: number;
+    },
+    absolute_positions: {
+        position_fl: number;
+        position_fr: number;
+        position_bl: number;
+        position_br: number;
     };
 }
 
@@ -62,6 +68,12 @@ export default function Home() {
             latitude: 0,
             longitude: 0,
             altitude: 0,
+        },
+        absolute_positions: {
+            position_fl: 0,
+            position_fr: 0,
+            position_bl: 0,
+            position_br: 0,
         },
     });
     const [connected, setConnected] = useState(false);
@@ -145,6 +157,36 @@ export default function Home() {
             }));
         }
 
+        const onEncoderAbsolutePosition = (data: any) => {
+            data = JSON.parse(data);
+            
+            // const module = data.module;
+            // let angle = data.position * 2 * Math.PI;
+            // angle = angle * 180 / Math.PI;
+
+            // convert all 4 corners to radians
+            const position_fl = data.position_fl * 2 * Math.PI;
+            const position_fr = data.position_fr * 2 * Math.PI;
+            const position_bl = data.position_bl * 2 * Math.PI;
+            const position_br = data.position_br * 2 * Math.PI;
+
+            // Now convert to degrees
+            const position_fl_deg = position_fl * 180 / Math.PI;
+            const position_fr_deg = position_fr * 180 / Math.PI;
+            const position_bl_deg = position_bl * 180 / Math.PI;
+            const position_br_deg = position_br * 180 / Math.PI;
+
+            setDisplay((prev) => ({
+                ...prev,
+                absolute_positions: {
+                    position_fl: position_fl_deg,
+                    position_fr: position_fr_deg,
+                    position_bl: position_bl_deg,
+                    position_br: position_br_deg,
+                },
+            }));
+        }
+
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
         socket.on('motor_feedback', onMotorFeedback);
@@ -153,6 +195,7 @@ export default function Home() {
         socket.on('system_state', onSystemState);
         socket.on('device_state', onDeviceState);
         socket.on('position', onPosition);
+        socket.on('absolute_encoder', onEncoderAbsolutePosition);
 
         return () => {
             socket.off('connect', onConnect);
@@ -163,6 +206,7 @@ export default function Home() {
             socket.off('system_state', onSystemState);
             socket.off('device_state', onDeviceState);
             socket.off('position', onPosition);
+            socket.off('absolute_encoder', onEncoderAbsolutePosition);
         }
     }, []);
 
@@ -288,10 +332,10 @@ export default function Home() {
                     <img className="w-[200px] h-[200px] bg-slate-500 rounded-lg p-1" src="http://localhost:4029/expanded" />
                 </div>
                 <div className="grid grid-cols-2 gap-4 w-fit">
-                    <SwerveModule id={"Front Left"} angle={0} />
-                    <SwerveModule id={"Front Right"} angle={45} />
-                    <SwerveModule id={"Bottom Left"} angle={95} />
-                    <SwerveModule id={"Bottom Right"} angle={135} />
+                    <SwerveModule id={"Front Left"} angle={display.absolute_positions.position_fl} />
+                    <SwerveModule id={"Front Right"} angle={display.absolute_positions.position_fr} />
+                    <SwerveModule id={"Back Left"} angle={display.absolute_positions.position_bl} />
+                    <SwerveModule id={"Back Right"} angle={display.absolute_positions.position_br} />
                 </div>
             </div>
         </div>
