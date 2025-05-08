@@ -2,7 +2,7 @@
 
 import rclpy
 from autonav_shared.node import Node
-from autonav_msgs.msg import MotorInput, MotorStatistics, ZeroEncoders, MotorFeedback, SwerveAbsoluteFeedback
+from autonav_msgs.msg import MotorInput, SwerveFeedback, ZeroEncoders, MotorFeedback, SwerveAbsoluteFeedback
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 import can
@@ -36,10 +36,11 @@ class SparkMAXNode(Node):
 
         # feedback publisher
         self.absoluteEncoderPublisher = self.create_publisher(SwerveAbsoluteFeedback, "/autonav/swerve/absolute", 20)
+        self.swerveFeedbackPublisher = self.create_publisher(SwerveFeedback, "/autonav/swerve/feedback", 20)
 
         # Periodic heartbeat to keep motors enabled
         self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat)
-        self.feedback_timer = self.create_timer(0.2, self.send_motor_feedbacK)
+        self.feedback_timer = self.create_timer(0.1, self.send_motor_feedbacK)
 
         self.motors = [
             CanSparkMax(1, self.can), # drive
@@ -89,7 +90,7 @@ class SparkMAXNode(Node):
             msg.sideways_velocity,
             -msg.forward_velocity,
             msg.angular_velocity
-        ), 0.02)
+        ), 0.02, on_motor_setpoint_callback=self.on_motor_setpoint_callback)
 
         # publish feedback
         feedback_msg = MotorFeedback()
@@ -98,12 +99,16 @@ class SparkMAXNode(Node):
         feedback_msg.delta_theta = swerve_feedback.angular_vel
         self.motorFeedbackPublisher.publish(feedback_msg)
 
-        # publish feedback
-        feedback_msg = MotorFeedback()
-        feedback_msg.delta_x = swerve_feedback.x_vel
-        feedback_msg.delta_y = swerve_feedback.y_vel
-        feedback_msg.delta_theta = swerve_feedback.angular_vel
-        self.motorFeedbackPublisher.publish(feedback_msg)
+    def on_motor_setpoint_callback(self, module, desired_x_vel, desired_y_vel, desired_angular_vel, measured_x_vel, measured_y_vel, measured_angular_vel):
+        feedback_msg = SwerveFeedback()
+        feedback_msg.module = module
+        feedback_msg.desired_x_vel = desired_x_vel
+        feedback_msg.desired_y_vel = desired_y_vel
+        feedback_msg.desired_angular_vel = desired_angular_vel
+        feedback_msg.measured_x_vel = measured_x_vel
+        feedback_msg.measured_y_vel = measured_y_vel
+        feedback_msg.measured_angular_vel = measured_angular_vel
+        self.swerveFeedbackPublisher.publish(feedback_msg)
 
     def reconnect_can(self):
         try:

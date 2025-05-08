@@ -12,7 +12,10 @@ class CanSparkMax:
         self.reversed_ = reversed
 
         # register CAN callback
-        self.notifier = Notifier(self.can, [self.canCallback])
+        # self.notifier = Notifier(self.can, [self.canCallback])
+
+        # register CAN callback with a smaller timeout to avoid long wait periods between some messages
+        self.notifier = Notifier(self.can, [self.canCallback], timeout=0.01)
 
     def set(self, value: float) -> None:
         self.value_ = value

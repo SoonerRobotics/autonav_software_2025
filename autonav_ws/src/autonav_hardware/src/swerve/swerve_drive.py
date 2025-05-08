@@ -59,7 +59,7 @@ class SUSwerveDrive:
     # Drive the robot
     # state: The desired state of the robot
     # returns: The actual state of the robot    
-    def updateState(self, state: SUSwerveDriveState, period: float) -> SUSwerveDriveState:
+    def updateState(self, state: SUSwerveDriveState, period: float, on_motor_setpoint_callback: callable) -> SUSwerveDriveState:
         # Update the state of the robot
         self.desired_robot_state_ = np.array([state.x_vel, state.y_vel, state.angular_vel], np.double)
 
@@ -81,5 +81,16 @@ class SUSwerveDrive:
         ], np.double)
         
         self.measured_robot_state_ = self.module_positions_matrix_pinv_ @ self.measured_modules_state_
+
+        # Call the callback function with the desired and measured states
+        if on_motor_setpoint_callback:
+            # for each module, get the desired and measured state
+            for i in range(4):
+                desired_x_vel = desired_modules_state_[i * 2]
+                desired_y_vel = desired_modules_state_[i * 2 + 1]
+                measured_x_vel = self.measured_modules_state_[i * 2]
+                measured_y_vel = self.measured_modules_state_[i * 2 + 1]
+
+                on_motor_setpoint_callback(i, desired_x_vel, desired_y_vel, state.angular_vel, measured_x_vel, measured_y_vel, self.measured_robot_state_[2])
         
         return SUSwerveDriveState(self.measured_robot_state_[0], self.measured_robot_state_[1], self.measured_robot_state_[2])

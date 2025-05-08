@@ -63,7 +63,7 @@ class SUSwerveDriveModule:
         elif desired_angle < -pi:
             desired_angle = desired_angle + (2 * pi)
 
-        if abs(desired_drive_speed) > 0.2:
+        if abs(desired_drive_speed) > 0.3:
             self.last_set_angle_ = desired_angle
             self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2) * (-1 if self.config.is_angle_motor_reversed else 1))
 
