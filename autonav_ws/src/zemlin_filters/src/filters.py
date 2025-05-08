@@ -122,7 +122,7 @@ class FiltersNode(Node):
 
 def main():
     rclpy.init()
-    rclpy.spin(FiltersNode())
+    Node.run_node(FiltersNode())
     rclpy.shutdown()
 
 

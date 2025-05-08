@@ -46,11 +46,11 @@ class AStarNode(Node):
         self.on_reset()
 
     def init(self):
-        self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.cfg_space_received, 1)
-        self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.on_position_received, 1)
-        self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 1)
-        self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/pathing_debug", 1)
-        self.pathPublisher = self.create_publisher(Path, "/autonav/path", 1)
+        self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.cfg_space_received, 10)
+        self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.on_position_received, 10)
+        self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 10)
+        self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/pathing_debug", 10)
+        self.pathPublisher = self.create_publisher(Path, "/autonav/path", 10)
         self.mapTimer = self.create_timer(0.1, self.create_path)
         self.resetWhen = -1.0
 
@@ -189,6 +189,8 @@ class AStarNode(Node):
                         heappush(next_current, (fScore[neighbor], neighbor))
                     
     def cfg_space_received(self, msg: OccupancyGrid):
+        self.log("Received config space")
+        
         if self.position is None or self.system_state != SystemState.AUTONOMOUS:
             return
 
@@ -288,7 +290,7 @@ class AStarNode(Node):
 
 def main():
     rclpy.init()
-    rclpy.spin(AStarNode())
+    Node.run_node(AStarNode())
     rclpy.shutdown()
 
 

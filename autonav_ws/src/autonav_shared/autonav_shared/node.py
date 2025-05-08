@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node as RclpyNode
 from autonav_shared.types import DeviceState, LogLevel, SystemState
 from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance, Log, ConfigurationBroadcast, ConfigurationUpdate
-from rclpy.executors import MultiThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 import sty
 import time
 import inspect
@@ -301,10 +301,19 @@ class Node(RclpyNode):
         :param node: The node to run.
         """
 
-        executor = MultiThreadedExecutor()
+        # executor = MultiThreadedExecutor()
+        # executor.add_node(node)
+        # executor.spin()
+        # executor.remove_node(node)
+        
+        executor = SingleThreadedExecutor()
         executor.add_node(node)
-        executor.spin()
-        executor.remove_node(node)
+        try:
+            executor.spin()
+        finally:
+            executor.shutdown()
+            node.destroy_node()
+            rclpy.shutdown()
 
     def run_nodes(nodes):
         """

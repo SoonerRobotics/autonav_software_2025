@@ -180,7 +180,7 @@ class PathResolverNode(Node):
  
 def main():
     rclpy.init()
-    rclpy.spin(PathResolverNode())
+    Node.run_node(PathResolverNode())
     rclpy.shutdown()
 
 

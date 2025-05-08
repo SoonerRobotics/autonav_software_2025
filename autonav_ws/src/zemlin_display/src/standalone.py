@@ -2,7 +2,7 @@
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, PathingDebug, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, SwerveFeedback, Position
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, PathingDebug, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, SwerveFeedback, Position, Performance
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 import rclpy
@@ -37,6 +37,7 @@ class AppBackend(Node):
         # self.create_subscription(DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10)
         self.create_subscription(SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.absolute_callback, 10)        
         self.create_subscription(SwerveFeedback, "/autonav/swerve/feedback", self.swerve_callback, 10)
+        self.create_subscription(Performance, "/autonav/shared/performance", self.performance_callback, 10)
         # self.create_subscription(ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10)
 
     def update_img_from_msg(self, label, msg):
@@ -118,6 +119,11 @@ class AppBackend(Node):
         if self.app.pathing_debug_label6:
             self.update_label(self.app.pathing_debug_label6, f"Time Until Use Waypoints: {msg.time_until_use_waypoints}")
 
+    def performance_callback(self, msg: Performance):
+        if self.app.performance_label:
+            self.app.performances[msg.name] = msg.elapsed
+            self.app.update_performance()
+
     def swerve_callback(self, msg: SwerveFeedback):
         # update last swerve feedbacks
         self.app.last_swerve_feedbacks[msg.module] = msg
@@ -150,6 +156,8 @@ class App(tk.Tk):
         self.pathing_debug_label4 = None
         self.pathing_debug_label5 = None
         self.pathing_debug_label6 = None
+        self.performances = {}
+        self.performance_label = None
         
         # swerve stuff
         self.last_swerve_feedbacks = [None, None, None, None]
@@ -321,12 +329,27 @@ class App(tk.Tk):
         tk.Label(frame, text="Option A:").pack()
         tk.Entry(frame).pack()
         return frame
+    
+    def update_performance(self):
+        # update the performance label with the latest performance data
+        if self.performance_label:
+            txt = "Performance:\n"
+            for key, value in self.performances.items():
+                txt += f"{key}: {value} ms\n"
+            self.performance_label.config(text=txt)
 
     def create_performance_tab(self):
         frame = ttk.Frame(self.notebook)
         self.notebook.add(frame, text="Performance")
-        label = tk.Label(frame, text="Performance Metrics", font=("Helvetica", 18))
-        label.pack(pady=20)
+        
+        # show the map of performance: it should be key(title) to elapsed time (ms)
+        txt = "Performance:\n"
+        for key, value in self.performances.items():
+            txt += f"{key}: {value} ms\n"
+            
+        self.performance_label = tk.Label(frame, text=txt)
+        self.performance_label.pack(pady=20)
+        
         return frame
 
     def create_other_tab(self):
@@ -353,14 +376,18 @@ class App(tk.Tk):
 
         return frame
 
+def run_ros(app):
+    node = AppBackend(app)
+    Node.run_node(node)
+    rclpy.shutdown()
+
 def main():
     rclpy.init()
 
     app = App()
-    node = AppBackend(app)
 
     # Spin ROS in background thread
-    ros_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
+    ros_thread = threading.Thread(target=run_ros, args=(app,), daemon=True)
     ros_thread.start()
 
     # Run GUI mainloop in main thread

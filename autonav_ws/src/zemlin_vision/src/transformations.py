@@ -95,6 +95,8 @@ class ImageTransformer(Node):
         self.raw_map_pub.publish(msg)
 
     def on_image_received(self, image: CompressedImage):
+        self.perf_start("transformations")
+        
         # Decompressify
         cv_image = g_bridge.compressed_imgmsg_to_cv2(image)
 
@@ -143,18 +145,18 @@ class ImageTransformer(Node):
 
         # Actually generate the map
         self.publish_map(mask)
-
+        
         preview_image = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-        # cv2.polylines(preview_image, np.array([region_of_disinterest_vertices], np.int32), True, (0, 255, 0), 2)
         preview_msg = g_bridge.cv2_to_compressed_imgmsg(preview_image)
         preview_msg.header = image.header
         preview_msg.format = "jpeg"
         self.filtered_pub.publish(preview_msg)
 
+        self.perf_stop("transformations")
 
 def main():
     rclpy.init()
-    rclpy.spin(ImageTransformer())
+    Node.run_node(ImageTransformer())
     rclpy.shutdown()
 
 
