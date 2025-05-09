@@ -1,5 +1,5 @@
 #!/usr/bin/env -S python3
-#TODO DO NOT COMMIT THIS FILE!! IT SHOULD BE REVERTED ONCE YOU GET WS WORKING
+# TODO DO NOT COMMIT THIS FILE!! IT SHOULD BE REVERTED ONCE YOU GET WS WORKING
 import asyncio
 import json
 import threading
@@ -21,7 +21,7 @@ from enum import Enum
 
 class Topics(Enum):
     # Topic List
-    BROADCAST = "autonav/shared/broadcast"  # todo does this work?
+    BROADCAST = "autonav/shared/broadcast"
     SYSTEM_STATE = "autonav/shared/system"
     DEVICE_STATE = "autonav/shared/device"
 
@@ -30,8 +30,7 @@ class Topics(Enum):
     AUTONAV_GPS = "/autonav/gps"
     MOTOR_INPUT = "/autonav/MotorInput"
     POSITION = "/autonav/position"
-    MOTOR_CONTROLLER_DEBUG = '/autonav/motor_feedback'  # todo implement
-    CONTROLLER_INP = '/autonav/controller_input'        # todo implement
+    CONTROLLER_INP = '/autonav/controller_input'  # todo implement
 
     MOTOR_FEEDBACK = "/autonav/MotorFeedback"
     NUC_STATISTICS = "/autonav/statistic"
@@ -51,9 +50,9 @@ class Topics(Enum):
     FEELERS = "/autonav/feelers/debug"  # todo does this transmit an image?
 
     # Others
-    CONFIGURATION = "/scr/configuration"          # TODO is this still a topic?
-    PLAYBACK = "autonav/autonav_playback"         # TODO see how to feed this data in
-    AUDIBLE_FEEDBACK = '/autonav/audible_feedback' # todo implement!
+    CONFIGURATION = "/scr/configuration"  # TODO is this still a topic?
+    PLAYBACK = "autonav/autonav_playback"  # TODO see how to feed this data in
+    AUDIBLE_FEEDBACK = '/autonav/audible_feedback'  # todo implement!
 
 
 async_loop = asyncio.new_event_loop()
@@ -65,12 +64,12 @@ class Limiter:
         self.limits = {}
         self.nextAllowance = {}
 
-    # Sets a limit for how many times per second a key can be used
+    # Lim 4 hw mny times /s  key used
     def setLimit(self, key, limit):
         self.limits[key] = limit
         self.nextAllowance[key] = 0
 
-    # If it can be used, returns true and decrements the remaining uses
+    # used? rtrn T & remaining_use--
     def use(self, key):
         if key not in self.limits:
             return True
@@ -95,66 +94,77 @@ class BroadcastNode(Node):
         self.limiter = Limiter()
         self.limiter.setLimit(Topics.MOTOR_INPUT.value, 2)
         self.limiter.setLimit(Topics.MOTOR_FEEDBACK.value, 5)
-        self.limiter.setLimit(Topics.MOTOR_CONTROLLER_DEBUG.value, 1)
         self.limiter.setLimit(Topics.IMU.value, 1)
         self.limiter.setLimit(Topics.AUTONAV_GPS.value, 3)
         self.limiter.setLimit(Topics.POSITION.value, 3)
+
         self.limiter.setLimit(Topics.RAW_LEFT.value, 0.5)
         self.limiter.setLimit(Topics.RAW_RIGHT.value, 0.5)
         self.limiter.setLimit(Topics.RAW_FRONT.value, 0.5)
         self.limiter.setLimit(Topics.RAW_BACK.value, 0.5)
         self.limiter.setLimit(Topics.COMBINED_IMAGE.value, 0.5)
 
+        self.limiter.setLimit(Topics.FEELERS.value, 0.5)
+        self.limiter.setLimit(Topics.DEVICE_STATE.value, 1)
+        self.limiter.setLimit(Topics.SYSTEM_STATE.value, 1)
+        self.limiter.setLimit(Topics.NUC_STATISTICS.value, 1)
+        self.limiter.setLimit(Topics.ULTRASONICS.value, 1)
+        self.limiter.setLimit(Topics.CONBUS.value, 1)
+        self.limiter.setLimit(Topics.SAFETY_LIGHTS.value, 1)
+        self.limiter.setLimit(Topics.PLAYBACK.value, 1)
+        self.limiter.setLimit(Topics.AUDIBLE_FEEDBACK.value, 1)
+        self.limiter.setLimit(Topics.PERFORMANCE.value, 1)
+        self.limiter.setLimit(Topics.CONFIGURATION.value, 1)
+
+
         # Clients TODO a lot of these dont exist anymore
-#        self.system_state_c = self.create_subscription(
-#            SystemState, Topics.SYSTEM_STATE.value, self.systemStateCallback, 20
+        self.system_state_c = self.create_subscription(
+                    SystemState, Topics.SYSTEM_STATE.value, self.systemStateCallback, 20
+                )
+        #self.system_state_c = self.create_client(
+        #            SetSystemState, Topics.SYSTEM_STATE.value
+        #        )
+        self.config_c = self.create_client(Topics.CONFIGURATION.value)
+#        self.get_presets_c = self.create_client(Topics.GET_PRESETS.value)# TODO THESE Don't EXIST ANYMORE
+#        self.set_active_preset_c = self.create_client(
+#           SetActivePreset, Topics.SET_ACTIVE_PRESET.value
 #        )
-#        self.system_state_c = self.create_client(
-#            SetSystemState, Topics.SYSTEM_STATE.value
-#        )
-        #self.config_c = self.create_client(UpdateConfig, Topics.CONFIGURATION.value)
+#        self.save_active_preset_c = self.create_client(
+#           SaveActivePreset, Topics.SAVE_ACTIVE_PRESET.value
+#         )
+#        self.delete_preset_c = self.create_client(DeletePreset, Topics.DELETE_PRESET.value)
 
-        #self.get_presets_c = self.create_client(GetPresets, Topics.GET_PRESETS.value)# TODO THESE Don't EXIST ANYMORE
-        #self.set_active_preset_c = self.create_client(
-        #   SetActivePreset, Topics.SET_ACTIVE_PRESET.value
-        #)
-        #self.save_active_preset_c = self.create_client(
-        #   SaveActivePreset, Topics.SAVE_ACTIVE_PRESET.value
-        #)
-        #self.delete_preset_c = self.create_client(DeletePreset, Topics.DELETE_PRESET.value)
-
-        #Publishers
-        self.broadcast_p = self.create_publisher(Empty, Topics.BROADCAST.value, 20)
+        # Publishers todo when does create_publisher come frm?, node currently not publishing!
+#        self.broadcast_p = self.create_publisher(Empty, Topics.BROADCAST.value, 20)
 
         # Subscriptions
-        self.device_state_s = self.create_subscription(
-            DeviceState,
-            Topics.DEVICE_STATE.value,
-            self.deviceStateCallback,
+
+        # Topic List
+        self.broadcast = self.create_subscription(
+            SystemState,
+            Topics.BROADCAST.value, #todo does this transmit a value?
+            self.systemStateCallback,
             20,
         )
+
         self.system_state_s = self.create_subscription(
             SystemState,
             Topics.SYSTEM_STATE.value,
             self.systemStateCallback,
             20,
         )
-        self.position_s = self.create_subscription(
-            Position,
-            Topics.POSITION.value,
-            self.positionCallback,
+
+        self.device_state_s = self.create_subscription(
+            DeviceState,
+            Topics.DEVICE_STATE.value,
+            self.deviceStateCallback,
             20,
         )
-        self.motor_feedback_s = self.create_subscription(
-            MotorFeedback,
-            Topics.MOTOR_FEEDBACK.value,
-            self.motorFeedbackCallback,
-            20,
-        )
-        self.motor_input_s = self.create_subscription(
-            MotorInput,
-            Topics.MOTOR_INPUT.value,
-            self.motorInputCallback,
+        # IMU DATA
+        self.imu_s = self.create_subscription(
+            IMUData,
+            Topics.IMU.value,
+            self.imuDataCallback,
             20,
         )
         self.gps_s = self.create_subscription(
@@ -163,13 +173,55 @@ class BroadcastNode(Node):
             self.gpsFeedbackCallback,
             20,
         )
-        self.imu_s = self.create_subscription(
-            IMUData,
-            Topics.IMU.value,
-            self.imuDataCallback,
+        self.motor_input_s = self.create_subscription(
+            MotorInput,
+            Topics.MOTOR_INPUT.value,
+            self.motorInputCallback,
             20,
         )
+        self.position_s = self.create_subscription(
+            Position,
+            Topics.POSITION.value,
+            self.positionCallback,
+            20,
+        )
+        self.controller_input = self.create_subscription(
+            controller_input,
+            Topics.CONTROLLER_INP,
+            self.controllerInputCallback,
+            20
+        )
 
+        self.motor_feedback_s = self.create_subscription(
+            MotorFeedback,
+            Topics.MOTOR_FEEDBACK.value,
+            self.motorFeedbackCallback,
+            20,
+        )
+        self.statistic = self.create_subscription(
+            statistic,
+            Topics.NUC_STATISTICS.value,
+            self.statisticCallback,
+            20
+        )
+        self.ultrasonics = self.create_subscription(
+            ultrasonics,
+            Topics.ULTRASONICS.value,
+            self.ultrasonicsCallback,
+            20
+        )
+        self.conbus = self.create_subscription(
+            conbus,
+            Topics.CONBUS.value,
+            self.conbusCallback,
+            20
+        )
+        self.saftey_lights = self.create_subscription(
+            saftey_lights,
+            Topics.SAFETY_LIGHTS.value,
+            self.safteyLightsCallback,
+            20
+        )
         # Camera subscriptions
         self.camera_left_s = self.create_subscription(
             CompressedImage,
@@ -219,7 +271,7 @@ class BroadcastNode(Node):
         app = web.Application()
         app.router.add_get(
             "/", self.handler  # WebSocket upgrade on root
-        )
+        )  # should this be index.html? or what should it expect possible //CHECKME 21/11/2024
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, self.host, self.port)
@@ -256,7 +308,7 @@ class BroadcastNode(Node):
         else:
             self.send_map[unique_id].append(message_json)
 
-    def push_old(self, message, unique_id=None):
+    def push_old(self, message, unique_id=None):  # CHECKME refactor to delete ltr
         if not self.send_map:
             return
         if unique_id is None:
@@ -266,7 +318,7 @@ class BroadcastNode(Node):
             self.send_map[unique_id].append(message)
 
     async def handler(self, request):
-        # Upgrade HTTP request to WebSocket
+        # Upgrade HTTP request to WebSocket, this casues the viewable 8080 to have some issues though..
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
@@ -285,7 +337,7 @@ class BroadcastNode(Node):
                 else:
                     await asyncio.sleep(0.01)
 
-        async def consumer():
+        async def consumer():  #original async msg handlers moved to function below
             async for msg in ws:
                 if msg.type == web.WSMsgType.TEXT:
                     obj = json.loads(msg.data)
@@ -304,7 +356,8 @@ class BroadcastNode(Node):
         return ws
 
     async def handle_ws_message(self, obj, uid):
-        # Mirror first-file consumer logic
+        # todo swtich to swtich/case instead of elseif?
+        # Todo What are all expected messages?
         if obj.get("op") == "broadcast":
             self.broadcast_p.publish(Empty())
         elif obj.get("op") == "get_nodes":
@@ -318,35 +371,51 @@ class BroadcastNode(Node):
                 "states": node_states,
                 "system": {
                     "state": self.system_state,
-                    #"mode": self.system_mode,
+                    # "mode": self.system_mode,
                     "mobility": self.mobility
                 }
             }), uid)
         elif obj.get("op") == "set_system_state":
             self.set_system_total_state(int(obj["state"]), int(obj["mode"]), bool(obj["mobility"]))
-        # TODO: add configuration, conbus, preset ops if needed
+        # TODO: add configuration, conbus, preset ops from prev commits
 
-    # ROS callbacks
+# Topic List todo, how tf do I not have seperate statements for everythn
     def systemStateCallback(self, msg: SystemState):
         self.push(Topics.SYSTEM_STATE.value, msg)
 
     def deviceStateCallback(self, msg: DeviceState):
         self.push(Topics.DEVICE_STATE.value, msg)
 
-    def positionCallback(self, msg: Position):
-        self.push(Topics.POSITION.value, msg)
-
-    def motorInputCallback(self, msg: MotorInput):
-        self.push(Topics.MOTOR_INPUT.value, msg)
-
-    def motorFeedbackCallback(self, msg: MotorFeedback):
-        self.push(Topics.MOTOR_FEEDBACK.value, msg)
+#IMU Data
+    def gpsFeedbackCallback(self, msg: GPSFeedback):
+        self.push(Topics.AUTONAV_GPS.value, msg)
 
     def imuDataCallback(self, msg: IMUData):
         self.push(Topics.IMU.value, msg)
 
-    def gpsFeedbackCallback(self, msg: GPSFeedback):
-        self.push(Topics.AUTONAV_GPS.value, msg)
+    def motorInputCallback(self, msg: MotorInput):
+        self.push(Topics.MOTOR_INPUT.value, msg)
+
+    def positionCallback(self, msg: Position):
+        self.push(Topics.POSITION.value, msg)
+
+    def controllerInputCallback(self,msg):
+        self.push(Topics.CONTROLLER_INP.value, msg)
+
+    def motorFeedbackCallback(self, msg: MotorFeedback):
+        self.push(Topics.MOTOR_FEEDBACK.value, msg)
+
+    def statisticCallback(self,msg):
+        self.push(Topics.NUC_STATISTICS.value, msg)
+
+    def ultrasonicsCallback(self,msg):
+        self.push(Topics.ULTRASONICS.value, msg)
+
+    def conbusCallback(self,msg):
+        self.push(Topics.CONBUS.value, msg)
+
+    def safteyLightsCallback(self,msg):
+        self.push(Topics.SAFETY_LIGHTS.value, msg)
 
     # Cameras
     def cameraCallback(self, msg: CompressedImage, key: str):
@@ -361,6 +430,7 @@ def main():
     rclpy.init()
     node = BroadcastNode()
     Node.run_node(node)
+
 
 if __name__ == "__main__":
     main()
