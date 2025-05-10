@@ -25,7 +25,7 @@ class AppBackend(Node):
         self.set_device_state(DeviceState.OPERATING)
 
         # Setup ROS subscriber
-        self.create_subscription(CompressedImage, "/autonav/camera/compressed", self.camera_compressed_callback, 10)
+        self.create_subscription(CompressedImage, "/autonav/camera/compressed/front", self.camera_compressed_callback, 10)
         self.create_subscription(CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10)
         self.create_subscription(CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10)
 
@@ -90,7 +90,8 @@ class AppBackend(Node):
 
     def position_callback(self, msg: Position):
         if self.app.position_label:
-            self.update_label(self.app.position_label, f"Position: {msg.x}, {msg.y}, {msg.theta}")
+            ang = ((msg.theta * -1) * (180 / math.pi) + 360) % 360
+            self.update_label(self.app.position_label, f"Position: {msg.x}, {msg.y}, {ang}")
 
     def on_mobility_updated(self, old, new):
         if self.app.device_state_label:

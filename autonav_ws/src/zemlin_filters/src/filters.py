@@ -84,7 +84,7 @@ class FiltersNode(Node):
 
         filterType = self.config.filter_type
         # if filterType == FilterType.PARTICLE_FILTER:
-            # self.pf.gps(msg)
+        # self.pf.gps(msg)
         # elif filterType == FilterType.DEAD_RECKONING:
         self.reckoning.gps(msg)
 
@@ -92,7 +92,7 @@ class FiltersNode(Node):
         filterType = self.config.filter_type
         averages = None
         # if filterType == FilterType.PARTICLE_FILTER:
-            # averages = self.pf.feedback(msg)
+        # averages = self.pf.feedback(msg)
         # if filterType == FilterType.DEAD_RECKONING:
         averages = self.reckoning.feedback(msg)
             
@@ -103,6 +103,9 @@ class FiltersNode(Node):
         position.x = averages[0]
         position.y = averages[1]
         position.theta = (-1 * math.pi * 2 + averages[2]) * 1
+
+        # add 180 degrees to the heading (needed for simulator idk why)
+        # position.theta = (position.theta + math.pi) % (2 * math.pi)
         
         if self.firstGps is not None:
             gps_x = self.firstGps.latitude + position.x / self.config.latitude_length

@@ -34,8 +34,8 @@ public:
         config.vertical_fov = 2.75;
         config.horizontal_fov = 3;
         config.map_res = 80;
-        config.max_range = 0.45;
-        config.no_go_percent = 0.5;
+        config.max_range = 0.3;
+        config.no_go_percent = 0.4;
         this->_config = config;
 
         // If you care about type safety, do this

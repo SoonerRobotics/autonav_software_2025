@@ -25,13 +25,14 @@ simulation_waypoints = [
     # [(35.19510000, -97.43895000), (35.19491000, -97.43896000), (35.1948357, -97.43896), (35.19467540, -97.43895)],  # NORTH
     # [(35.19467540, -97.43895), (35.1948357, -97.43896), (35.19491000, -97.43896000), (35.19510000, -97.43895000)],  # SOUTH
     # [(35.194725, -97.43858), (35.1947823, -97.4387), (35.1948547, -97.43876), (35.1949272, -97.43867), (35.1950035, -97.43881)], # PRACTICE
-    [(35.19506, -97.43824), (35.19491, -97.43824), (35.19484, -97.43824), (35.19472, -97.43823)] 
+    # [(35.19506, -97.43824), (35.19491, -97.43824), (35.19484, -97.43824), (35.19472, -97.43823)],
+    [(35.19469, -97.43824), (35.19484, -97.43824), (35.19491, -97.43823), (35.19506, -97.43823)]
 ]
 
 
 class AStarConfig:
     def __init__(self):
-        self.waypoint_pop_distance = 1.1
+        self.waypoint_pop_distance = 1.2
         self.waypoint_direction = 0
         self.use_only_waypoints = False
         self.waypoint_delay = 20.5
@@ -100,7 +101,9 @@ class AStarNode(Node):
         if self.position is None or self.costMap is None:
             return
         
-        robot_pos = (40, 78)
+        self.perf_start("create_path")
+
+        robot_pos = (40, 68)
         path = self.find_path_to_point(robot_pos, self.bestPosition, self.costMap, 80, 80)
         if path is not None:
             global_path = Path()
@@ -123,6 +126,8 @@ class AStarNode(Node):
             
             cvimg = cv2.resize(cvimg, (800, 800), interpolation=cv2.INTER_NEAREST)
             self.pathDebugImagePublisher.publish(CV_BRIDGE.cv2_to_compressed_imgmsg(cvimg))
+
+        self.perf_stop("create_path")
             
     def reconstruct(self, path, current):
         total_path = [current]
@@ -188,18 +193,18 @@ class AStarNode(Node):
                         open_set.append(neighbor)
                         heappush(next_current, (fScore[neighbor], neighbor))
                     
-    def cfg_space_received(self, msg: OccupancyGrid):
-        self.log("Received config space")
-        
+    def cfg_space_received(self, msg: OccupancyGrid):        
         if self.position is None or self.system_state != SystemState.AUTONOMOUS:
             return
+        
+        self.perf_start("astar_pathfinding")
 
         grid_data = msg.data
-        temp_best_pos = (40, 78)
+        temp_best_pos = (40, 68)
         best_pos_cost = -1000
 
         frontier = set()
-        frontier.add((40, 78))
+        frontier.add((40, 68))
         explored = set()
 
         if self.config.use_only_waypoints:
@@ -274,6 +279,8 @@ class AStarNode(Node):
 
         self.costMap = grid_data
         self.bestPosition = temp_best_pos
+
+        self.perf_stop("astar_pathfinding")
         
     def pathToGlobalPose(self, pp0, pp1):
         x = (80 - pp1) * VERTICAL_CAMERA_DIST / 80

@@ -33,7 +33,7 @@ class TransformationsConfig:
         self.upper_hue = 255
         self.upper_saturation = 95
         self.upper_value = 210
-        self.flatten_param = 0.35
+        self.flatten_param = 0.28
         self.blur = 5
         self.blur_iterations = 3
         self.region_of_disinterest_offset = 45
@@ -58,7 +58,7 @@ class ImageTransformer(Node):
         self.config.flatten_param = config["flatten_param"]
 
     def init(self):
-        self.camera_sub = self.create_subscription(CompressedImage, "/autonav/camera/compressed", self.on_image_received, 1)
+        self.camera_sub = self.create_subscription(CompressedImage, "/autonav/camera/compressed/front", self.on_image_received, 1)
         self.raw_map_pub = self.create_publisher(OccupancyGrid, "/autonav/cfg_space/raw", 1)
         self.filtered_pub = self.create_publisher(CompressedImage, "/autonav/cfg_space/raw/image", 1)
 
@@ -135,8 +135,8 @@ class ImageTransformer(Node):
         square_vertices = [
             (0, 480),
             (640, 480),
-            (640, 300), 
-            (0, 300)
+            (640, 350), 
+            (0, 350)
         ]
         mask = self.region_of_interest(mask, np.array([square_vertices], np.int32))
         mask[mask < 250] = 0
