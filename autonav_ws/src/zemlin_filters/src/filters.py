@@ -30,7 +30,6 @@ class FiltersNode(Node):
 
         self.lastIMUReceived = None
         self.firstGps = None
-        self.lastGps = None
 
         self.pf = ParticleFilter(self.config.latitude_length, self.config.longitude_length)
         self.reckoning = DeadReckoningFilter()
@@ -80,21 +79,16 @@ class FiltersNode(Node):
         if self.firstGps is None:
             self.firstGps = msg
 
-        self.lastGps = msg
-
         filterType = self.config.filter_type
-        # if filterType == FilterType.PARTICLE_FILTER:
-        # self.pf.gps(msg)
-        # elif filterType == FilterType.DEAD_RECKONING:
+        self.pf.gps(msg)
         self.reckoning.gps(msg)
 
     def onMotorFeedbackReceived(self, msg: MotorFeedback):
-        filterType = self.config.filter_type
         averages = None
-        # if filterType == FilterType.PARTICLE_FILTER:
-        # averages = self.pf.feedback(msg)
-        # if filterType == FilterType.DEAD_RECKONING:
+        # if self.get_parameter_or("simulation", "false") == "true":
         averages = self.reckoning.feedback(msg)
+        # else:    
+        # averages = self.pf.feedback(msg)
             
         if averages is None:
             return
@@ -102,23 +96,17 @@ class FiltersNode(Node):
         position = Position()
         position.x = averages[0]
         position.y = averages[1]
-        position.theta = (-1 * math.pi * 2 + averages[2]) * 1
+        position.theta = averages[2]
 
         # add 180 degrees to the heading (needed for simulator idk why)
-        # position.theta = (position.theta + math.pi) % (2 * math.pi)
+        # if self.get_parameter_or("simulation", "false") == "true":
+        position.theta = (position.theta + math.pi) % (2 * math.pi)
         
         if self.firstGps is not None:
             gps_x = self.firstGps.latitude + position.x / self.config.latitude_length
             gps_y = self.firstGps.longitude - position.y / self.config.longitude_length
             position.latitude = gps_x
             position.longitude = gps_y
-
-        # if self.getSystemState().mode == SystemMode.SIMULATION and self.lastGps is not None:
-        if self.lastGps is not None:
-            # position.latitude = self.lastGps.latitude + position.x / self.latitudeLength
-            # position.longitude = self.lastGps.longitude - position.y / self.longitudeLength
-            position.latitude = self.lastGps.latitude
-            position.longitude = self.lastGps.longitude
         
         self.positionPublisher.publish(position)
 
