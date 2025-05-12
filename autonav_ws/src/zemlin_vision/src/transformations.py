@@ -33,7 +33,7 @@ class TransformationsConfig:
         self.upper_hue = 255
         self.upper_saturation = 95
         self.upper_value = 210
-        self.flatten_param = 0.28
+        self.flatten_param = 0.3
         self.blur = 5
         self.blur_iterations = 3
         self.region_of_disinterest_offset = 45
@@ -82,7 +82,7 @@ class ImageTransformer(Node):
         bottom_right = (int)(img.shape[1]), 0
 
         src_pts = np.float32([[top_left], [top_right], [bottom_left], [bottom_right]])
-        dest_pts = np.float32([[0, 480], [640, 480], [0, 0], [640, 0]])
+        dest_pts = np.float32([[0, 400], [640, 400], [200, 0], [440, 0]])
 
         matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
         output = cv2.warpPerspective(img, matrix, (640, 480))
@@ -120,8 +120,8 @@ class ImageTransformer(Node):
         mask = 255 - mask
 
         # Apply region of disinterest and flattening
-        # height = img.shape[0]
-        # width = img.shape[1]
+        height = img.shape[0]
+        width = img.shape[1]
         # region_of_disinterest_vertices=[
         #     (0, height),
         #     (width / 2, height / 2 + self.config.region_of_disinterest_offset),
@@ -129,17 +129,15 @@ class ImageTransformer(Node):
         # ]
         # mask = self.region_of_interest(mask, np.array([region_of_disinterest_vertices], np.int32))
         # mask[mask < 250] = 0
-
-        # Cut off the a square from the bottom of the image, roughly 200px by 200px
-        # we cut it off by setting the pixels to 0
-        square_vertices = [
-            (0, 480),
-            (640, 480),
-            (640, 350), 
-            (0, 350)
+        
+        # Cut off a 50 by 50 px square from the bottom center
+        vertices = [
+            (0, height),
+            (width / 2 - 50, height / 2 + self.config.region_of_disinterest_offset),
+            (width / 2 + 50, height / 2 + self.config.region_of_disinterest_offset),
+            (width, height)
         ]
-        mask = self.region_of_interest(mask, np.array([square_vertices], np.int32))
-        mask[mask < 250] = 0
+        mask = self.region_of_interest(mask, np.array([vertices], np.int32))
 
         mask = self.flatten(mask)
 
