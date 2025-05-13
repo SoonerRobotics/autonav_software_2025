@@ -28,7 +28,7 @@ class ControllerInputNode(Node):
     def init(self):
         self.set_device_state(DeviceState.WARMING)
 
-        self.timer_period_s = 0.1
+        self.timer_period_s = 0.05
         self.publisher = self.create_publisher(ControllerInput, '/autonav/controller_input', 10)
         
         self.controller = self.get_controller()

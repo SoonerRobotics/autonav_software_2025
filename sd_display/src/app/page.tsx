@@ -301,7 +301,7 @@ export default function Home() {
                         <h2 className="text-center text-xl font-bold">Position:</h2>
                         <div className="overflow-auto h-full flex flex-col items-center justify-center">
                             <div className="text-lg">
-                                ({decimals(display.position.x, 5)}, {decimals(display.position.y, 5)}, {decimals(display.position.theta, 5)} deg)
+                                ({decimals(display.position.x, 5)}, {decimals(display.position.y, 5)}, {decimals(display.position.theta % 360, 5)} deg)
                             </div>
                         </div>
                     </div>

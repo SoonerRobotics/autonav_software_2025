@@ -44,17 +44,17 @@ class SparkMAXNode(Node):
 
         # Periodic heartbeat to keep motors enabled
         self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat)
-        self.feedback_timer = self.create_timer(0.1, self.send_motor_feedbacK)
+        self.feedback_timer = self.create_timer(0.05, self.send_motor_feedbacK)
 
         self.motors = [
-            CanSparkMax(1, self.can), # drive
-            CanSparkMax(2, self.can), # angle
-            CanSparkMax(3, self.can), # angle
-            CanSparkMax(4, self.can), # drive
-            CanSparkMax(5, self.can), # drive
-            CanSparkMax(6, self.can), # angle
-            CanSparkMax(7, self.can), # angle
-            CanSparkMax(8, self.can), # drive
+            CanSparkMax(1, self.can, self), # drive
+            CanSparkMax(2, self.can, self), # angle
+            CanSparkMax(3, self.can, self), # angle
+            CanSparkMax(4, self.can, self), # drive
+            CanSparkMax(5, self.can, self), # drive
+            CanSparkMax(6, self.can, self), # angle
+            CanSparkMax(7, self.can, self), # angle
+            CanSparkMax(8, self.can, self), # drive
         ]
 
         self.modules = (
@@ -66,7 +66,7 @@ class SparkMAXNode(Node):
         )
 
         # to the uninitiated: this is not a pointer. this is python argument unpacking
-        self.swerve = SUSwerveDrive(*self.modules)
+        self.swerve_drive = SUSwerveDrive(*self.modules)
 
         self.set_device_state(DeviceState.READY)
     
@@ -94,7 +94,6 @@ class SparkMAXNode(Node):
         feedback.position_bl = self.motors[5].getAbsolutePosition() #3
         feedback.position_br = self.motors[6].getAbsolutePosition() #2
 
-        # Publish the feedbacks
         self.absoluteEncoderPublisher.publish(feedback)
 
     def on_motor_input_received(self, msg: MotorInput):
@@ -102,30 +101,19 @@ class SparkMAXNode(Node):
             self.set_device_state(DeviceState.OPERATING)
 
         # tony gives us forwrd and angular in the wrong direction :(
-        swerve_feedback = self.swerve.updateState(SUSwerveDriveState(
+        swerve_feedback = self.swerve_drive.updateState(SUSwerveDriveState(
             -msg.forward_velocity,
             msg.sideways_velocity,
             -msg.angular_velocity
-        ), 0.02, on_motor_setpoint_callback=self.on_motor_setpoint_callback)
+        ), 0.1)
 
         # publish feedback
         feedback_msg = MotorFeedback()
-        feedback_msg.delta_x = swerve_feedback.x_vel / 10
-        feedback_msg.delta_y = swerve_feedback.y_vel / 10
-        feedback_msg.delta_theta = swerve_feedback.angular_vel / 10
+        feedback_msg.delta_x = swerve_feedback.delta_x
+        feedback_msg.delta_y = swerve_feedback.delta_y
+        feedback_msg.delta_theta = swerve_feedback.delta_theta
         self.motorFeedbackPublisher.publish(feedback_msg)
-
-    def on_motor_setpoint_callback(self, module, desired_x_vel, desired_y_vel, desired_angular_vel, measured_x_vel, measured_y_vel, measured_angular_vel):
-        feedback_msg = SwerveFeedback()
-        feedback_msg.module = module
-        feedback_msg.desired_x_vel = desired_x_vel
-        feedback_msg.desired_y_vel = desired_y_vel
-        feedback_msg.desired_angular_vel = desired_angular_vel
-        feedback_msg.measured_x_vel = measured_x_vel
-        feedback_msg.measured_y_vel = measured_y_vel
-        feedback_msg.measured_angular_vel = measured_angular_vel
-        self.swerveFeedbackPublisher.publish(feedback_msg)
-
+    
     def reconnect_can(self):
         try:
             # self.log("Attempting to reconnect SparkMAX CAN bus...", LogLevel.INFO)

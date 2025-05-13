@@ -37,11 +37,32 @@ class SUSwerveDriveModule:
         self.angle_motor_ = angle_motor
         
         self.last_set_angle_ = 0.0 # radians
+        self.drive_motor_last_position = 0.0
+        self.current_angle_motor_position = 0.0
+        self.last_drive_motor_delta = 0.0
+
+    def getDriveDelta(self) -> float:
+        if self.drive_motor_last_position == 0.0:
+            self.drive_motor_last_position = self.drive_motor_.getDrivePosition() / self.config.drive_motor_conversion_factor_ 
+            return 0.0
+        
+        # get the current position of the drive motor
+        current_drive_motor_position = self.drive_motor_.getDrivePosition() / self.config.drive_motor_conversion_factor_ 
+
+        # calculate the delta
+        self.last_drive_motor_delta = (current_drive_motor_position - self.drive_motor_last_position) # meters
+        self.drive_motor_last_position = current_drive_motor_position
+        return self.last_drive_motor_delta
+        
+    def getAngle(self) -> float:
+        return self.current_angle_motor_position
+
+    def getState(self) -> float:
+        return self.getDriveDelta(), self.getAngle()
 
     # Update the state of the module
     # state: The desired state of the robot
-    # returns: The measured state of the module
-    def updateState(self, desired_state: SUSwerveDriveModuleState, period: float) -> SUSwerveDriveModuleState:
+    def updateState(self, desired_state: SUSwerveDriveModuleState, period: float) -> None:
         # Compute desired heading as angle of desired_vel (x forward, y left)
         # Compute desired speed as magnitude of desired_vel
         desired_drive_speed = sqrt(desired_state.x_vel * desired_state.x_vel + desired_state.y_vel * desired_state.y_vel)
@@ -73,29 +94,6 @@ class SUSwerveDriveModule:
         # use the onboard PIDF controllers of the sparkMAXes to do everything for us
         # self.drive_motor_.setVelocity(desired_drive_speed * self.config.drive_motor_conversion_factor_ * 60 * (-1 if self.config.is_drive_motor_reversed else 1)) # * 60 because drive_motor_ expects RPM but desired_speed is in m/s
         self.drive_motor_.setVelocity(desired_drive_speed * 42 * (-1 if self.config.is_drive_motor_reversed else 1))
-
-        # Update encoders and calculate measured state
-        # self.drive_encoder_.update(period)
-        # self.angle_encoder_.update(period)
-
-        measured_drive_angle = self.angle_motor_.getAbsolutePosition() # the absolute position straight from the sparkmax
-
-        # remap drive angle from 0 to 1 to radians
-        measured_drive_angle = measured_drive_angle * 2 * pi # radians
-
-        # remap
-        measured_drive_angle = -measured_drive_angle
-
-        measured_rpm = self.drive_motor_.getRevolutionsPerMinute() # the RPM straight from the sparkmax
-        # calculate meters per second using the config and measured_rpm
-        # should be: speed (m/s) = RPM * ((pi * diameter) / 60)
-        measured_speed_mps = (measured_rpm / 60) * ((2 * pi * self.config.wheel_radius) / self.config.driveMotorGearRatio) # m/s
-
-        # measured_drive_speed = self.drive_encoder_.getVelocity() * self.config.drive_motor_conversion_factor_
-        # measured_angle = self.angle_encoder_.getAngle() * self.config.angle_motor_conversion_factor_
-
-        measured_state = SUSwerveDriveModuleState(measured_speed_mps * cos(measured_drive_angle), measured_speed_mps * sin(measured_drive_angle))
-        return measured_state
 
     def applyConversionFactor(self, drive_motor_reduction: float, angle_motor_reduction: float, wheel_radius: float) -> None:
         # TODO: This is probably not the correct way to calculate the conversion factor
