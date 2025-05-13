@@ -209,7 +209,7 @@ class ControllerInputNode(Node):
 
         time.sleep(self.timer_period_s)
 
-        self.get_logger().info("attempting to reconnect...")
+        # self.get_logger().info("attempting to reconnect...")
         self.controller = None
         self.controller = self.get_controller()
 

@@ -32,8 +32,8 @@ class SUSwerveDrive:
         # 0 1  X1
         # ...
         mod_pos_mat = [
-            [1, 0, self.config.front_left.y_pos],
-            [0, 1, -self.config.front_left.x_pos],
+            [1, 0, -self.config.front_left.y_pos],
+            [0, 1, self.config.front_left.x_pos],
 
             [1, 0, -self.config.front_right.y_pos],
             [0, 1, self.config.front_right.x_pos],
@@ -41,8 +41,8 @@ class SUSwerveDrive:
             [1, 0, -self.config.back_left.y_pos],
             [0, 1, self.config.back_left.x_pos],
 
-            [1, 0, self.config.back_right.y_pos],
-            [0, 1, -self.config.back_right.x_pos],
+            [1, 0, -self.config.back_right.y_pos],
+            [0, 1, self.config.back_right.x_pos],
         ]
         self.module_positions_matrix_ = np.array(mod_pos_mat, np.double)
 

@@ -100,13 +100,13 @@ class FiltersNode(Node):
 
         # add 180 degrees to the heading (needed for simulator idk why)
         # if self.get_parameter_or("simulation", "false") == "true":
-        position.theta = (position.theta + math.pi) % (2 * math.pi)
+        # position.theta = (position.theta + math.pi) % (2 * math.pi)
         
-        if self.firstGps is not None:
-            gps_x = self.firstGps.latitude + position.x / self.config.latitude_length
-            gps_y = self.firstGps.longitude - position.y / self.config.longitude_length
-            position.latitude = gps_x
-            position.longitude = gps_y
+        # if self.firstGps is not None:
+        #     gps_x = self.firstGps.latitude + position.x / self.config.latitude_length
+        #     gps_y = self.firstGps.longitude - position.y / self.config.longitude_length
+        #     position.latitude = gps_x
+        #     position.longitude = gps_y
         
         self.positionPublisher.publish(position)
 

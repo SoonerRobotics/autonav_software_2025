@@ -6,6 +6,7 @@ from autonav_msgs.msg import MotorInput, SwerveFeedback, ZeroEncoders, MotorFeed
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 
 import can
+import threading
 from swerve.swerve_drive import SUSwerveDrive, SUSwerveDriveState
 from swerve.swerve_module import SUSwerveDriveModule
 from swerve.can_spark_max import CanSparkMax
@@ -29,6 +30,9 @@ class SparkMAXNode(Node):
 
         # make the CAN object
         self.can = can.ThreadSafeBus(bustype="slcan", channel="/dev/ttyACM0", bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
+        self.canReadThread = threading.Thread(target=self.can_reader)
+        self.canReadThread.daemon = True
+        self.canReadThread.start()
 
         # ROS motor message callback
         self.motorInputSubscriber = self.create_subscription(MotorInput, "/autonav/motor_input", self.on_motor_input_received, 20)
@@ -72,12 +76,23 @@ class SparkMAXNode(Node):
         for idx, motor in enumerate(self.motors):
             motor.sendHeartbeat()
 
+    def can_reader(self):
+        while True:
+            try:
+                msg = self.can.recv()
+                if msg is not None:
+                    for motor in self.motors:
+                        motor.canCallback(msg)
+            except can.CanError as e:
+                self.log(f"CAN error: {e}", LogLevel.ERROR)
+                self.set_device_state(DeviceState.ERROR)
+
     def send_motor_feedbacK(self):
         feedback = SwerveAbsoluteFeedback()
-        feedback.position_fl = self.motors[6].getAbsolutePosition() #7
-        feedback.position_fr = self.motors[5].getAbsolutePosition() #6
-        feedback.position_bl = self.motors[2].getAbsolutePosition() #3
-        feedback.position_br = self.motors[1].getAbsolutePosition() #2
+        feedback.position_fl = self.motors[1].getAbsolutePosition() #7
+        feedback.position_fr = self.motors[2].getAbsolutePosition() #6
+        feedback.position_bl = self.motors[5].getAbsolutePosition() #3
+        feedback.position_br = self.motors[6].getAbsolutePosition() #2
 
         # Publish the feedbacks
         self.absoluteEncoderPublisher.publish(feedback)
@@ -86,10 +101,11 @@ class SparkMAXNode(Node):
         if self.get_device_state() != DeviceState.OPERATING:
             self.set_device_state(DeviceState.OPERATING)
 
+        # tony gives us forwrd and angular in the wrong direction :(
         swerve_feedback = self.swerve.updateState(SUSwerveDriveState(
-            msg.sideways_velocity,
             -msg.forward_velocity,
-            msg.angular_velocity
+            msg.sideways_velocity,
+            -msg.angular_velocity
         ), 0.02, on_motor_setpoint_callback=self.on_motor_setpoint_callback)
 
         # publish feedback
@@ -112,7 +128,7 @@ class SparkMAXNode(Node):
 
     def reconnect_can(self):
         try:
-            self.log("Attempting to reconnect SparkMAX CAN bus...", LogLevel.INFO)
+            # self.log("Attempting to reconnect SparkMAX CAN bus...", LogLevel.INFO)
             self.can = can.ThreadSafeBus(bustype="slcan", channel=self.config.canable_filepath, bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
             self.reconnect_timer.destroy() # can is connected, don't need to keep trying
             self.set_device_state(DeviceState.READY)

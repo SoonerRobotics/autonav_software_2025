@@ -13,7 +13,7 @@ export function SwerveModule(props: {
                 <div className="w-24 h-24 rounded-full border-4 border-gray-300 flex items-center justify-center relative">
                     <motion.div
                         className="w-1 h-10 bg-blue-500 absolut"
-                        animate={{ rotate: normalizedAngle }}
+                        animate={{ rotate: -normalizedAngle }}
                         transition={{ duration: 0.05 }}
                     />
                 </div>

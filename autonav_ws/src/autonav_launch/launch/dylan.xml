@@ -25,9 +25,9 @@
   <!-- <node pkg="example_cpp" exec="example_cpp" output="screen" emulate_tty="true"/> -->
 
   <!-- zemlin code :) -->
-  <node pkg="zemlin_vision" exec="expandify" output="screen" emulate_tty="true"/>
-  <node pkg="zemlin_vision" exec="transformations.py" output="screen" emulate_tty="true"/>
+  <!-- <node pkg="zemlin_vision" exec="expandify" output="screen" emulate_tty="true"/> -->
+  <!-- <node pkg="zemlin_vision" exec="transformations.py" output="screen" emulate_tty="true"/> -->
   <node pkg="zemlin_filters" exec="filters.py" output="screen" emulate_tty="true"/>
-  <node pkg="zemlin_navigation" exec="astar.py" output="screen" emulate_tty="true"/>
-  <node pkg="zemlin_navigation" exec="path_resolver.py" output="screen" emulate_tty="true"/>
+  <!-- <node pkg="zemlin_navigation" exec="astar.py" output="screen" emulate_tty="true"/> -->
+  <!-- <node pkg="zemlin_navigation" exec="path_resolver.py" output="screen" emulate_tty="true"/> -->
 </launch>

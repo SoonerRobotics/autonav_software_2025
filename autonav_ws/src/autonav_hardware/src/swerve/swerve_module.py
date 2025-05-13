@@ -45,7 +45,7 @@ class SUSwerveDriveModule:
         # Compute desired heading as angle of desired_vel (x forward, y left)
         # Compute desired speed as magnitude of desired_vel
         desired_drive_speed = sqrt(desired_state.x_vel * desired_state.x_vel + desired_state.y_vel * desired_state.y_vel)
-        desired_angle = atan2(desired_state.x_vel, desired_state.y_vel)
+        desired_angle = atan2(desired_state.y_vel, desired_state.x_vel)
 
         # never turn more than 90 degrees
         angle_error = desired_angle - self.last_set_angle_
@@ -80,11 +80,11 @@ class SUSwerveDriveModule:
 
         measured_drive_angle = self.angle_motor_.getAbsolutePosition() # the absolute position straight from the sparkmax
 
-        # remap drive angle from 0 to 1 to radians (i.e. 0 is 0 degrees, 1 is 360 degrees)
-        measured_drive_angle = (measured_drive_angle * 2 * pi)
+        # remap drive angle from 0 to 1 to radians
+        measured_drive_angle = measured_drive_angle * 2 * pi # radians
 
         # remap
-        # measured_drive_angle = -measured_drive_angle
+        measured_drive_angle = -measured_drive_angle
 
         measured_rpm = self.drive_motor_.getRevolutionsPerMinute() # the RPM straight from the sparkmax
         # calculate meters per second using the config and measured_rpm

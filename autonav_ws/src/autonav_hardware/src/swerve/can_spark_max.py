@@ -11,12 +11,6 @@ class CanSparkMax:
         self.revolutions_per_minute_ = 0.0
         self.reversed_ = reversed
 
-        # register CAN callback
-        # self.notifier = Notifier(self.can, [self.canCallback])
-
-        # register CAN callback with a smaller timeout to avoid long wait periods between some messages
-        self.notifier = Notifier(self.can, [self.canCallback], timeout=0)
-
     def set(self, value: float) -> None:
         self.value_ = value
 
@@ -34,9 +28,11 @@ class CanSparkMax:
     
     def setPosition(self, value: float) -> None:
         self.can.send(REVMessage(POSITION_API_CLASS, POSITION_API_INDEX, self.id, floatToData(value)))
+        pass
     
     def setVelocity(self, value: float) -> None:
         self.can.send(REVMessage(VELOCITY_API_CLASS, VELOCITY_API_INDEX, self.id, floatToData(value)))
+        pass
 
     def getAbsolutePosition(self) -> float:
         return self.absolute_position_
@@ -54,7 +50,6 @@ class CanSparkMax:
     
     def canCallback(self, msg: Message) -> None:
         breakdown = REVMessageBreakdown(msg.arbitration_id)
-
 
         # First check if we are receiving feedback for a device that is not ours
         if breakdown.device_number != self.id:
