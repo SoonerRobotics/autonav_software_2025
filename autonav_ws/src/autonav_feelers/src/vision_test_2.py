@@ -26,8 +26,8 @@ while True:
     #TODO this was also copypastaed from combination.py
     x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
 
-    # y_shrink = 150
-    # x_shrink = 150
+    y_shrink = 150
+    x_shrink = 150
 
     image_front = combined_image[0 : IMAGE_HEIGHT, x_offset : x_offset+IMAGE_WIDTH]
     image_left = combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 : IMAGE_HEIGHT]
@@ -56,15 +56,15 @@ while True:
         (IMAGE_WIDTH, IMAGE_HEIGHT)
     ])
 
-    bigImage = cv2.Mat()
+    # bigImage = cv2.Mat()
 
     # matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
     matrix = cv2.getPerspectiveTransform(src_pts, dest_pts)
     image_front_flattened = cv2.warpPerspective(image_front, matrix, (640+400, 480+400))
     image_front_flattened = cv2.resize(image_front_flattened, (640, 480))
-    # image_left_flattened = cv2.warpPerspective(image_left, matrix, (640, 480))
-    # image_right_flattened = cv2.warpPerspective(image_right, matrix, (640, 480))
-    # image_back_flattened = cv2.warpPerspective(image_back, matrix, (640, 480))
+    image_left_flattened = cv2.warpPerspective(image_left, matrix, (640, 480))
+    image_right_flattened = cv2.warpPerspective(image_right, matrix, (640, 480))
+    image_back_flattened = cv2.warpPerspective(image_back, matrix, (640, 480))
 
     # print(image_front_flattened.shape)
     if not written:
@@ -72,28 +72,28 @@ while True:
         cv2.imwrite("./data/flattened_front.png", image_front_flattened)
         written = True
 
-    # image_left_flattened = cv2.rotate(image_left_flattened, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    # image_right_flattened = cv2.rotate(image_right_flattened, cv2.ROTATE_90_CLOCKWISE)
-    # image_back_flattened = cv2.rotate(image_back_flattened, cv2.ROTATE_180)
+    image_left_flattened = cv2.rotate(image_left_flattened, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    image_right_flattened = cv2.rotate(image_right_flattened, cv2.ROTATE_90_CLOCKWISE)
+    image_back_flattened = cv2.rotate(image_back_flattened, cv2.ROTATE_180)
 
-    # combined_image.fill(0)
+    combined_image.fill(0)
 
-    # combined_image[0 + y_shrink : IMAGE_HEIGHT + y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_front_flattened
-    # combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 + x_shrink : IMAGE_HEIGHT + x_shrink] = image_left_flattened
-    # combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT - x_shrink : -x_shrink] = image_right_flattened
-    # combined_image[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - y_shrink : -y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_back_flattened
+    combined_image[0 + y_shrink : IMAGE_HEIGHT + y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_front_flattened
+    combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 + x_shrink : IMAGE_HEIGHT + x_shrink] = image_left_flattened
+    combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT - x_shrink : -x_shrink] = image_right_flattened
+    combined_image[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - y_shrink : -y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_back_flattened
 
-    # shrunk_image = cv2.resize(combined_image, (COMBINED_IMAGE_WIDTH//2, COMBINED_IMAGE_HEIGHT//2))
-    # shrunk_image = combined_image
+    shrunk_image = cv2.resize(combined_image, (COMBINED_IMAGE_WIDTH//2, COMBINED_IMAGE_HEIGHT//2))
+    shrunk_image = combined_image
     
-    # cv2.imshow("flattened big", combined_image)
+    cv2.imshow("flattened big", combined_image)
     # cv2.imshow("combined flattened", shrunk_image)
-    # cv2.imshow("flattened", image_front_flattened)
-    # cv2.imshow("regular", image_front)
-    # keycode = cv2.waitKey()
+    cv2.imshow("flattened", image_front_flattened)
+    cv2.imshow("regular", image_front)
+    keycode = cv2.waitKey()
 
-    # if keycode == ord("q"):
-        # break
+    if keycode == ord("q"):
+        break
     break
 
 

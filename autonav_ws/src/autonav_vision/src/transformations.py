@@ -58,6 +58,44 @@ class ImageTransformer(Node):
         super().__init__("autonav_vision_transformer")
         self.config = ImageTransformerConfig()
         self.dir = dir
+    
+    def apply_config(self):
+        self.config.lower_hue = 0
+        self.config.lower_sat = 0
+        self.config.lower_val = 0
+        self.config.upper_hue = 255
+        self.config.upper_sat = 95
+        self.config.upper_val = 210
+
+        # Blur
+        self.config.blur_weight = 5
+        self.config.blur_iterations = 3
+        self.config.map_res = 80
+
+        # Perspective transform
+        self.config.left_topleft = [80, 220]
+        self.config.left_topright = [400, 220]
+        self.config.left_bottomright = [480, 640]
+        self.config.left_bottomleft = [0, 640]
+        self.config.right_topleft = [80, 220]
+        self.config.right_topright = [400, 220]
+        self.config.right_bottomright = [480, 640]
+        self.config.right_bottomleft = [0, 640]
+
+        # Region of disinterest
+        # Order: top-left, top-right, bottom-right, bottom-left
+        self.config.parallelogram_left = [[500, 405], [260, 400], [210, 640], [640, 640]]
+        self.config.parallelogram_right = [[0, 415], [195, 390], [260, 640], [0, 640]]
+
+        self.config.top_width = 320
+        self.config.bottom_width = 240
+        self.config.offset = 20
+
+        # Disabling
+        self.config.disable_blur = False
+        self.config.disable_hsv = False
+        self.config.disable_region_of_disinterest = False
+        self.config.disable_perspective_transform = False
 
     def directionify(self, topic):
         return topic + "/" + self.dir
@@ -83,7 +121,7 @@ class ImageTransformer(Node):
 
         filtered_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-        filtered_image = cv2.inRange(filtered_image, (self.config["lower_hue"], self.config["lower_sat"], self.config["lower_val"]), (self.config["upper_hue"], self.config["upper_sat"], self.config["upper_val"]))
+        filtered_image = cv2.inRange(filtered_image, (self.config.lower_hue, self.config.lower_sat, self.config.lower_val), (self.config.upper_hue, self.config.upper_sat, self.config.upper_val))
         filtered_image = 255 - filtered_image
 
         #TODO
