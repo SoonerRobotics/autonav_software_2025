@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node as RclpyNode
 from autonav_shared.types import DeviceState, LogLevel, SystemState
-from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance, Log, ConfigurationBroadcast, ConfigurationUpdate
+from autonav_msgs.msg import SystemState as SystemStateMsg, SafetyLights, DeviceState as DeviceStateMsg, Performance, Log, ConfigurationBroadcast, ConfigurationUpdate
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 import sty
 import time
@@ -31,8 +31,12 @@ class Node(RclpyNode):
         self.config_pub = self.create_publisher(ConfigurationUpdate, "/autonav/shared/config/updates", 10)
         self.config_broadcast_sub = self.create_subscription(ConfigurationBroadcast, "/autonav/shared/config/requests", self.config_broadcast_callback, 10)
         self.config_broadcast_pub = self.create_publisher(ConfigurationBroadcast, "/autonav/shared/config/requests", 10)
+        self.safety_lights_pub = self.create_publisher(SafetyLights, "/autonav/safety_lights", 10)
 
         self.performance_pub = self.create_publisher(Performance, "/autonav/shared/performance", 10)
+        self.safety_light_queue = []
+        self.safety_light_next = 0
+        self.safety_light_timer = self.create_timer(0.5, self.safety_light_callback)
         self.log_pub = self.create_publisher(Log, "/autonav/shared/log", 10)
 
     def init(self) -> None:
@@ -76,6 +80,32 @@ class Node(RclpyNode):
         Override this to use type hints for the config.
         """
         self.config = config
+
+    def push_safety_lights(self, red: int, green: int, blue: int, mode: int, duration: int) -> None:
+        """
+        Set the safety lights of the node.
+        """
+        msg = SafetyLights()
+        msg.red = red
+        msg.green = green
+        msg.blue = blue
+        msg.mode = mode
+        self.safety_light_queue.append((msg, duration))
+
+    def safety_light_callback(self) -> None:
+        """
+        Callback for the safety light timer.
+        """
+        if len(self.safety_light_queue) == 0:
+            return
+
+        if time.time() < self.safety_light_next:
+            return
+        
+        self.log(f"Publishing safety light {self.safety_light_queue[0][0].red}, {self.safety_light_queue[0][0].green}, {self.safety_light_queue[0][0].blue}", LogLevel.DEBUG)
+        msg, dur = self.safety_light_queue.pop(0)
+        self.safety_light_next = time.time() + dur
+        self.safety_lights_pub.publish(msg)
 
     def on_config_update(self, old_cfg, new_cfg) -> None:
         """

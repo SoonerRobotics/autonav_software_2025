@@ -26,7 +26,7 @@ simulation_waypoints = [
     # [(35.19467540, -97.43895), (35.1948357, -97.43896), (35.19491000, -97.43896000), (35.19510000, -97.43895000)],  # SOUTH
     # [(35.194725, -97.43858), (35.1947823, -97.4387), (35.1948547, -97.43876), (35.1949272, -97.43867), (35.1950035, -97.43881)], # PRACTICE
     # [(35.19506, -97.43824), (35.19491, -97.43824), (35.19484, -97.43824), (35.19472, -97.43823)],
-    [(35.19469, -97.43824), (35.19484, -97.43824), (35.19491, -97.43823), (35.19506, -97.43823)]
+    [(35.1946925701, -97.43824015821), (35.1948395, -97.4382399732), (35.19490722283, -97.4382322135), (35.195061777, -97.4382329409)]
 ]
 
 
@@ -82,16 +82,20 @@ class AStarNode(Node):
 
     def on_system_state_updated(self, old, new):
         if new == SystemState.AUTONOMOUS and self.is_mobility() and len(self.waypoints) == 0:
+            self.push_safety_lights(255, 255, 255, 1, 0)
             self.waypointTime = self.get_time_seconds() + self.config.waypoint_delay
         
         if new != SystemState.AUTONOMOUS and self.device_states.get(self.get_name()) == DeviceState.OPERATING:
+            self.push_safety_lights(255, 255, 255, 0, 0)
             self.on_reset()
             
     def on_mobility_updated(self, old, new):
         if new == True and old == False and self.system_state == SystemState.AUTONOMOUS:
+            self.push_safety_lights(255, 255, 255, 1, 0)
             self.waypointTime = self.get_time_seconds() + self.config.waypoint_delay
             
         if new == False and old == True:
+            self.push_safety_lights(255, 255, 255, 0, 0)
             self.on_reset()
             
     def on_position_received(self, msg: Position):
@@ -211,6 +215,8 @@ class AStarNode(Node):
             grid_data = [0] * len(msg.data)
             
         if len(self.waypoints) == 0 and self.get_time_seconds() > self.waypointTime and self.waypointTime != 0:
+            self.push_safety_lights(255, 255, 0, 1, 2)
+            self.push_safety_lights(255, 255, 255, 1, 0)
             self.waypoints = [wp for wp in self.get_waypoints()]
             self.waypointTime = 0
 
@@ -231,8 +237,9 @@ class AStarNode(Node):
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypoint_pop_distance:
+                self.push_safety_lights(0, 255, 0, 1, 2)
+                self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
-                # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = self.get_time_seconds() + 1.5
 
             pathingDebug = PathingDebug()
