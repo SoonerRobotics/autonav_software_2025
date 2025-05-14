@@ -11,31 +11,18 @@ COMBINED_IMAGE_HEIGHT = IMAGE_HEIGHT*2 + IMAGE_WIDTH
 
 videoReader = cv2.VideoCapture("./data/debug_combined.mp4")
 
-# written = False
+written = False
 
-class BigConfig:
-    def __init__(self):
-        self.x_shrink = 150
-        self.y_shrink = 150
-        self.warpPerspectiveNumber = 200
-        self.written = False
-    
-config = BigConfig()
-
-# while True:
-def main():
+while True:
     ret, combined_image = videoReader.read()
 
     if not ret:
-        return
+        break
 
     old_combined = combined_image
     old_combined = cv2.resize(old_combined, (640, 480))
     cv2.imshow("before", old_combined)
 
-    return combined_image
-
-def doThing(combined_image):
     # add an alpha channel to the combined image so we can use transparency for blitting the images together later
     combined_image_front = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
     combined_image_left = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
@@ -58,14 +45,12 @@ def doThing(combined_image):
     image_back = cv2.rotate(image_back, cv2.ROTATE_180)
 
     # cv2.imshow("pre-flattened", combined_image)
-
-    warpPerspectiveNumber = 0
     
     # top left, top right, bottom left, botom right
     # src_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
     # src_pts = np.float32([(218, 64), (414, 64), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
-    src_pts = np.float32([(config.warpPerspectiveNumber, 0), (IMAGE_WIDTH-config.warpPerspectiveNumber, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
-    dest_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (config.warpPerspectiveNumber, IMAGE_HEIGHT), (IMAGE_WIDTH-config.warpPerspectiveNumber, IMAGE_HEIGHT)])
+    src_pts = np.float32([(200, 0), (IMAGE_WIDTH-200, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
+    dest_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (200, IMAGE_HEIGHT), (IMAGE_WIDTH-200, IMAGE_HEIGHT)])
 
     # matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
 
@@ -91,9 +76,9 @@ def doThing(combined_image):
     image_back_flattened = cv2.warpPerspective(image_back, matrix, (640, 480), borderValue=(0, 0, 0, 1))
 
     # print(image_front_flattened.shape)
-    if not config.written:
+    if not written:
         cv2.imwrite("./data/flattened_front.png", image_front_flattened)
-        config.written = True
+        written = True
 
     image_left_flattened = cv2.rotate(image_left_flattened, cv2.ROTATE_90_COUNTERCLOCKWISE)
     image_right_flattened = cv2.rotate(image_right_flattened, cv2.ROTATE_90_CLOCKWISE)
@@ -104,10 +89,10 @@ def doThing(combined_image):
 
     #TODO https://stackoverflow.com/questions/40895785/using-opencv-to-overlay-transparent-image-onto-another-image we don't want to clip the images when we move them inwards using x_shrink and y_shrink
     # put each individual transformed camera image (left, right, etc) into its own big combined image with just itself
-    bigImageFront[0 + config.y_shrink : IMAGE_HEIGHT + config.y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_front_flattened
+    bigImageFront[0 + y_shrink : IMAGE_HEIGHT + y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_front_flattened
     bigImageLeft[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 + x_shrink : IMAGE_HEIGHT + x_shrink] = image_left_flattened
     bigImageRight[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT - x_shrink : -x_shrink] = image_right_flattened
-    bigImageBack[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - config.y_shrink : -config.y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_back_flattened
+    bigImageBack[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - y_shrink : -y_shrink, x_offset : x_offset+IMAGE_WIDTH] = image_back_flattened
 
     # get masks for each of those big images
     mask_front = cv2.inRange(bigImageFront, (1,1,1,0), (255, 255, 255, 255))
@@ -134,26 +119,8 @@ def doThing(combined_image):
     keycode = cv2.waitKey()
 
     if keycode == ord("q"):
-        return
+        break
 
-def onXShrink(val):
-    config.x_shrink = val
-    doThing(main())
-
-def onYShrink(val):
-    config.y_shrink = val
-    doThing(main())
-
-def onWarp(val):
-    config.warpPerspectiveNumber = val
-    doThing(main())
-
-cv2.namedWindow('config options')
-cv2.createTrackbar('x_shrink', 'config options', 0, 400, onXShrink)
-cv2.createTrackbar('y_shrink', 'config options', 0, 400, onYShrink)
-cv2.createTrackbar('warp', 'config options', 0, 400, onWarp)
-
-doThing(main())
 
 videoReader.release()
 cv2.destroyAllWindows()
