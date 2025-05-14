@@ -13,8 +13,10 @@ class DeadReckoningFilter:
         self.longitude = 0.0
 
     def feedback(self, feedback: MotorFeedback):
-        self.xSum = self.xSum + feedback.delta_x * math.cos(self.thetaSum) + feedback.delta_y * math.sin(self.thetaSum)
-        self.ySum = self.ySum + feedback.delta_x * math.sin(self.thetaSum) + feedback.delta_y * math.cos(self.thetaSum)
+        # self.xSum = self.xSum + feedback.delta_x * math.cos(self.thetaSum) + feedback.delta_y * math.sin(self.thetaSum)
+        # self.ySum = self.ySum + feedback.delta_x * math.sin(self.thetaSum) + feedback.delta_y * math.cos(self.thetaSum)
+        self.xSum += feedback.delta_x
+        self.ySum += feedback.delta_y
         self.thetaSum += feedback.delta_theta
         
         return [self.xSum, self.ySum, self.thetaSum]

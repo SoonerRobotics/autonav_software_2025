@@ -91,7 +91,7 @@ class AppBackend(Node):
     def position_callback(self, msg: Position):
         if self.app.position_label:
             ang = ((msg.theta * -1) * (180 / math.pi) + 360) % 360
-            self.update_label(self.app.position_label, f"Position: {msg.x}, {msg.y}, {ang}")
+            self.update_label(self.app.position_label, f"Position: {msg.x}, {msg.y}, {ang}\n - ({msg.latitude}, {msg.longitude})")
 
     def on_mobility_updated(self, old, new):
         if self.app.device_state_label:
