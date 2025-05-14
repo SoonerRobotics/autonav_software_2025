@@ -86,9 +86,9 @@ class FiltersNode(Node):
     def onMotorFeedbackReceived(self, msg: MotorFeedback):
         averages = None
         # if self.get_parameter_or("simulation", "false") == "true":
-        # averages = self.reckoning.feedback(msg)
+        averages = self.reckoning.feedback(msg)
         # else:    
-        averages = self.pf.feedback(msg)
+        # averages = self.pf.feedback(msg)
             
         if averages is None:
             return
@@ -98,11 +98,11 @@ class FiltersNode(Node):
         position.y = averages[1]
         position.theta = averages[2]
         
-        if self.firstGps is not None:
-            gps_x = self.firstGps.latitude + position.x / self.config.latitude_length
-            gps_y = self.firstGps.longitude - position.y / self.config.longitude_length
-            position.latitude = gps_x
-            position.longitude = gps_y
+        # if self.firstGps is not None:
+        #     gps_x = self.firstGps.latitude + position.x / self.config.latitude_length
+        #     gps_y = self.firstGps.longitude - position.y / self.config.longitude_length
+        #     position.latitude = gps_x
+        #     position.longitude = gps_y
         
         self.positionPublisher.publish(position)
 

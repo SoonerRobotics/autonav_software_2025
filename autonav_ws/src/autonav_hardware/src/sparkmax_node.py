@@ -102,9 +102,9 @@ class SparkMAXNode(Node):
 
         # tony gives us forwrd and angular in the wrong direction :(
         swerve_feedback = self.swerve_drive.updateState(SUSwerveDriveState(
-            -msg.forward_velocity,
+            msg.forward_velocity,
             msg.sideways_velocity,
-            -msg.angular_velocity
+            msg.angular_velocity
         ), 0.1)
 
         # publish feedback

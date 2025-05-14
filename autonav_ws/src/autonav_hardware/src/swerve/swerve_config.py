@@ -19,8 +19,8 @@ MCP2515_CS_MOTOR = 13
 MCP2515_INT_MOTOR = 11
 
 front_left_module_config = SUSwerveDriveModuleConfig(
-    x_pos = 1,
-    y_pos = 1,
+    x_pos = 0.3048,
+    y_pos = 0.3048,
     drive_motor_id = 1,
     angle_motor_id = 2,
     is_drive_motor_reversed = False,
@@ -28,8 +28,8 @@ front_left_module_config = SUSwerveDriveModuleConfig(
 )
 
 front_right_module_config = SUSwerveDriveModuleConfig(
-    x_pos = 1,
-    y_pos = -1,
+    x_pos = 0.3048,
+    y_pos = -0.3048,
     drive_motor_id = 3,
     angle_motor_id = 4,
     is_drive_motor_reversed = False,
@@ -37,8 +37,8 @@ front_right_module_config = SUSwerveDriveModuleConfig(
 )
 
 back_left_module_config = SUSwerveDriveModuleConfig(
-    x_pos = -1,
-    y_pos = 1,
+    x_pos = -0.3048,
+    y_pos = 0.3048,
     drive_motor_id = 5,
     angle_motor_id = 6,
     is_drive_motor_reversed = False,
@@ -46,8 +46,8 @@ back_left_module_config = SUSwerveDriveModuleConfig(
 )
 
 back_right_module_config = SUSwerveDriveModuleConfig(
-    x_pos = -1,
-    y_pos = -1,
+    x_pos = -0.3048,
+    y_pos = -0.3048,
     drive_motor_id = 7,
     angle_motor_id = 8,
     is_drive_motor_reversed = False,

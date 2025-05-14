@@ -102,5 +102,5 @@ class SUSwerveDrive:
         delta_y = self.measured_robot_state_[1, 0]
 
         # I will be honest, this 3 makes no sense to me. Using pi made it accumulate way more error, so 3 it is
-        delta_theta = self.measured_robot_state_[2, 0] * 3
+        delta_theta = self.measured_robot_state_[2, 0]
         return SUSwerveDriveState(delta_x, delta_y, delta_theta)

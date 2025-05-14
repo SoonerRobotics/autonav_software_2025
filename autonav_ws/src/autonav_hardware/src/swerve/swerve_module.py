@@ -52,6 +52,7 @@ class SUSwerveDriveModule:
         # calculate the delta
         self.last_drive_motor_delta = (current_drive_motor_position - self.drive_motor_last_position) # meters
         self.drive_motor_last_position = current_drive_motor_position
+        self.current_angle_motor_position = self.angle_motor_.getAngle()
         return self.last_drive_motor_delta
         
     def getAngle(self) -> float:

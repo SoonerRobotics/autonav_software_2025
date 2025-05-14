@@ -123,7 +123,13 @@ class Manual25Node(Node):
             self.orientation = 0
             self.mode = ControllerMode.LOCAL
 
-            
+    def on_system_state_updated(self, old, new):
+        if new != SystemState.MANUAL and old == SystemState.MANUAL:
+            motor_msg = MotorInput()
+            motor_msg.forward_velocity = 0
+            motor_msg.sideways_velocity = 0
+            motor_msg.angular_velocity = 0
+            self.motorPublisher.publish(motor_msg)
 
     def change_system_state(self):
         new_system_state = self.system_state
@@ -145,13 +151,12 @@ class Manual25Node(Node):
 
 
     def compose_motorinput_message_local(self):
-        forward_velocity = 0.0
-        sideways_velocity = 0.0
-        angular_velocity = 0.0
-        if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
-            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
+        if self.system_state != SystemState.MANUAL:
+            return
+        
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), -1.0, 1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), -1.0, 1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity
@@ -163,13 +168,12 @@ class Manual25Node(Node):
 
     # https://math.stackexchange.com/questions/2895880/inversion-of-rotation-matrix
     def compose_motorinput_message_global(self):
-        forward_velocity = 0.0
-        sideways_velocity = 0.0
-        angular_velocity = 0.0
-        if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
-            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
+        if self.system_state != SystemState.MANUAL:
+            return
+        
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)

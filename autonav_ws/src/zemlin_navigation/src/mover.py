@@ -23,9 +23,9 @@ class MoverState(Enum):
     ZERO = 3 # moving to zero (backwards and left)
 
 
-DISTANCE = 3 # distance to move
+DISTANCE = 2 # distance to move
 DISTANCE_THRESHOLD = 0.05 # distance to target before changing state
-SPEED = 0.3 # speed of the robot in m/s
+SPEED = 1 # speed of the robot in m/s
 
 
 class MoverNode(Node):
@@ -55,6 +55,27 @@ class MoverNode(Node):
             self.push_safety_lights(255, 255, 255, 0,  0)
             self.state = MoverState.IDLE
             self.set_device_state(DeviceState.READY)
+
+            # push 0 velocity to stop the robot
+            inputPacket = MotorInput()
+            inputPacket.forward_velocity = 0.0
+            inputPacket.sideways_velocity = 0.0
+            inputPacket.angular_velocity = 0.0
+            self.motorPublisher.publish(inputPacket)
+            self.state = MoverState.IDLE
+
+    def on_mobility_updated(self, old, new):
+        if new == True and old == False:
+            pass
+
+        if new == False and old == True:
+            # stop the robot
+            inputPacket = MotorInput()
+            inputPacket.forward_velocity = 0.0
+            inputPacket.sideways_velocity = 0.0
+            inputPacket.angular_velocity = 0.0
+            self.motorPublisher.publish(inputPacket)
+            self.state = MoverState.IDLE
 
     def on_position_received(self, msg):
         self.position = msg
@@ -102,7 +123,14 @@ class MoverNode(Node):
         inputPacket = MotorInput()
         inputPacket.forward_velocity = SPEED * math.cos(angle_diff)
         inputPacket.sideways_velocity = SPEED * math.sin(angle_diff)
+        # inputPacket.angular_velocity = 0.0
+
+        # rotate towards the target
+        # if abs(angle_diff) > math.radians(5):
+        #     inputPacket.angular_velocity = -angle_diff * 0.5
+        # else:
         inputPacket.angular_velocity = 0.0
+            
         # publish the motor input
         self.motorPublisher.publish(inputPacket)
 
