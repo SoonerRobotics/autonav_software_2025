@@ -36,6 +36,9 @@ set(msg_files
     "msg/Ultrasonic.msg"
     "msg/ZeroEncoders.msg"
     "msg/SwerveAbsoluteFeedback.msg"
+    "msg/Performance.msg"
+    "msg/ConfigurationBroadcast.msg"
+
 )
 
 set(srv_files

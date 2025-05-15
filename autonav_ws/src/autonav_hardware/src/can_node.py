@@ -343,6 +343,21 @@ class CanNode(Node):
             pass
 
 
+    def on_zero_encoders_received(self, msg:ZeroEncoders):
+        self.can_stats_record.tx = self.can_stats_record.tx + 1
+
+        if self.get_device_state() !=  DeviceState.OPERATING:
+            return
+        
+        data = bytes(msg.which_encoder)
+        can_msg = can.Message(arbitration_id= arbitration_ids["ZeroEncoders"], data = data)
+
+        try:
+            self.can.send(can_msg)
+        except can.CanError:
+            pass
+
+
     def on_conbus_received(self, msg:Conbus):
         self.can_stats_record.tx = self.can_stats_record.tx + 1
 
