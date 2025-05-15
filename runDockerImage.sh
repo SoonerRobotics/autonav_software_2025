@@ -1,1 +1,1 @@
-docker run -p 8023:8023 my-websocket-container /bin/bash
+docker compose up --build --force-recreate --no-cache && docker compose rm -fsv

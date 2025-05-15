@@ -3,9 +3,9 @@ class Notification {
         this.type = options.type || "success";
         this.message = options.message || "";
         this.timeout = options.timeout || 1500;
-        //if not success then error and timeout should increase
+        //!success ? error && timeout++
         if (this.message === "Disconnected from the server") {
-            this.timeout = 2147483647;
+            this.timeout = 2147483647;// Max timeout int length
         } else {
             this.timeout = 3000;
         }
@@ -45,16 +45,16 @@ class Notification {
     }
 
     bind() {
-        //check existence of notifications wraper
+        //Existence wraper exist?
         let notificationsWrapper = document.querySelector(".notifications");
         if (!notificationsWrapper) {
             notificationsWrapper = document.createElement("div");
             notificationsWrapper.classList.add("notifications");
             document.body.appendChild(notificationsWrapper);
         }
-        //append notification
+        //notification.append
         notificationsWrapper.appendChild(this.build());
-        //remove notification after timeout
+        //-rm notification aft timeout
         setTimeout(() => {
             if (notificationsWrapper.firstChild) {
                 notificationsWrapper.removeChild(notificationsWrapper.firstChild);

@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y \
     python3-pip
 # RUN apt-get update && apt-get install -y \ #Optional add in if running from a volume instead..
 
-RUN pip install sty --break-system-packages
+RUN pip install sty just_playback evdev PySoundSphere --break-system-packages \
+    && apt-get install -y ros-jazzy-cv-bridge ros-jazzy-image-transport
 
 ############## Base Image setup above
 
