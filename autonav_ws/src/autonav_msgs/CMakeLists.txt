@@ -38,7 +38,6 @@ set(msg_files
     "msg/SwerveAbsoluteFeedback.msg"
     "msg/Performance.msg"
     "msg/ConfigurationBroadcast.msg"
-
     "msg/SwerveFeedback.msg"
     "msg/PathingDebug.msg"
     "msg/Command.msg"
