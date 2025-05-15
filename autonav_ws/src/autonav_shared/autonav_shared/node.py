@@ -1,7 +1,8 @@
 import rclpy
 from rclpy.node import Node as RclpyNode
 from autonav_shared.types import DeviceState, LogLevel, SystemState
-from autonav_msgs.msg import SystemState as SystemStateMsg, DeviceState as DeviceStateMsg, Performance, Log, ConfigurationBroadcast, ConfigurationUpdate
+from autonav_msgs.msg import SystemState as SystemStateMsg, SafetyLights, DeviceState as DeviceStateMsg, Performance, Log, ConfigurationBroadcast, ConfigurationUpdate
+from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 import sty
 import time
 import inspect
@@ -30,11 +31,13 @@ class Node(RclpyNode):
         self.config_pub = self.create_publisher(ConfigurationUpdate, "/autonav/shared/config/updates", 10)
         self.config_broadcast_sub = self.create_subscription(ConfigurationBroadcast, "/autonav/shared/config/requests", self.config_broadcast_callback, 10)
         self.config_broadcast_pub = self.create_publisher(ConfigurationBroadcast, "/autonav/shared/config/requests", 10)
+        self.safety_lights_pub = self.create_publisher(SafetyLights, "/autonav/safety_lights", 10)
 
         self.performance_pub = self.create_publisher(Performance, "/autonav/shared/performance", 10)
+        self.safety_light_queue = []
+        self.safety_light_next = 0
+        self.safety_light_timer = self.create_timer(0.5, self.safety_light_callback)
         self.log_pub = self.create_publisher(Log, "/autonav/shared/log", 10)
-
-        self.set_device_state(DeviceState.WARMING)
 
     def init(self) -> None:
         """
@@ -56,29 +59,81 @@ class Node(RclpyNode):
         Callback for the configuration update topic.
         """
         if msg.device == self.get_name():
-            self.log(f"Received update on our own configuration", LogLevel.DEBUG)
-            self.config = json.loads(msg.json)
+            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
+            old_cfg = self.config
+            new_cfg = json.loads(msg.json)
+            self.apply_config(new_cfg)
+            self.on_config_update(old_cfg, self.config)
         else:
-            self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
+            # self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
+            pass
         
         self.other_cfgs[msg.device] = json.loads(msg.json)
+
+    def get_time_seconds(self) -> int:
+        time_nanoseconds = self.get_clock().now().nanoseconds
+        return time_nanoseconds / 1_000_000_000
+
+    def apply_config(self, config) -> None:
+        """
+        Apply a configuration to the node.
+        Override this to use type hints for the config.
+        """
+        self.config = config
+
+    def push_safety_lights(self, red: int, green: int, blue: int, mode: int, duration: int) -> None:
+        """
+        Set the safety lights of the node.
+        """
+        msg = SafetyLights()
+        msg.red = red
+        msg.green = green
+        msg.blue = blue
+        msg.mode = mode
+        self.safety_light_queue.append((msg, duration))
+
+    def safety_light_callback(self) -> None:
+        """
+        Callback for the safety light timer.
+        """
+        if len(self.safety_light_queue) == 0:
+            return
+
+        if time.time() < self.safety_light_next:
+            return
+        
+        self.log(f"Publishing safety light {self.safety_light_queue[0][0].red}, {self.safety_light_queue[0][0].green}, {self.safety_light_queue[0][0].blue}", LogLevel.DEBUG)
+        msg, dur = self.safety_light_queue.pop(0)
+        self.safety_light_next = time.time() + dur
+        self.safety_lights_pub.publish(msg)
+
+    def on_config_update(self, old_cfg, new_cfg) -> None:
+        """
+        Called when the configuration is updated.
+        """
+        pass
 
     def config_broadcast_callback(self, msg: ConfigurationBroadcast) -> None:
         """
         Callback for the configuration broadcast topic.
         """
         if msg.target_nodes == [] or self.get_name() in msg.target_nodes:
-            self.log(f"Received request for our own configuration to be broadcasted", LogLevel.DEBUG)
             self.broadcast_config()
+
+    def _broadcast_config(self, name, config) -> None:
+        """
+        Broadcast our configuration to the system.
+        """
+        msg = ConfigurationUpdate()
+        msg.device = name
+        msg.json = self._smart_dump_config(config)
+        self.config_pub.publish(msg)
 
     def broadcast_config(self) -> None:
         """
         Broadcast our configuration to the system.
         """
-        msg = ConfigurationUpdate()
-        msg.device = self.get_name()
-        msg.json = self._smart_dump_config(self.config)
-        self.config_pub.publish(msg)
+        self._broadcast_config(self.get_name(), self.config)
 
     def request_all_configs(self) -> None:
         """
@@ -133,37 +188,61 @@ class Node(RclpyNode):
         """
         Callback for the system state topic.
         """
+        old_state = self.system_state
+        old_mobility = self.mobility
+
         self.system_state = SystemState(msg.state)
         self.mobility = msg.mobility
+
+        if old_state != self.system_state:
+            self.on_system_state_updated(old_state, self.system_state)
+
+        if old_mobility != self.mobility:
+            self.on_mobility_updated(old_mobility, self.mobility)
+
+    def on_system_state_updated(self, old: SystemState, new: SystemState) -> None:
+        """
+        Called when the system state is updated.
+        """
+        pass
+
+    def on_mobility_updated(self, old: bool, new: bool) -> None:
+        """
+        Called when the mobility state is updated.
+        """
+        pass
         
     def device_state_callback(self, msg: DeviceStateMsg) -> None:
         """
         Callback for the device state topic.
         """
-        if msg.device == self.get_name():
-            self.log(f"Received update on our own device state from {DeviceState(self.device_states[msg.device]).name} to {DeviceState(msg.state).name}", LogLevel.DEBUG)
-
         old_state = self.device_states[msg.device] if msg.device in self.device_states else None
         self.device_states[msg.device] = DeviceState(msg.state)
-
         if (old_state == None or old_state == DeviceState.OFF) and DeviceState(msg.state) == DeviceState.WARMING and msg.device == self.get_name():
             self.init()
 
     def set_device_state(self, state: DeviceState) -> None:
         """
-        Set the state of our device.
+        Set the state of the current node.
+        """
+        self._set_device_state(self.get_name(), state)
+
+    def _set_device_state(self, device: str, state: DeviceState) -> None:
+        """
+        Set the state of a specific device.
         """
         msg = DeviceStateMsg()
-        msg.device = self.get_name()
-        msg.state = state.value
+        msg.device = device
+        msg.state = state
         self.device_state_pub.publish(msg)
+
         
     def set_system_state(self, state: SystemState) -> None:
         """
         Set the state of the system.
         """
         msg = SystemStateMsg()
-        msg.state = state.value
+        msg.state = state
         msg.mobility = self.mobility
         self.system_state_pub.publish(msg)
 
@@ -184,7 +263,6 @@ class Node(RclpyNode):
             device = self.get_name()
 
         if device not in self.device_states:
-            self.log(f"Device {device} not found in device states", LogLevel.ERROR)
             return DeviceState.UNKNOWN
         
         return self.device_states[device]
@@ -244,3 +322,39 @@ class Node(RclpyNode):
             return
         
         print(f"{sty.fg(99, 150, 79)}{current_time} {sty.fg.white}| {sty.fg(r, g, b)}{level_str} {sty.fg.white}| {sty.fg(90, 60, 146)}{self.get_name()}{sty.fg.white}:{sty.fg(90, 60, 146)}{calling_function}{sty.fg.white}:{sty.fg(90, 60, 146)}{line_number} {sty.fg.white}- {sty.fg(r, g, b)}{message}{sty.rs.all}")
+
+# Run Nodes currently don't exist here or anywhere else.. Pasting frm lst yrs code
+    def run_node(node):
+        """
+        Runs the node with the correct ROS parameters and specifications
+
+        :param node: The node to run.
+        """
+
+        # executor = MultiThreadedExecutor()
+        # executor.add_node(node)
+        # executor.spin()
+        # executor.remove_node(node)
+        
+        executor = SingleThreadedExecutor()
+        executor.add_node(node)
+        try:
+            executor.spin()
+        finally:
+            executor.shutdown()
+            node.destroy_node()
+            rclpy.shutdown()
+
+    def run_nodes(nodes):
+        """
+        Runs the nodes with the correct ROS parameters and specifications
+
+        :param nodes: The nodes to run.
+        """
+
+        executor = MultiThreadedExecutor()
+        for node in nodes:
+            executor.add_node(node)
+        executor.spin()
+        for node in nodes:
+            executor.remove_node(node)

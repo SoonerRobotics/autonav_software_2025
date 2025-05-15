@@ -1,2 +1,2 @@
 string name
-uint16 elapsed
+int16 elapsed

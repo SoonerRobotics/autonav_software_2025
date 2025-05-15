@@ -1,1 +1,1 @@
-uint8 which_encoder
+uint32 id
