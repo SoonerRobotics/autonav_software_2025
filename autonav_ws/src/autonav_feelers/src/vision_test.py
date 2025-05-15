@@ -19,6 +19,15 @@ class BigConfig:
         self.y_shrink = 150
         self.warpPerspectiveNumber = 200
         self.written = False
+
+        self.topLeftX = 0
+        self.topLeftY = 0
+        self.topRightX = IMAGE_WIDTH
+        self.topRightY = 0
+        self.bottomLeftX = 0
+        self.bottomLeftY = IMAGE_HEIGHT
+        self.bottomRightX = IMAGE_WIDTH
+        self.bottomRightY = IMAGE_HEIGHT
     
 config = BigConfig()
 
@@ -64,8 +73,11 @@ def doThing(combined_image):
     # top left, top right, bottom left, botom right
     # src_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
     # src_pts = np.float32([(218, 64), (414, 64), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
-    src_pts = np.float32([(config.warpPerspectiveNumber, 0), (IMAGE_WIDTH-config.warpPerspectiveNumber, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
-    dest_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (config.warpPerspectiveNumber, IMAGE_HEIGHT), (IMAGE_WIDTH-config.warpPerspectiveNumber, IMAGE_HEIGHT)])
+    # src_pts = np.float32([(config.warpPerspectiveNumber, 0), (IMAGE_WIDTH-config.warpPerspectiveNumber, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
+    # dest_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (config.warpPerspectiveNumber, IMAGE_HEIGHT), (IMAGE_WIDTH-config.warpPerspectiveNumber, IMAGE_HEIGHT)])
+
+    src_pts = np.float32([(config.topLeftX, config.topLeftY), (config.topRightX, config.topRightY), (config.bottomLeftX, config.bottomLeftY), (config.bottomRightX, config.bottomRightY)])
+    dest_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
 
     # matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
 
@@ -148,10 +160,53 @@ def onWarp(val):
     config.warpPerspectiveNumber = val
     doThing(main())
 
+def onTopLeftXChange(val):
+    config.topLeftX = val
+    doThing(main())
+
+def onTopLeftYChange(val):
+    config.topLeftY = val
+    doThing(main())
+
+def onTopRightXChange(val):
+    config.topRightX = val
+    doThing(main())
+
+def onTopRightYChange(val):
+    config.topRightY = val
+    doThing(main())
+
+def onBottomLeftXChange(val):
+    config.bottomLeftX = val
+    doThing(main())
+
+def onBottomLeftYChange(val):
+    config.bottomLeftY = val
+    doThing(main())
+
+def onBottomRightXChange(val):
+    config.bottomRightX = val
+    doThing(main())
+
+def onBottomRightYChange(val):
+    config.bottomRightY = val
+    doThing(main())
+
+
 cv2.namedWindow('config options')
 cv2.createTrackbar('x_shrink', 'config options', 0, 400, onXShrink)
 cv2.createTrackbar('y_shrink', 'config options', 0, 400, onYShrink)
 cv2.createTrackbar('warp', 'config options', 0, 400, onWarp)
+
+cv2.namedWindow('all points')
+cv2.createTrackbar('topLeft_x', 'all points', 0, 640, onTopLeftXChange)
+cv2.createTrackbar('topLeft_y', 'all points', 0, 480, onTopLeftYChange)
+cv2.createTrackbar('topRight_x', 'all points', 0, 640, onTopRightXChange)
+cv2.createTrackbar('topRight_y', 'all points', 0, 480, onTopRightYChange)
+cv2.createTrackbar('bottomLeft_x', 'all points', 0, 640, onBottomLeftXChange)
+cv2.createTrackbar('bottomLeft_y', 'all points', 0, 480, onBottomLeftYChange)
+cv2.createTrackbar('bottomRight_x', 'all points', 0, 640, onBottomRightXChange)
+cv2.createTrackbar('bottomRight_y', 'all points', 0, 480, onBottomRightYChange)
 
 doThing(main())
 
