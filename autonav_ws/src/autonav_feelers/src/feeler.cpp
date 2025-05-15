@@ -43,6 +43,7 @@ public:
 
     void setXY(int x, int y);
     void setLength(double newLength);
+    void bias(double amount);
     void update(cv::Mat *mask, AutoNav::Node *node);
     void draw(cv::Mat image);
 
@@ -57,6 +58,11 @@ private:
     int original_x = 0;
     int original_y = 0;
     double original_length = 0.0;
+    
+    int biased_x = 0;
+    int biased_y = 0;
+    bool is_biased = false;
+    double bias_amount = 0.0;
 
     cv::Scalar color;
 };
@@ -116,6 +122,7 @@ std::vector<double> Feeler::toPolar() {
 
     double angle;
     if (this->x != 0) {
+        //TODO FIXME should this be an atan2?
         angle = std::tan(static_cast<double>(this->y) / static_cast<double>(this->x));
     } else {
         angle = this->y > 0 ? PI/2 : 3*PI/2;
@@ -209,6 +216,29 @@ void Feeler::setLength(double newLength) {
 }
 
 /**
+ * Biases the feeler by an amount of pixels.
+ * This essentially allows the feeler to grow past its original maximum length,
+ * for the purposes of navigating towards a waypoint/biasing 'forward'/etc
+ * @param amount the amount to bias by, in pixels
+ */
+void Feeler::bias(double amount) {
+    // unbias by setting it to 0
+    if (amount <= 0.0) {
+        this->is_biased = false;
+        this->bias_amount = 0.0;
+        return;
+    }
+
+    this->is_biased = true;
+
+    this->bias_amount = amount;
+    double scaleFactor = (this->length+amount) / this->length;
+    
+    this->biased_x = this->original_x * scaleFactor;
+    this->biased_y = this->original_y * scaleFactor;
+}
+
+/**
  * Update the end of the feeler / its length from the image
  * It goes pixel by pixel along its length until it reaches a white pixel (obstacle)
  * or until it reaches its original length in which case it stops.
@@ -294,9 +324,17 @@ void Feeler::update(cv::Mat *mask, AutoNav::Node *node) {
                 // node->log(this->to_string(), AutoNav::Logging::ERROR);
                 return; // and quit so we don't keep looping 'cause we found an obstacle
             } else if (abs(x_) > abs(this->original_x) || abs(y_) > abs(this->original_y)) { // if we're past our original farthest point
-                this->setXY(this->original_x, this->original_y); // then we found no obstacle, and should stop looping
-                // node->log("NO OBSTACLE FOUND! Pixels checked: " + std::to_string(pixelsChecked), AutoNav::Logging::ERROR);
-                return;
+                // check if we have a farther point (aka if we're biased)
+                if (this->is_biased) {
+                    if (abs(x_) > abs(this->biased_x) || abs(y_) > abs(this->biased_y)) {
+                        this->setXY(this->biased_x, this->biased_y); // then we found no obstacle, and should stop looping
+                        return;
+                    }
+                } else {
+                    this->setXY(this->original_x, this->original_y); // then we found no obstacle, and should stop looping
+                    // node->log("NO OBSTACLE FOUND! Pixels checked: " + std::to_string(pixelsChecked), AutoNav::Logging::ERROR);
+                    return;
+                }
             }
         }
     }

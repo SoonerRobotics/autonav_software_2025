@@ -46,7 +46,7 @@ class ImageCombiner(Node):
         self.debug_video_reader = cv2.VideoCapture("./data/debug_combined.mp4")
 
         #TODO make timers
-        self.publish_timer = self.create_timer(.05, self.publish_combined_images)
+        self.publish_timer = self.create_timer(.1, self.publish_combined_images)
 
         self.frame = 0
         self.writtenFrames = 0
