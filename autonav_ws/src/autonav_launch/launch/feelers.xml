@@ -2,8 +2,8 @@
     <node pkg="ros_tcp_endpoint" exec="default_server_endpoint" output="screen" emulate_tty="true" />
 
     <node pkg="autonav_commander" exec="commander.py" output="screen" emulate_tty="true"/>
-    <node pkg="autonav_vision" exec="transformations.py" output="screen" emulate_tty="true" />
-    <node pkg="autonav_vision" exec="combination.py" output="screen" emulate_tty="true" />
-    <!-- <node pkg="autonav_feelers" exec="fake_vision_node.py" output="screen" emulate_tty="true" /> -->
-    <!-- <node pkg="autonav_feelers" exec="feeler_node" output="screen" emulate_tty="true" /> -->
+    <!-- <node pkg="autonav_vision" exec="transformations.py" output="screen" emulate_tty="true" /> -->
+    <!-- <node pkg="autonav_vision" exec="combination.py" output="screen" emulate_tty="true" /> -->
+    <node pkg="autonav_feelers" exec="fake_vision_node.py" output="screen" emulate_tty="true" />
+    <node pkg="autonav_feelers" exec="feeler_node" output="screen" emulate_tty="true" />
 </launch>

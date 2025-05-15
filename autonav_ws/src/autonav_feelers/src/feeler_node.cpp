@@ -45,8 +45,8 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 650;
-        config.number_of_feelers = 40;
+        config.max_length = 300;
+        config.number_of_feelers = 30;
         config.start_angle = 5;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
@@ -313,6 +313,8 @@ public:
             feeler.draw(this->debug_image_ptr->image);
             // log(feeler.to_string(), AutoNav::Logging::WARN);
         }
+
+        // log("DREW FEELERS!", AutoNav::Logging::ERROR); //FIXME TODO
 
         // draw the ultrasonic feelers on the image (on top of the vision feelers)
         for (Feeler feeler : this->ultrasonic_feelers) {
