@@ -21,7 +21,7 @@ while True:
 
     old_combined = combined_image
     old_combined = cv2.resize(old_combined, (640, 480))
-    cv2.imshow("before", old_combined)
+    # cv2.imshow("before", old_combined)
 
     # add an alpha channel to the combined image so we can use transparency for blitting the images together later
     combined_image_front = cv2.cvtColor(combined_image, cv2.COLOR_BGR2BGRA)
@@ -32,8 +32,8 @@ while True:
     #TODO this was also copypastaed from combination.py
     x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
 
-    y_shrink = 150
-    x_shrink = 150
+    y_shrink = 240
+    x_shrink = 240
 
     image_front = combined_image[0 : IMAGE_HEIGHT, x_offset : x_offset+IMAGE_WIDTH]
     image_left = combined_image[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 : IMAGE_HEIGHT]
@@ -51,6 +51,12 @@ while True:
     # src_pts = np.float32([(218, 64), (414, 64), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
     src_pts = np.float32([(200, 0), (IMAGE_WIDTH-200, 0), (0, IMAGE_HEIGHT), (IMAGE_WIDTH, IMAGE_HEIGHT)])
     dest_pts = np.float32([(0, 0), (IMAGE_WIDTH, 0), (200, IMAGE_HEIGHT), (IMAGE_WIDTH-200, IMAGE_HEIGHT)])
+
+    src_pts = np.float32([(0, 0), (640, 0), (0, 480), (640, 480)])
+    dest_pts = np.float32([(0, 0), (640, 0), (0, 480), (640, 480)])
+
+    src_pts = np.float32([(240, 80), (380, 80), (0, 480), (640, 480)])
+    dest_pts = np.float32([(240, 0), (380, 0), (240, 480), (400, 480)])
 
     # matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
 
