@@ -36,10 +36,10 @@ class ImageTransformerConfig:
         self.src_bottom_left = (0, 480)
         self.src_bottom_right = (640, 480)
 
-        self.bottom_top_left = (240, 0)
-        self.bottom_top_right = (380, 0)
-        self.bottom_bottom_left = (240, 480)
-        self.bottom_bottom_right = (400, 480)
+        self.dest_top_left = (240, 0)
+        self.dest_top_right = (380, 0)
+        self.dest_bottom_left = (240, 480)
+        self.dest_bottom_right = (400, 480)
 
         # Region of disinterest
         # Order: top-left, top-right, bottom-right, bottom-left
@@ -82,10 +82,10 @@ class ImageTransformer(Node):
         self.config.src_bottom_left = config["src_bottom_left"]
         self.config.src_bottom_right = config["src_bottom_right"]
 
-        self.config.bottom_top_left = config["bottom_top_left"]
-        self.config.bottom_top_right = config["bottom_top_right"]
-        self.config.bottom_bottom_left = config["bottom_bottom_left"]
-        self.config.bottom_bottom_right = config["bottom_bottom_right"]
+        self.config.dest_top_left = config["dest_top_left"]
+        self.config.dest_top_right = config["dest_top_right"]
+        self.config.dest_bottom_left = config["dest_bottom_left"]
+        self.config.dest_bottom_right = config["dest_bottom_right"]
 
         # Region of disinterest
         # Order: top-left, top-right, bottom-right, bottom-left
@@ -108,6 +108,12 @@ class ImageTransformer(Node):
         self.camera_debug_publisher = self.create_publisher(CompressedImage, f"/autonav/vision/debug/{self.dir}", 1)
 
         self.set_device_state(DeviceState.READY)
+
+        self.has_logged = False
+
+        if self.dir == "front":
+            self.log("STARTED!", LogLevel.ERROR)
+
 
     # Blur
     def apply_blur(self, img):
@@ -145,19 +151,19 @@ class ImageTransformer(Node):
         if self.config.disable_perspective_transform:
             return img
         
-        src_pts = [
+        src_pts = np.float32([
             self.config.src_top_left,
             self.config.src_top_right,
             self.config.src_bottom_left,
             self.config.src_bottom_right
-        ]
+        ])
 
-        dest_pts = [
+        dest_pts = np.float32([
             self.config.dest_top_left,
             self.config.dest_top_right,
             self.config.dest_bottom_left,
             self.config.dest_bottom_right
-        ]
+        ])
 
         matrix = cv2.getPerspectiveTransform(src_pts, dest_pts)
 
@@ -170,6 +176,9 @@ class ImageTransformer(Node):
         return flattened
 
     def onImageReceived(self, msg: CompressedImage):
+        # if self.dir == "front":
+        #     self.log("RECEIVING!", LogLevel.DEBUG)
+
         if (self.get_device_state() != DeviceState.OPERATING):
             self.set_device_state(DeviceState.OPERATING)
 
@@ -209,12 +218,19 @@ class ImageTransformer(Node):
         # publish debug image
         self.camera_debug_publisher.publish(bridge.cv2_to_compressed_imgmsg(image))
 
+        # if self.dir == "front":
+        #     self.log("transformations publishing!", LogLevel.DEBUG)
+    
+        if not self.has_logged:
+            self.log(f"WE RAN! {self.dir}", LogLevel.ERROR)
+            self.has_logged = True
+
 def main():
     rclpy.init()
     
     nodes = []
 
-    for direction in ["front", "left", "right", "back"]:
+    for direction in ["left", "right", "front", "back"]:
         nodes.append(ImageTransformer(direction))
 
     executor = rclpy.executors.MultiThreadedExecutor()

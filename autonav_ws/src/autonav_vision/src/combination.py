@@ -33,6 +33,12 @@ class CombinationNodeConfig:
 class ImageCombiner(Node):
     def __init__(self):
         super().__init__("autonav_vision_combiner")
+        self.config = CombinationNodeConfig()
+    
+    def apply_config(self, cfg: dict):
+        self.config.x_offset = cfg["x_offset"]
+        self.config.x_shrink = cfg["x_shrink"]
+        self.config.y_shrink = cfg["y_shrink"]
 
     def init(self):
         self.set_device_state(DeviceState.WARMING)
@@ -69,13 +75,13 @@ class ImageCombiner(Node):
 
         #FIXME TEMP DEBUG HACK
         self.log("starting image combiner...", LogLevel.WARN)
-        self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
+        # self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
+        # self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
+        # self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
         # self.gps_filename = "./data/gps.csv"
         # self.gps_file = open(self.gps_filename, "w")
-        self.frame = 0
-        self.has_logged = False
+        # self.frame = 0
+        # self.has_logged = False
 
     # def on_gps_received(self, msg):
     #     if not self.gps_file.closed:
@@ -117,9 +123,18 @@ class ImageCombiner(Node):
 
 
     def combine_debug_images(self):
+        # self.log("COMBINING DEBUG...", LogLevel.WARN)
+
         #TODO FIXME I don't like having a lot of duplicated code here it's really bad form and annoying to update
         # make big combined image to hold them all
         combined_image = np.zeros((COMBINED_IMAGE_HEIGHT, COMBINED_IMAGE_WIDTH, 3), dtype=np.uint8)
+
+        # convert everything to actual images
+        #TODO move this out to the actual subscriber callbacks???
+        debug_image_front = bridge.compressed_imgmsg_to_cv2(self.debug_image_front)
+        debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
+        debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
+        debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
 
         # make the bigImages that will hold everything 
         bigImageFront = np.zeros_like(combined_image)
@@ -130,10 +145,10 @@ class ImageCombiner(Node):
         # https://stackoverflow.com/questions/40895785/using-opencv-to-overlay-transparent-image-onto-another-image
         # we don't want to clip the images when we move them inwards using x_shrink and y_shrink
         # put each individual transformed camera image (left, right, etc) into its own big combined image with just itself
-        bigImageFront[0 + self.config.y_shrink : IMAGE_HEIGHT + self.config.y_shrink, self.config.x_offset : self.config.x_offset+IMAGE_WIDTH] = self.debug_image_front
-        bigImageLeft[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 + self.config.x_shrink : IMAGE_HEIGHT + self.config.x_shrink] = self.debug_image_left
-        bigImageRight[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT - self.config.x_shrink : -self.config.x_shrink] = self.debug_image_right
-        bigImageBack[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - self.config.y_shrink : -self.config.y_shrink, self.config.x_offset : self.config.x_offset+IMAGE_WIDTH] = self.debug_image_back
+        bigImageFront[0 + self.config.y_shrink : IMAGE_HEIGHT + self.config.y_shrink, self.config.x_offset : self.config.x_offset+IMAGE_WIDTH] = debug_image_front
+        bigImageLeft[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, 0 + self.config.x_shrink : IMAGE_HEIGHT + self.config.x_shrink] = debug_image_left
+        bigImageRight[IMAGE_HEIGHT : IMAGE_HEIGHT+IMAGE_WIDTH, -IMAGE_HEIGHT - self.config.x_shrink : -self.config.x_shrink] = debug_image_right
+        bigImageBack[COMBINED_IMAGE_HEIGHT-IMAGE_HEIGHT - self.config.y_shrink : -self.config.y_shrink, self.config.x_offset : self.config.x_offset+IMAGE_WIDTH] = debug_image_back
 
         # get masks for each of those big images
         mask_front = cv2.inRange(bigImageFront, (1,1,1,0), (255, 255, 255, 255))
@@ -162,6 +177,8 @@ class ImageCombiner(Node):
         if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
             return
         
+        # self.log("COMBINING ALL...", LogLevel.ERROR)
+
         # essentially what we need to do is:
         #  - make a big blank combined_image
         #  - blit the warpped image into its position on the big image
@@ -217,31 +234,31 @@ class ImageCombiner(Node):
         self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))        
 
         #TEMP TODO FIXME
-        feeler_image = None
-        if (self.feeler_debug_image != None):
-            feeler_image = bridge.compressed_imgmsg_to_cv2(self.feeler_debug_image)
-            self.feeler_debug_image = None
-            if not self.has_logged:
-                self.log(f"Shape of feeler_image: {feeler_image.shape}")
-                self.has_logged = True
+        # feeler_image = None
+        # if (self.feeler_debug_image != None):
+            # feeler_image = bridge.compressed_imgmsg_to_cv2(self.feeler_debug_image)
+            # self.feeler_debug_image = None
+            # if not self.has_logged:
+            #     self.log(f"Shape of feeler_image: {feeler_image.shape}")
+            #     self.has_logged = True
 
         # FIXME DEBUG HACK
         # while the UI still in development, log images to a video for debugging
-        if self.frame < 500:
-            combined = cv2.cvtColor(np.uint8(combined), cv2.COLOR_GRAY2BGR)
-            self.video_writer.write(combined)
-            self.debug_video_writer.write(debug_combined)
-            self.feeler_video_writer.write(feeler_image)
-        elif self.video_writer.isOpened():
-            self.video_writer.release()
-            self.debug_video_writer.release()
-            self.feeler_video_writer.release()
-            self.gps_file.close()
-            self.log("combined image logger is done!", LogLevel.ERROR)
+        # if self.frame < 500:
+        #     combined = cv2.cvtColor(np.uint8(combined_image), cv2.COLOR_GRAY2BGR)
+        #     self.video_writer.write(combined)
+        #     self.debug_video_writer.write(debug_combined)
+            # self.feeler_video_writer.write(feeler_image)
+        # elif self.video_writer.isOpened():
+        #     self.video_writer.release()
+        #     self.debug_video_writer.release()
+            # self.feeler_video_writer.release()
+            # self.gps_file.close()
+            # self.log("combined image logger is done!", LogLevel.ERROR)
 
         # send to topics
-        self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
-        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
+        # self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
+        # self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
         
         self.frame += 1
         self.log(f"combining frame {self.frame}. . .", LogLevel.WARN)
