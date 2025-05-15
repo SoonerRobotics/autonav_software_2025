@@ -140,8 +140,7 @@ class Commander(Node):
         
 def main():
     rclpy.init()
-    commander = Commander()
-    rclpy.spin(commander)
+    Node.run_node(Commander())
     rclpy.shutdown()
 
 if __name__ == "__main__":

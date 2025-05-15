@@ -39,6 +39,9 @@ set(msg_files
     "msg/Performance.msg"
     "msg/ConfigurationBroadcast.msg"
 
+    "msg/SwerveFeedback.msg"
+    "msg/PathingDebug.msg"
+    "msg/Command.msg"
 )
 
 set(srv_files

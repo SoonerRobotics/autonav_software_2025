@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from autonav_msgs.msg import Position
+from autonav_msgs.msg import Position, PathingDebug
 from autonav_shared.node import Node
 from autonav_shared.types import DeviceState, SystemState
 from geometry_msgs.msg import PoseStamped, Point
@@ -25,18 +25,20 @@ simulation_waypoints = [
     # [(35.19510000, -97.43895000), (35.19491000, -97.43896000), (35.1948357, -97.43896), (35.19467540, -97.43895)],  # NORTH
     # [(35.19467540, -97.43895), (35.1948357, -97.43896), (35.19491000, -97.43896000), (35.19510000, -97.43895000)],  # SOUTH
     # [(35.194725, -97.43858), (35.1947823, -97.4387), (35.1948547, -97.43876), (35.1949272, -97.43867), (35.1950035, -97.43881)], # PRACTICE
-    [(35.19506, -97.43824), (35.19491, -97.43824), (35.19484, -97.43824), (35.19472, -97.43823)] 
+    # [(35.19506, -97.43824), (35.19491, -97.43824), (35.19484, -97.43824), (35.19472, -97.43823)],
+    # [(35.1946925701, -97.43824015821), (35.1948395, -97.4382399732), (35.19490722283, -97.4382322135), (35.195061777, -97.4382329409)]
+    [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)]
 ]
 
 
 class AStarConfig:
     def __init__(self):
-        self.waypoint_pop_distance = 1.1
+        self.waypoint_pop_distance = 3
         self.waypoint_direction = 0
         self.use_only_waypoints = False
-        self.waypoint_delay = 1699.5
-        self.latitude_length = 111086.2
-        self.longitude_length = 81978.2
+        self.waypoint_delay = 20.5
+        self.latitude_length = 110944.2
+        self.longitude_length = 91065.46
 
 
 class AStarNode(Node):
@@ -46,10 +48,11 @@ class AStarNode(Node):
         self.on_reset()
 
     def init(self):
-        self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.cfg_space_received, 20)
-        self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.on_position_received, 20)
-        self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 20)
-        self.pathPublisher = self.create_publisher(Path, "/autonav/path", 20)
+        self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.cfg_space_received, 10)
+        self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.on_position_received, 10)
+        self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 10)
+        self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/pathing_debug", 10)
+        self.pathPublisher = self.create_publisher(Path, "/autonav/path", 10)
         self.mapTimer = self.create_timer(0.1, self.create_path)
         self.resetWhen = -1.0
 
@@ -79,10 +82,21 @@ class AStarNode(Node):
         return simulation_waypoints[0]
 
     def on_system_state_updated(self, old, new):
-        if new == SystemState.AUTONOMOUS and self.is_mobility and len(self.waypoints) == 0:
-            self.waypointTime = time.time() + self.config.waypoint_delay
+        if new == SystemState.AUTONOMOUS and self.is_mobility() and len(self.waypoints) == 0:
+            self.push_safety_lights(255, 255, 255, 1, 0)
+            self.waypointTime = self.get_time_seconds() + self.config.waypoint_delay
         
         if new != SystemState.AUTONOMOUS and self.device_states.get(self.get_name()) == DeviceState.OPERATING:
+            self.push_safety_lights(255, 255, 255, 0, 0)
+            self.on_reset()
+            
+    def on_mobility_updated(self, old, new):
+        if new == True and old == False and self.system_state == SystemState.AUTONOMOUS:
+            self.push_safety_lights(255, 255, 255, 1, 0)
+            self.waypointTime = self.get_time_seconds() + self.config.waypoint_delay
+            
+        if new == False and old == True:
+            self.push_safety_lights(255, 255, 255, 0, 0)
             self.on_reset()
             
     def on_position_received(self, msg: Position):
@@ -92,7 +106,9 @@ class AStarNode(Node):
         if self.position is None or self.costMap is None:
             return
         
-        robot_pos = (40, 78)
+        self.perf_start("create_path")
+
+        robot_pos = (40, 68)
         path = self.find_path_to_point(robot_pos, self.bestPosition, self.costMap, 80, 80)
         if path is not None:
             global_path = Path()
@@ -104,7 +120,8 @@ class AStarNode(Node):
             cvimg = np.zeros((80, 80), dtype=np.uint8)
             for i in range(80):
                 for j in range(80):
-                    cvimg[i, j] = self.costMap[ i * 80 + j ] * 255
+                    val = self.costMap[i * 80 + j] * 255
+                    cvimg[i, j] = min(255, max(0, val))
             cvimg = cv2.cvtColor(cvimg, cv2.COLOR_GRAY2RGB)
 
             for pp in path:
@@ -114,6 +131,8 @@ class AStarNode(Node):
             
             cvimg = cv2.resize(cvimg, (800, 800), interpolation=cv2.INTER_NEAREST)
             self.pathDebugImagePublisher.publish(CV_BRIDGE.cv2_to_compressed_imgmsg(cvimg))
+
+        self.perf_stop("create_path")
             
     def reconstruct(self, path, current):
         total_path = [current]
@@ -179,26 +198,37 @@ class AStarNode(Node):
                         open_set.append(neighbor)
                         heappush(next_current, (fScore[neighbor], neighbor))
                     
-    def cfg_space_received(self, msg: OccupancyGrid):
+    def cfg_space_received(self, msg: OccupancyGrid):        
         if self.position is None or self.system_state != SystemState.AUTONOMOUS:
             return
+        
+        self.perf_start("astar_pathfinding")
 
         grid_data = msg.data
-        temp_best_pos = (40, 78)
+        temp_best_pos = (40, 68)
         best_pos_cost = -1000
 
         frontier = set()
-        frontier.add((40, 78))
+        frontier.add((40, 68))
         explored = set()
 
         if self.config.use_only_waypoints:
             grid_data = [0] * len(msg.data)
             
-        if len(self.waypoints) == 0 and time.time() > self.waypointTime and self.waypointTime != 0:
+        if len(self.waypoints) == 0 and self.get_time_seconds() > self.waypointTime and self.waypointTime != 0:
+            self.push_safety_lights(255, 255, 0, 1, 2)
+            self.push_safety_lights(255, 255, 255, 1, 0)
             self.waypoints = [wp for wp in self.get_waypoints()]
             self.waypointTime = 0
 
-        if time.time() > self.resetWhen and self.resetWhen != -1 and self.is_mobility():
+        if self.get_time_seconds() < self.waypointTime and len(self.waypoints) == 0:
+            time_remaining = self.waypointTime - self.get_time_seconds()
+            pathingDebug = PathingDebug()
+            pathingDebug.waypoints = []
+            pathingDebug.time_until_use_waypoints = time_remaining
+            self.debugPublisher.publish(pathingDebug)
+
+        if self.get_time_seconds() > self.resetWhen and self.resetWhen != -1 and self.is_mobility():
             self.resetWhen = -1
 
         if len(self.waypoints) > 0:
@@ -208,21 +238,22 @@ class AStarNode(Node):
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypoint_pop_distance:
+                self.push_safety_lights(0, 255, 0, 1, 2)
+                self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
-                # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
-                self.resetWhen = time.time() + 1.5
+                self.resetWhen = self.get_time_seconds() + 1.5
 
-            # pathingDebug = PathingDebug()
-            # pathingDebug.desired_heading = heading_to_gps
-            # pathingDebug.desired_latitude = next_waypoint[0]
-            # pathingDebug.desired_longitude = next_waypoint[1]
-            # pathingDebug.distance_to_destination = north_to_gps ** 2 + west_to_gps ** 2
-            # wp1d = []
-            # for wp in self.waypoints:
-            #     wp1d.append(wp[0])
-            #     wp1d.append(wp[1])
-            # pathingDebug.waypoints = wp1d
-            # self.debugPublisher.publish(pathingDebug)
+            pathingDebug = PathingDebug()
+            pathingDebug.desired_heading = heading_to_gps
+            pathingDebug.desired_latitude = next_waypoint[0]
+            pathingDebug.desired_longitude = next_waypoint[1]
+            pathingDebug.distance_to_destination = north_to_gps ** 2 + west_to_gps ** 2
+            wp1d = []
+            for wp in self.waypoints:
+                wp1d.append(wp[0])
+                wp1d.append(wp[1])
+            pathingDebug.waypoints = wp1d
+            self.debugPublisher.publish(pathingDebug)
 
         depth = 0
         while depth < 50 and len(frontier) > 0:
@@ -256,6 +287,8 @@ class AStarNode(Node):
 
         self.costMap = grid_data
         self.bestPosition = temp_best_pos
+
+        self.perf_stop("astar_pathfinding")
         
     def pathToGlobalPose(self, pp0, pp1):
         x = (80 - pp1) * VERTICAL_CAMERA_DIST / 80
@@ -272,7 +305,7 @@ class AStarNode(Node):
 
 def main():
     rclpy.init()
-    rclpy.spin(AStarNode())
+    Node.run_node(AStarNode())
     rclpy.shutdown()
 
 

@@ -87,6 +87,8 @@ public:
 
 	void onConfigSpaceReceived(const nav_msgs::msg::OccupancyGrid::SharedPtr cfg)
 	{
+		perf_start("expandify");
+
 		std::vector<int8_t> cfg_space = std::vector<int8_t>(this->config.map_res * this->config.map_res);
 		std::fill(cfg_space.begin(), cfg_space.end(), 0);
 
@@ -135,6 +137,8 @@ public:
 		compressed->header.frame_id = "map";
 		compressed->format = "jpeg";
 		debug_pub->publish(*compressed);
+
+		perf_stop("expandify");
 	}
 
 private:

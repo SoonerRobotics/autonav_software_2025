@@ -17,13 +17,13 @@ BACK_SPEED = 0.40
 
 class PathResolverConfig:
     def __init__(self):
-        self.forward_speed = 1.3
+        self.forward_speed = 1.5
         self.reverse_speed = -0.4
         self.radius_multiplier = 1.2
         self.radius_max = 4.0
         self.radius_start = 0.7
-        self.angular_aggressiveness = 2.2
-        self.max_angular_speed = 1.3
+        self.angular_aggressiveness = 1.8
+        self.max_angular_speed = 3
 
 
 class PathResolverNode(Node):
@@ -92,6 +92,8 @@ class PathResolverNode(Node):
             if self.device_states.get(self.get_name()) != DeviceState.OPERATING or self.system_state != SystemState.AUTONOMOUS:
                 continue
 
+            self.perf_start("path_resolve")
+
             cur_pos = (self.position.x, self.position.y)
             lookahead = None
             radius = self.config.radius_start
@@ -100,9 +102,16 @@ class PathResolverNode(Node):
                 lookahead = self.purePursuit.get_lookahead_point(cur_pos[0], cur_pos[1], radius)
                 radius *= self.config.radius_multiplier
 
-            # inputPacket = MotorInput()
-            # inputPacket.forward_velocity = 0.0
-            # inputPacket.angular_velocity = 0.0
+            inputPacket = MotorInput()
+            inputPacket.forward_velocity = 0.0
+            inputPacket.sideways_velocity = 0.0
+            inputPacket.angular_velocity = 0.0
+            
+            if not self.is_mobility():
+                self.perf_stop("path_resolve")
+                self.motorPublisher.publish(inputPacket)
+                time.sleep(0.05)
+                continue
 
             # if self.backCount == -1 and (lookahead is not None and ((lookahead[1] - cur_pos[1]) ** 2 + (lookahead[0] - cur_pos[0]) ** 2) > 0.25):
             #     angle_diff = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
@@ -143,9 +152,10 @@ class PathResolverNode(Node):
                 # forward should be cos(angle_to_pp_goal)
                 # sideways should be sin(angle_to_pp_goal)
                 
+                error = self.angle_diff(math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0]), self.position.theta) / math.pi
                 angle_to_pp_goal = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
-                forward_speed = self.config.forward_speed * math.cos(angle_to_pp_goal)
-                sideways_speed = -self.config.forward_speed * math.sin(angle_to_pp_goal)
+                forward_speed = self.clamp(self.config.forward_speed * math.cos(angle_to_pp_goal) * (1 - abs(error)) ** 5, -2.1, 2.1)
+                sideways_speed = self.clamp(-self.config.forward_speed * math.sin(angle_to_pp_goal) * (1 - abs(error)) ** 5, -2.1, 2.1)
                 angular_speed = -self.clamp(self.angle_diff(angle_to_pp_goal, self.position.theta) * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
                 
                 input.forward_velocity = forward_speed
@@ -165,22 +175,17 @@ class PathResolverNode(Node):
                 input.angular_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
                 input.sideways_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
                 
-            if not self.is_mobility:
-                # self.log("Not mobility, stopping")
-                input.forward_velocity = 0.0
-                input.angular_velocity = 0.0
-                input.sideways_velocity = 0.0
-                
-            # self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
+            self.perf_stop("path_resolve")
+
+            self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
             self.motorPublisher.publish(input)
             
-            # sleep such that it runs 5 times a second
-            time.sleep(0.1)
+            time.sleep(0.05)
 
  
 def main():
     rclpy.init()
-    rclpy.spin(PathResolverNode())
+    Node.run_node(PathResolverNode())
     rclpy.shutdown()
 
 

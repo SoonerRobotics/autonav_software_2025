@@ -14,7 +14,7 @@ class ParticleFilter:
     def __init__(self, latitudeLength, longitudeLength) -> None:
         self.num_particles = 750
         self.gps_noise = [0.45]
-        self.odom_noise = [0.05, 0.05, 0.1]
+        self.odom_noise = [0, 0, 0.1]
         self.init_particles()
         self.first_gps = None
         
@@ -35,9 +35,9 @@ class ParticleFilter:
         sum_weight = 0
         
         for particle in self.particles:
-            particle.x += feedback.delta_x * 1.2 * math.cos(particle.theta) + feedback.delta_y * math.sin(particle.theta)
-            particle.y += feedback.delta_x * 1.2 * math.sin(particle.theta) + feedback.delta_y * math.cos(particle.theta)
-            particle.theta += feedback.delta_theta
+            particle.x += feedback.delta_x * 0.95 * math.cos(particle.theta) + feedback.delta_y * math.sin(particle.theta)
+            particle.y += feedback.delta_x * 0.95 * math.sin(particle.theta) + feedback.delta_y * math.cos(particle.theta)
+            particle.theta += feedback.delta_theta * 0.8
             particle.theta = particle.theta % (2 * math.pi)
             weight = particle.weight ** 2
             sum_x += particle.x * weight

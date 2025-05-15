@@ -2,10 +2,11 @@
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, ConfigurationUpdate, Position
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, PathingDebug, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, SwerveFeedback, Position, Performance
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 import rclpy
+import math
 
 import tkinter as tk
 from tkinter import ttk
@@ -24,7 +25,7 @@ class AppBackend(Node):
         self.set_device_state(DeviceState.OPERATING)
 
         # Setup ROS subscriber
-        self.create_subscription(CompressedImage, "/autonav/camera/compressed", self.camera_compressed_callback, 10)
+        self.create_subscription(CompressedImage, "/autonav/camera/compressed/front", self.camera_compressed_callback, 10)
         self.create_subscription(CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10)
         self.create_subscription(CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10)
 
@@ -32,8 +33,11 @@ class AppBackend(Node):
         self.create_subscription(GPSFeedback, "/autonav/gps", self.gps_feedback, 10)
         self.create_subscription(MotorInput, "/autonav/motor_input", self.motor_input_callback, 10)
         self.create_subscription(Position, "/autonav/position", self.position_callback, 10)
+        self.create_subscription(PathingDebug, "/autonav/pathing_debug", self.pathing_debug_callback, 10)
         # self.create_subscription(DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10)
-        # self.create_subscription(SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.motor_feedback_callback, 10)        
+        self.create_subscription(SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.absolute_callback, 10)        
+        self.create_subscription(SwerveFeedback, "/autonav/swerve/feedback", self.swerve_callback, 10)
+        self.create_subscription(Performance, "/autonav/shared/performance", self.performance_callback, 10)
         # self.create_subscription(ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10)
 
     def update_img_from_msg(self, label, msg):
@@ -86,7 +90,8 @@ class AppBackend(Node):
 
     def position_callback(self, msg: Position):
         if self.app.position_label:
-            self.update_label(self.app.position_label, f"Position: {msg.x}, {msg.y}, {msg.theta}")
+            ang = ((msg.theta * -1) * (180 / math.pi) + 360) % 360
+            self.update_label(self.app.position_label, f"Position: {msg.x}, {msg.y}, {ang}\n - ({msg.latitude}, {msg.longitude})")
 
     def on_mobility_updated(self, old, new):
         if self.app.device_state_label:
@@ -95,6 +100,35 @@ class AppBackend(Node):
     def on_system_state_updated(self, old, new):
         if self.app.system_state_label:
             self.update_label(self.app.system_state_label, f"System State: {new}")
+
+    def absolute_callback(self, msg: SwerveAbsoluteFeedback):
+        if self.app.motor_feedback_label:
+            self.update_label(self.app.motor_feedback_label, f"Absolute Feedback: {msg.position_fl}, {msg.position_fr}, {msg.position_bl}, {msg.position_br}")
+
+    def pathing_debug_callback(self, msg: PathingDebug):
+        if self.app.pathing_debug_label:
+            self.update_label(self.app.pathing_debug_label, f"Desired Heading: {msg.desired_heading}")
+        if self.app.pathing_debug_label2:
+            self.update_label(self.app.pathing_debug_label2, f"Desired Latitude: {msg.desired_latitude}")
+        if self.app.pathing_debug_label3:
+            self.update_label(self.app.pathing_debug_label3, f"Desired Longitude: {msg.desired_longitude}")
+        if self.app.pathing_debug_label4:
+            self.update_label(self.app.pathing_debug_label4, f"Distance to Waypoint: {msg.distance_to_destination}")
+        if self.app.pathing_debug_label5:
+            waypoints_str = ", ".join([f"({msg.waypoints[i]}, {msg.waypoints[i+1]})" for i in range(0, len(msg.waypoints), 2)])
+            self.update_label(self.app.pathing_debug_label5, f"Waypoint List: {waypoints_str}")
+        if self.app.pathing_debug_label6:
+            self.update_label(self.app.pathing_debug_label6, f"Time Until Use Waypoints: {msg.time_until_use_waypoints}")
+
+    def performance_callback(self, msg: Performance):
+        if self.app.performance_label:
+            self.app.performances[msg.name] = msg.elapsed
+            self.app.update_performance()
+
+    def swerve_callback(self, msg: SwerveFeedback):
+        # update last swerve feedbacks
+        self.app.last_swerve_feedbacks[msg.module] = msg
+        self.app.update_swerve_display()
 
 class App(tk.Tk):
     def __init__(self):
@@ -107,12 +141,27 @@ class App(tk.Tk):
         self.camera_filtered_label = None
         self.camera_expanded_label = None
 
+        # canvas for swerve modules
+        self.swerve_canvas = None
+
         # Dashboard variables
         self.motor_feedback_label = None
         self.gps_feedback_label = None
         self.motor_input_label = None
         self.position_label = None
         self.system_state_label = None
+        self.device_state_label = None
+        self.pathing_debug_label = None
+        self.pathing_debug_label2 = None
+        self.pathing_debug_label3 = None
+        self.pathing_debug_label4 = None
+        self.pathing_debug_label5 = None
+        self.pathing_debug_label6 = None
+        self.performances = {}
+        self.performance_label = None
+        
+        # swerve stuff
+        self.last_swerve_feedbacks = [None, None, None, None]
 
         # Create the Notebook (tab container)
         self.notebook = ttk.Notebook(self)
@@ -121,9 +170,45 @@ class App(tk.Tk):
         # Create tabs
         self.dashboard_tab = self.create_dashboard_tab()
         self.visuals_tab = self.create_visuals_tab()
+        self.swerve_tab = self.create_swerve_tab()
         self.configuration_tab = self.create_configuration_tab()
         self.performance_tab = self.create_performance_tab()
         self.other_tab = self.create_other_tab()
+
+        # default swerve display
+        self.update_swerve_display()
+
+    def update_swerve_display(self):
+        mod1 = self.last_swerve_feedbacks[0]
+        mod2 = self.last_swerve_feedbacks[1]
+        mod3 = self.last_swerve_feedbacks[2]
+        mod4 = self.last_swerve_feedbacks[3]
+
+        mod1_data = (mod1.desired_x_vel, mod1.desired_y_vel, mod1.desired_angular_vel, mod1.measured_x_vel, mod1.measured_y_vel, mod1.measured_angular_vel) if mod1 else (0, 0, 0, 0, 0, 0)
+        mod2_data = (mod2.desired_x_vel, mod2.desired_y_vel, mod2.desired_angular_vel, mod2.measured_x_vel, mod2.measured_y_vel, mod2.measured_angular_vel) if mod2 else (0, 0, 0, 0, 0, 0)
+        mod3_data = (mod3.desired_x_vel, mod3.desired_y_vel, mod3.desired_angular_vel, mod3.measured_x_vel, mod3.measured_y_vel, mod3.measured_angular_vel) if mod3 else (0, 0, 0, 0, 0, 0)
+        mod4_data = (mod4.desired_x_vel, mod4.desired_y_vel, mod4.desired_angular_vel, mod4.measured_x_vel, mod4.measured_y_vel, mod4.measured_angular_vel) if mod4 else (0, 0, 0, 0, 0, 0)
+
+        # calculate magnitudes and directions
+        def calculate_magnitude_and_direction(x, y):
+            magnitude = math.sqrt(x**2 + y**2)
+            direction = math.degrees(math.atan2(y, x))
+            return magnitude, direction
+        
+        mod1_mag, mod1_dir = calculate_magnitude_and_direction(mod1_data[0], mod1_data[1])
+        mod2_mag, mod2_dir = calculate_magnitude_and_direction(mod2_data[0], mod2_data[1])
+        mod3_mag, mod3_dir = calculate_magnitude_and_direction(mod3_data[0], mod3_data[1])
+        mod4_mag, mod4_dir = calculate_magnitude_and_direction(mod4_data[0], mod4_data[1])
+
+        # update the canvas
+        self.swerve_canvas.delete("all")
+        self.draw_robot_swerve_layout([
+            (mod1_data[2], mod1_mag, mod1_dir, mod1_data[3], mod1_data[4]),  # FL
+            (mod2_data[2], mod2_mag, mod2_dir, mod2_data[3], mod2_data[4]),  # FR
+            (mod3_data[2], mod3_mag, mod3_dir, mod3_data[3], mod3_data[4]),  # BL
+            (mod4_data[2], mod4_mag, mod4_dir, mod4_data[3], mod4_data[4]),  # BR
+        ])
+        self.swerve_canvas.update()
 
     def on_mobility_updated(self):
         self.node.set_mobility(self.mobility_var.get())
@@ -132,6 +217,40 @@ class App(tk.Tk):
         idx = self.system_state_dropdown.current()
         self.node.set_system_state(SystemState(idx))
         
+    def draw_robot_swerve_layout(self, modules):
+        canvas = self.swerve_canvas
+        canvas.delete("all")
+
+        cx, cy = 200, 200
+        half = 100
+        module_radius = 20
+
+        canvas.create_rectangle(cx - half, cy - half, cx + half, cy + half, outline="black", width=2)
+        offsets = [(-1, -1), (1, -1), (-1, 1), (1, 1)]
+        for i, (rotation, true_mag, true_dir, desired_mag, desired_dir) in enumerate(modules):
+            dx, dy = offsets[i]
+            mx = cx + dx * half
+            my = cy + dy * half
+
+            canvas.create_oval(mx - module_radius, my - module_radius, mx + module_radius, my + module_radius, outline="black", width=2)
+            arc_extent = 30
+            start_angle = -rotation + 90 - arc_extent / 2
+            canvas.create_arc(mx - module_radius, my - module_radius,
+                            mx + module_radius, my + module_radius,
+                            start=start_angle, extent=arc_extent,
+                            fill="red", outline="black")
+
+            def draw_arrow(angle_deg, magnitude, color):
+                angle_rad = math.radians(-angle_deg + 90)
+                length = 20 + magnitude * 40
+                x = mx + length * math.cos(angle_rad)
+                y = my + length * math.sin(angle_rad)
+                canvas.create_line(mx, my, x, y, arrow=tk.LAST, fill=color, width=2)
+
+            draw_arrow(true_dir, true_mag, "red")
+            draw_arrow(desired_dir, desired_mag, "blue")
+
+        # canvas.create_line(cx, cy, cx, cy - 40, arrow=tk.LAST, width=2)
 
     def create_dashboard_tab(self):
         frame = ttk.Frame(self.notebook)
@@ -159,6 +278,24 @@ class App(tk.Tk):
 
         self.device_state_label = tk.Label(frame, text="Mobility Enabled: ")
         self.device_state_label.grid(row=6, column=0, sticky="w", padx=20, pady=5)
+        
+        # horizontal line
+        separator = ttk.Separator(frame, orient='horizontal')
+        separator.grid(row=7, column=0, columnspan=2, sticky='ew', padx=20, pady=10)
+        
+        # pathing debug (desired heading, latitude, longitude, distance to current waypoint, waypoint list, and time_until_use_waypoints)
+        self.pathing_debug_label = tk.Label(frame, text="Desired Heading: ")
+        self.pathing_debug_label.grid(row=8, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label2 = tk.Label(frame, text="Desured Latitude: ")
+        self.pathing_debug_label2.grid(row=9, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label3 = tk.Label(frame, text="Desired Longitude: ")
+        self.pathing_debug_label3.grid(row=10, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label4 = tk.Label(frame, text="Distance to Waypoint: ")
+        self.pathing_debug_label4.grid(row=11, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label5 = tk.Label(frame, text="Waypoint List: ")
+        self.pathing_debug_label5.grid(row=12, column=0, sticky="w", padx=20, pady=5)
+        self.pathing_debug_label6 = tk.Label(frame, text="Time Until Use Waypoints: ")
+        self.pathing_debug_label6.grid(row=13, column=0, sticky="w", padx=20, pady=5)
 
         # Checkbox for System Mobility
         self.mobility_var = tk.BooleanVar()
@@ -175,6 +312,16 @@ class App(tk.Tk):
 
         return frame
 
+    def create_swerve_tab(self):
+        frame = ttk.Frame(self.notebook)
+        self.notebook.add(frame, text="Swerve Modules")
+
+        self.swerve_canvas = tk.Canvas(frame, width=400, height=400, bg="white")
+        self.swerve_canvas.pack(padx=20, pady=20)
+
+        return frame
+
+
     def create_configuration_tab(self):
         frame = ttk.Frame(self.notebook)
         self.notebook.add(frame, text="Configuration")
@@ -183,12 +330,27 @@ class App(tk.Tk):
         tk.Label(frame, text="Option A:").pack()
         tk.Entry(frame).pack()
         return frame
+    
+    def update_performance(self):
+        # update the performance label with the latest performance data
+        if self.performance_label:
+            txt = "Performance:\n"
+            for key, value in self.performances.items():
+                txt += f"{key}: {value} ms\n"
+            self.performance_label.config(text=txt)
 
     def create_performance_tab(self):
         frame = ttk.Frame(self.notebook)
         self.notebook.add(frame, text="Performance")
-        label = tk.Label(frame, text="Performance Metrics", font=("Helvetica", 18))
-        label.pack(pady=20)
+        
+        # show the map of performance: it should be key(title) to elapsed time (ms)
+        txt = "Performance:\n"
+        for key, value in self.performances.items():
+            txt += f"{key}: {value} ms\n"
+            
+        self.performance_label = tk.Label(frame, text=txt)
+        self.performance_label.pack(pady=20)
+        
         return frame
 
     def create_other_tab(self):
@@ -215,14 +377,18 @@ class App(tk.Tk):
 
         return frame
 
+def run_ros(app):
+    node = AppBackend(app)
+    Node.run_node(node)
+    rclpy.shutdown()
+
 def main():
     rclpy.init()
 
     app = App()
-    node = AppBackend(app)
 
     # Spin ROS in background thread
-    ros_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
+    ros_thread = threading.Thread(target=run_ros, args=(app,), daemon=True)
     ros_thread.start()
 
     # Run GUI mainloop in main thread

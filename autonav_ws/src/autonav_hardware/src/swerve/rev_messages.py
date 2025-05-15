@@ -1,4 +1,5 @@
 import time
+from enum import Enum
 from struct import pack, unpack
 from can import Message
 
@@ -34,11 +35,30 @@ POSITION_API_INDEX = 2
 VELOCITY_API_CLASS = 1
 VELOCITY_API_INDEX = 2
 
-# PARAMETER_API_CLASS = 48
+PARAMETER_API_CLASS = 48
+PARAMETER_API_INDEX = 0
+
+# PARAMETER_API_CLASS = 7
 # PARAMETER_API_INDEX = 0
 
-PARAMETER_API_CLASS = 7
-PARAMETER_API_INDEX = 0
+# enum parameters
+class Parameter(Enum):
+    kCanID = 0
+    kTest = 63 # I have no clue what this is going to do :)
+    kSerialNumberLow = 47 # Low 32-bits of unique 96-bit serial number (READ ONLY)
+    kSerialNumberMid = 48 # Mid 32-bits of unique 96-bit serial number (READ ONLY)
+    kSerialNumberHigh = 49 # High 32-bits of unique 96-bit serial number (READ ONLY)
+
+
+class ParameterType(Enum):
+    kFloat = 0
+    kUint = 1
+    kInputMode = 14
+    kMotorType = 13
+    kSensorType = 9
+    kCtrlType = 10
+    kIdleMode = 11
+    kBool = 12
 
 def floatToData(f: float) -> bytearray:
     """Converts a given floating-point value into a bytearray that the SparkMAXes can read over CAN"""
@@ -57,6 +77,14 @@ def dataToFloat(data: bytearray) -> float:
         raise ValueError("Data must be at least 4 bytes long to extract a float")
     
     return unpack('<f', data[:4])[0]
+
+def dataToUint(data: bytearray) -> int:
+    """Converts a bytearray from the SparkMAXes into an unsigned integer value"""
+    
+    if len(data) < 4:
+        raise ValueError("Data must be at least 4 bytes long to extract an unsigned int")
+    
+    return unpack('<I', data[:4])[0]
 
 class REVMessageBreakdown:
     def __init__(self, arbitration_id: int):
