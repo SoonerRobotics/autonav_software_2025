@@ -25,9 +25,9 @@ public:
     Feeler(int x, int y);
     ~Feeler() {};
 
-    int getX();
-    int getY();
-    double getLength();
+    int getX() const;
+    int getY() const;
+    double getLength() const;
 
     std::vector<double> toPolar();
     std::vector<int> centerCoordinates(int x, int y, int width, int height);
@@ -50,6 +50,7 @@ public:
     Feeler operator+(Feeler const &other);
     Feeler operator-(Feeler const &other);
     Feeler operator*(int &other);
+    double operator*(Feeler const &other);
 private:
     int x = 0;
     int y = 0;
@@ -91,15 +92,22 @@ Feeler::Feeler(int x, int y) {
 /**
  * @return x coordinate of the end of the feeler
  */
-int Feeler::getX() {
+int Feeler::getX() const {
     return this->x;
 }
 
 /**
  * @return y coordinate of the end of the feeler
  */
-int Feeler::getY() {
+int Feeler::getY() const {
     return this->y;
+}
+
+/**
+ * @return the calculated length of the feeler as it currently stands
+ */
+double Feeler::getLength() const {
+    return std::sqrt((this->x * this->x) + (this->y * this->y));
 }
 
 /**
@@ -383,9 +391,45 @@ Feeler Feeler::operator-(Feeler const &other) {
     return ret;
 }
 
-Feeler Feeler::operator*(int &other) {
-    Feeler ret = Feeler(this->x * other, this->y * other);
+/**
+ * Multiply a feeler by a scalar value.
+ * This works exactly like in math. 
+ * Could do with a double version too.
+ * @param scalarNum an integer to multiply by
+ * @return a new feeler with values copied from the old one
+ */
+Feeler Feeler::operator*(int &scalarNum) {
+    Feeler ret = Feeler(this->x * scalarNum, this->y * scalarNum);
     ret.color = this->color;
 
     return ret;
+}
+
+/**
+ * Dot product a feeler with another feeler.
+ * This works exactly like in math. v1 = <x1, y1>; v2 = <x2, y2>
+ * result = (x1*x2) + (y1*y2) 
+ * @param other the other Feeler
+ * @return a number representing the dot product of the two Feelers.
+ */
+// int Feeler::operator*(Feeler const &other) {
+//     return (this->x * other.getX()) + (this->y * other.getY());
+// }
+
+/**
+ * Dot product a feeler with another feeler, but normalize both of them first.
+ * So we're essentially just getting the angle of each.
+ * This works exactly like in math. v1 = |<x1, y1>|; v2 = |<x2, y2>|
+ * result = v1 dot v2
+ * @param other the other Feeler
+ * @return a number representing the dot product of the two Feelers after both have been normalized.
+ */
+double Feeler::operator*(Feeler const &other) {
+    double x_norm = this->x / this->getLength();
+    double y_norm = this->y / this->getLength();
+
+    double other_x_norm = other.getX() / other.getLength();
+    double other_y_norm = other.getY() / other.getLength();
+
+    return (x_norm * other_x_norm) + (y_norm * other_y_norm);
 }

@@ -46,9 +46,9 @@ struct FeelerNodeConfig {
     double waypointPopDist; // meters?
     double ultrasonic_contribution; // weight between 0 and 2 (or higher)
     unsigned long gpsWaitSeconds;
-    double bias_angle; // degrees
-    double bias_amount; // pixels
-
+    double gpsBiasWeight; // pixels
+    double forwardBiasWeight; // pixels
+    
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, waypointPopDist, ultrasonic_contribution, gpsWaitSeconds);
 };
 
@@ -63,8 +63,8 @@ public:
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitSeconds = 5;
-        config.bias_angle = 180-45;
-        config.bias_amount = 50;
+        config.gpsBiasWeight = 50;
+        config.forwardBiasWeight = 50;
 
         this->_config = config;
         this->config = config;
@@ -158,15 +158,8 @@ public:
         for (double angle = this->config.start_angle; angle < 360; angle += (360 / this->config.number_of_feelers)) {
             int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
             int y = this->config.max_length * sin(radians(angle));
-            Feeler newFeeler = Feeler(x, y);
-
-            // always bias forwards at the start
-            double irlAngle = wrapAngle(angle - 90);
-            if (irlAngle < (this->config.bias_angle/2) || irlAngle > (360 - this->config.bias_angle/2)) {
-                newFeeler.bias(this->config.bias_amount);
-            }
-
-            this->feelers.push_back(newFeeler);
+            
+            this->feelers.push_back(Feeler(x, y));
         }
 
         for (Feeler feeler : feelers) {
@@ -269,25 +262,27 @@ public:
             
             // log("biasing my robot rn", AutoNav::Logging::INFO);
 
-            // figure out the angle to the waypoint
+            // make a vector pointing towards the GPS waypoint
             double latError = goalPoint.lat - this->position.latitude;
             double lonError = goalPoint.lon - this->position.longitude;
-            double angleToWaypoint = std::atan2(latError, lonError); // will be in radians
+            Feeler gpsFeeler = Feeler(lonError, latError);
 
-            // figure out the angle the feelers need to point towards (feelers 0 degrees is to the right so subtract 90 degrees)
-            double feelerAngleToWaypoint = (this->position.theta - PI/2) - angleToWaypoint; //FIXME???
+            Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
 
-            // bias the feelers towards that direction
+            // calculate bias for every feeler
             for (Feeler feeler : this->feelers) {
-                double angle = feeler.toPolar()[1];
+                double gps_bias = this->config.gpsBiasWeight * (feeler * gpsFeeler); // dot product (normalized, don't worry)
+                double forward_bias = this->config.forwardBiasWeight * (feeler * velocityFeeler); // dot product
 
-                // if it's within +/- 10 degrees of the waypoint, add some weight to it
-                if (abs(feelerAngleToWaypoint - angle) < 0.1745329) {
-                    feeler.bias(this->config.bias_amount);
-                    
-                    // and draw it in a different color
-                    feeler.setColor(cv::Scalar(70, 190, 80)); // openCV is in BGR
+                if (gps_bias < 0.0) {
+                    gps_bias = 0.0;
                 }
+
+                if (forward_bias < 0.0) {
+                    forward_bias = 0.0;
+                }
+
+                feeler.bias(gps_bias + forward_bias);
             }
 
             // log("ROBOT has been BIASED", AutoNav::Logging::INFO);
