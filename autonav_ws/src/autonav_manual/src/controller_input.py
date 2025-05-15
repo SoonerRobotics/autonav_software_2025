@@ -20,33 +20,21 @@ TRIGGER_MAX = 1023
 # enable UserspaceHID=true in /etc/bluetooth/input.conf
 # robot ip: 192.168.1.79
 
-class ControllerInputConfig():
-    def __init__(self):
-        self.deadzone = 30.0
-        self.timer_period = 0.05
-
 class ControllerInputNode(Node):
     def __init__(self):
-        super().__init__('controller_input')
-        self.config = ControllerInputConfig()
+        super().__init__('autonav_controller_input')
 
-    def apply_config(self, config: dict):
-        self.config.deadzone = config["deadzone"]
-        self.config.timer_period = config["timer_period"]
-
-    def on_config_update(self, old_cfg, new_cfg):
-        if self.timer is not None:
-            self.destroy_timer(self.timer)
-        
-        self.timer = self.create_timer(self.config.timer_period, self.on_timer_callback)
 
     def init(self):
+        self.set_device_state(DeviceState.WARMING)
+
+        self.timer_period_s = 0.05
         self.publisher = self.create_publisher(ControllerInput, '/autonav/controller_input', 10)
         
         self.controller = self.get_controller()
         self.stick_names = ["ABS_X", "ABS_Y", "ABS_Z", "ABS_RZ"]
         self.dpad_names = ["ABS_HAT0Y", "ABS_HAT0X"]
-        self.button_names = ["BTN_NORTH", "BTN_EAST", "BTN_SOUTH", "BTN_WEST"]
+        self.button_names = ["BTN_NORTH", "BTN_EAST", "BTN_SOUTH", "BTN_WEST"]\
         
         self.controller_state = {
             "ABS_BRAKE": 0.0,
@@ -70,6 +58,9 @@ class ControllerInputNode(Node):
             "wildcard": 0.0
         }
 
+        self.get_inputs_loop()
+
+
     def get_controller(self):
         devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
         controller = None
@@ -88,64 +79,94 @@ class ControllerInputNode(Node):
 
     def normalize(self, input, output_start, output_end, input_start, input_end, deadzone_percent):
         output = output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start)
-        if abs(output) < (deadzone_percent / 100.0):
+
+        if abs(output) < (deadzone_percent/100.0):
             return 0.0
         else:
             return output
 
-    def on_timer_callback(self):
-        try:
-            if self.controller is None:
-                if self.get_device_state() == DeviceState.OPERATING:
-                    self.set_device_state(DeviceState.READY)
 
-                return
+    def get_inputs_loop(self):
+        last_callback_time_s = time.time()
+        while True:
+            last_callback_time_s = self.clock_routine(last_callback_time_s)
 
-            event = self.controller.read_one()
-            if event is None:
-                return
-            
-            if event.type in ecodes.bytype:
-                codename = ecodes.bytype[event.type][event.code]
-            else:
-                codename = "wildcard"
+            try: # handle a disconnection
+                event = self.controller.read_one()
 
-            # We don't care about these
-            if ecodes.EV[event.type] == "EV_SYN" or ecodes.EV[event.type] == "EV_MSC":
-                return
+                if event is None:
+                    continue
 
-            value = 0.0
-            if ecodes.EV[event.type] == "EV_ABS": # joysticks, dpad, or triggers
-                if codename in self.stick_names:
-                    value = self.normalize(event.value, -1, 1, JOY_MIN, JOY_MAX, self.config.get("deadzone"))
-                elif codename in self.dpad_names:
-                    value = float(event.value)
-                else: #trigger
-                    value = self.normalize(event.value, 0, 1, TRIGGER_MIN, TRIGGER_MAX, self.config.get("deadzone"))
-            elif ecodes.EV[event.type] == "EV_KEY": # buttons
-                value = float(event.value)
-
-            # codenames for the controller right thumb buttons are an array of possible names, match for one of them
-            matches = None
-            if type(codename) == list:
-                matches = list(set(codename) & set(self.button_names))
-                if matches is not None:
-                    button_name = self.xbox_swap_N_W(matches[0])
+                if event.type in ecodes.bytype:
+                    codename = ecodes.bytype[event.type][event.code]
                 else:
-                    button_name = "wildcard"
-            else:
-                button_name = codename
+                    codename = "wildcard"
+                
+                value = 0.0
 
-            self.update_controller_state(button_name, value)
-            msg = self.construct_controller_state_message()
-            self.publisher.publish(msg)
-        except Exception as e:
-            self.get_logger().error(f"Error in controller input: {e}")
-            self.set_device_state(DeviceState.ERROR)
-            self.controller = None
-            self.controller = self.get_controller()
-            if self.controller is not None:
-                self.get_logger().info("reconnected!")
+                if ecodes.EV[event.type] == "EV_SYN": # we don't care about these
+                    continue
+
+                if ecodes.EV[event.type] == "EV_MSC": # we don't care about these
+                    continue
+
+                if ecodes.EV[event.type] == "EV_ABS": # joysticks, dpad, or triggers
+                    if codename in self.stick_names:
+                        value = self.normalize(event.value, -1, 1, JOY_MIN, JOY_MAX, 10.0)
+                    elif codename in self.dpad_names:
+                        value = float(event.value)
+                    else: #trigger
+                        value = self.normalize(event.value, 0, 1, TRIGGER_MIN, TRIGGER_MAX, 10.0)
+
+                elif ecodes.EV[event.type] == "EV_KEY": # buttons
+                    value = float(event.value)
+
+                matches = None
+
+                # codenames for the controller right thumb buttons are an array of possible names, match for one of them
+                if type(codename) == list:
+                    matches = list(set(codename) & set(self.button_names))
+                    if matches is not None:
+                        button_name = self.xbox_swap_N_W(matches[0])
+                    else:
+                        button_name = "wildcard"
+                else:
+                    button_name = codename
+
+                self.update_controller_state(button_name, value)
+
+                msg = self.construct_controller_state_message()
+
+                # self.get_logger().info(f"publishing controller state:\n{str(self.controller_state)}")
+                self.publisher.publish(msg)
+
+            except OSError as e: # first disconnect
+                #raise(e) # debug
+                last_callback_time_s = self.reconnect(last_callback_time_s)
+
+            except AttributeError as e: # after the controller InputDevice object is destroyed
+                #raise(e) # debug 
+                last_callback_time_s = self.reconnect(last_callback_time_s)
+
+            else:
+                pass
+            
+
+    def clock_routine(self, last_callback_time_s):
+        current_time_s = time.time()
+        time_delta_s = current_time_s - last_callback_time_s
+        if time_delta_s > self.timer_period_s:
+            self.controller_state_timer_callback()
+            last_callback_time_s = time.time()
+
+        return last_callback_time_s
+
+
+    def controller_state_timer_callback(self):
+        msg = self.construct_controller_state_message()
+        # print(f"publishing: {str(self.controller_state)}")
+        self.publisher.publish(msg)
+
 
     def construct_controller_state_message(self):
         message = ControllerInput()
@@ -172,8 +193,31 @@ class ControllerInputNode(Node):
         
         return message
 
+
     def update_controller_state(self, key, value):
         self.controller_state[key] = value
+
+
+    def reconnect(self, last_callback_time_s):
+        self.set_device_state(DeviceState.ERROR)
+
+        if self.system_state != SystemState.AUTONOMOUS:
+            self.set_system_state(SystemState.DISABLED)
+             
+        self.controller_state = dict.fromkeys(self.controller_state, 0.0)
+        last_callback_time_s = self.clock_routine(last_callback_time_s)
+
+        time.sleep(self.timer_period_s)
+
+        # self.get_logger().info("attempting to reconnect...")
+        self.controller = None
+        self.controller = self.get_controller()
+
+        if self.controller is not None:
+            self.get_logger().info("reconnected!")
+        
+        return last_callback_time_s
+    
 
     def xbox_swap_N_W(self, BTN_DIR):
         if BTN_DIR == "BTN_NORTH":
@@ -193,4 +237,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
