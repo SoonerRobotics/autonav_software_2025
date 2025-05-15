@@ -17,9 +17,8 @@ import threading
 class ControllerMode(IntEnum):
     LOCAL = 0
     GLOBAL = 1
-    
 
-class Manual25Config:
+class ManualConfig:
     def __init__(self):
         self.max_forward_speed = -3
         self.max_sideways_speed = -3
@@ -29,24 +28,28 @@ class Manual25Config:
         self.main_song_path = '~/autonav_software_2025/music/vivalavida.wav'
         self.x_button_sound = '~/autonav_software_2025/music/vine-boom.mp3'
 
-
-class Manual25Node(Node):
+class ManualNode(Node):
     def __init__(self):
-        super().__init__('manual25_node')
-        self.write_config(Manual25Config())
-
-
-    def init(self):
+        super().__init__('autonav_manual')
+        self.config = ManualConfig()
         self.mode = ControllerMode.LOCAL
         self.orientation = 0
         self.last_time = 0
         self.delta_t = 0
         self.new_time = time.time()
-        
-        # self.max_forward_speed = 1
-        # self.max_angular_speed = np.pi/4
-
         self.controller_state = {}
+
+    def apply_config(self, config: dict):
+        self.config.max_forward_speed = config["max_forward_speed"]
+        self.config.max_sideways_speed = config["max_sideways_speed"]
+        self.config.max_angular_speed = config["max_angular_speed"]
+        self.config.odom_fudge_factor = config["odom_fudge_factor"]
+        self.config.sound_buffer = config["sound_buffer"]
+        self.config.main_song_path = config["main_song_path"]
+        self.config.x_button_sound = config["x_button_sound"]
+
+    def init(self):
+        self.new_time = time.time()
 
         self.audio_manager = threading.Thread(target=self.manage_audio)
         self.audio_manager.daemon = True
@@ -86,29 +89,22 @@ class Manual25Node(Node):
             10
         )
 
-        self.controllerSubscriber  # prevent unused variable warning
-
+        self.set_device_state(DeviceState.OPERATING)
 
     def input_callback(self, msg):
         self.new_time = time.time()
         self.delta_t = self.new_time - self.last_time
 
-        self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
-
         self.change_controller_mode()
         self.change_system_state()
         self.handle_encoders()
-
-        # self.log(f"orientation: {self.orientation}")
-        # local vs. global toggle
 
         if self.mode == ControllerMode.LOCAL:
             self.compose_motorinput_message_local()
         elif self.mode == ControllerMode.GLOBAL:
             self.compose_motorinput_message_global()
 
-        
     def deserialize_controller_state(self, msg):
         attributes = [n for n in dir(msg) if not (n.startswith('__') or n.startswith('_'))]
         attributes.remove('SLOT_TYPES')
@@ -116,10 +112,8 @@ class Manual25Node(Node):
         for attribute in attributes:
             self.controller_state[attribute] = getattr(msg, attribute)
 
-
     def normalize(self, input, output_start, output_end, input_start, input_end):
         return output_start + ((output_end - output_start) / (input_end - input_start)) * (input - input_start)
-    
     
     def change_controller_mode(self):
         if self.controller_state["btn_north"] == 1.0:
@@ -156,7 +150,6 @@ class Manual25Node(Node):
             new_system_state = SystemState.DISABLED
             self.set_system_state(new_system_state)
 
-    
     def handle_encoders(self):
         if self.controller_state['btn_tl'] == 1.0:
             # self.log("zeroing the encoders", LogLevel.INFO)
@@ -165,7 +158,6 @@ class Manual25Node(Node):
                 encoder_msg = ZeroEncoders()
                 encoder_msg.which_encoder = i
                 self.zeroEncodersPublisher.publish(encoder_msg)
-
 
     def compose_motorinput_message_local(self):
         if self.system_state != SystemState.MANUAL:
@@ -181,7 +173,6 @@ class Manual25Node(Node):
         motor_msg.angular_velocity = angular_velocity
 
         self.motorPublisher.publish(motor_msg)
-    
 
     # https://math.stackexchange.com/questions/2895880/inversion-of-rotation-matrix
     def compose_motorinput_message_global(self):
@@ -199,11 +190,9 @@ class Manual25Node(Node):
 
         self.motorPublisher.publish(motor_msg)
 
-
     def on_motor_feedback(self, msg:MotorFeedback):
         delta_theta = msg.delta_theta * self.config.get("odom_fudge_factor")
         self.orientation += delta_theta
-
 
     def play_sound(self):
         self.new_time = time.time()
@@ -243,7 +232,6 @@ class Manual25Node(Node):
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()
 
-
     def manage_audio(self):
         while rclpy.ok():
             if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
@@ -272,10 +260,9 @@ class Manual25Node(Node):
 
 def main(args=None):
     rclpy.init()
-    node = Manual25Node()
+    node = ManualNode()
     rclpy.spin(node)
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
