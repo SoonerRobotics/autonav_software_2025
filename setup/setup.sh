@@ -24,6 +24,9 @@ pip3 install python-can[serial] # can
 pip3 install websockets # for websocket server
 pip3 install just_playback # for sound playback
 pip3 install PySoundSphere # for sound playback
+pip3 install flask
+pip3 install flask_socketio
+pip3 install flask-cors
 sudo apt-get install python3-tk # tkinter
 sudo apt-get install python3-pil python3-pil.imagetk
 

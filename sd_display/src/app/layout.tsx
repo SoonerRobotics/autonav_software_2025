@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import ClientSide from "@/components/ClientSide";
+import { SocketProvider } from "@/providers/SocketProvider";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import ClientSide from "@/components/ClientSide";
 
 export const metadata: Metadata = {
     title: "SCR | Self Drive",
@@ -14,7 +15,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     return (
         <html lang="en">
             <body className={`antialiased h-screen bg-gray-950 text-white`}>
-                {children}
+                <SocketProvider>
+                    {children}
+                </SocketProvider>
 
                 <ClientSide>
                     <ToastContainer theme="dark" pauseOnFocusLoss={false} pauseOnHover={false} />
