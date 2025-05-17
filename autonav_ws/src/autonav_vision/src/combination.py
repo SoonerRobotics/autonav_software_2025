@@ -63,29 +63,10 @@ class ImageCombiner(Node):
         self.debug_image_right_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/right", self.debug_image_received_right, 1)
         self.debug_image_back_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/back", self.debug_image_received_back, 1)
 
-        # self.gps_subscriber = self.create_subscription(GPSFeedback, "/autonav/gps", self.on_gps_received, 1)
-
         self.combined_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/filtered", 1)
         self.combined_debug_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/debug", 1)
 
-        # self.feeler_debug_image_subscriber = self.create_subscription(CompressedImage, "/autonav/feelers/debug", self.on_feelers_received, 1) # TEMP TODO FIXME
-        # self.feeler_debug_image = None
-
         self.set_device_state(DeviceState.READY)
-
-        #FIXME TEMP DEBUG HACK
-        self.log("starting image combiner...", LogLevel.WARN)
-        # self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        # self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        # self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        # self.gps_filename = "./data/gps.csv"
-        # self.gps_file = open(self.gps_filename, "w")
-        # self.frame = 0
-        # self.has_logged = False
-
-    # def on_gps_received(self, msg):
-    #     if not self.gps_file.closed:
-    #         self.gps_file.write(f"{msg.latitude},{msg.longitude}\n")
 
     def image_received_front(self, msg):
         self.image_front = msg
@@ -231,40 +212,7 @@ class ImageCombiner(Node):
 
         # publish both images
         self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined_image))
-        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))        
-
-        #TEMP TODO FIXME
-        # feeler_image = None
-        # if (self.feeler_debug_image != None):
-            # feeler_image = bridge.compressed_imgmsg_to_cv2(self.feeler_debug_image)
-            # self.feeler_debug_image = None
-            # if not self.has_logged:
-            #     self.log(f"Shape of feeler_image: {feeler_image.shape}")
-            #     self.has_logged = True
-
-        # FIXME DEBUG HACK
-        # while the UI still in development, log images to a video for debugging
-        # if self.frame < 500:
-        #     combined = cv2.cvtColor(np.uint8(combined_image), cv2.COLOR_GRAY2BGR)
-        #     self.video_writer.write(combined)
-        #     self.debug_video_writer.write(debug_combined)
-            # self.feeler_video_writer.write(feeler_image)
-        # elif self.video_writer.isOpened():
-        #     self.video_writer.release()
-        #     self.debug_video_writer.release()
-            # self.feeler_video_writer.release()
-            # self.gps_file.close()
-            # self.log("combined image logger is done!", LogLevel.ERROR)
-
-        # send to topics
-        # self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
-        # self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
-        
-        # self.frame += 1
-        self.log(f"combining frame. . .", LogLevel.WARN)
-    
-    # def on_feelers_received(self, msg):
-    #     self.feeler_debug_image = msg #TEMP TODO FIXME
+        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
 
 def main():
     rclpy.init()

@@ -20,6 +20,7 @@ find_package(image_transport REQUIRED)
 install(PROGRAMS
   src/transformations.py
   src/combination.py
+  src/vision_test_logger.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
