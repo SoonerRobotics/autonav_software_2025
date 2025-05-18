@@ -1,4 +1,4 @@
-from autonav_msgs.msg import MotorFeedback, GPSFeedback
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, ParticleFilterDebug
 import numpy as np
 import math
 import random
@@ -14,9 +14,11 @@ class ParticleFilter:
     def __init__(self, latitudeLength, longitudeLength) -> None:
         self.num_particles = 750
         self.gps_noise = [0.45]
+        self.particles = []
         self.odom_noise = [0, 0, 0.1]
         self.init_particles()
         self.first_gps = None
+        self.last_feedback = None
         
         self.latitudeLength = latitudeLength
         self.longitudeLength = longitudeLength
@@ -53,8 +55,27 @@ class ParticleFilter:
         avg_y = sum_y / sum_weight
         avg_theta = math.atan2(sum_theta_y / sum_weight, sum_theta_x / sum_weight) % (2 * math.pi)
         
+        self.last_feedback = [avg_x, avg_y, avg_theta]
         return [avg_x, avg_y, avg_theta]
     
+    def get_particle_feedback(self) -> ParticleFilterDebug:
+        if self.last_feedback is None:
+            return None
+        
+        msg = ParticleFilterDebug()
+        msg.x = self.last_feedback[0]
+        msg.y = self.last_feedback[1]
+        msg.theta = self.last_feedback[2]
+        msg.particles = []
+        for particle in self.particles:
+            msg.particles.append(ParticleFilterDebug.Particle())
+            msg.particles[-1].x = particle.x
+            msg.particles[-1].y = particle.y
+            msg.particles[-1].theta = particle.theta
+            msg.particles[-1].weight = particle.weight
+
+        return msg
+     
     def gps(self, gps: GPSFeedback) -> list[float]:
         if self.first_gps is None:
             self.first_gps = gps

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from autonav_msgs.msg import MotorFeedback, GPSFeedback, Position
+from autonav_msgs.msg._particle_filter_debug import ParticleFilterDebug
 from particlefilter import ParticleFilter
 from deadrekt import DeadReckoningFilter
 from autonav_msgs.msg import Position
@@ -17,7 +18,7 @@ class FilterType(IntEnum):
 
 class FiltersConfig:
     def __init__(self):
-        self.filter_type = FilterType.DEAD_RECKONING
+        self.filter_type = FilterType.PARTICLE_FILTER
         self.degree_offset = 107.0
         self.seed_heading = False
         self.latitude_length = 111086.2
@@ -40,6 +41,7 @@ class FiltersNode(Node):
         self.create_subscription(GPSFeedback, "/autonav/gps", self.on_gps, 20)
         self.create_subscription(MotorFeedback, "/autonav/motor_feedback", self.onMotorFeedbackReceived, 20)
         self.positionPublisher = self.create_publisher(Position, "/autonav/position", 20)
+        self.particleDebugPublisher = self.create_publisher(ParticleFilterDebug, "/autonav/particle_debug", 20)
         self.set_device_state(DeviceState.OPERATING)
 
     def apply_config(self, config):
@@ -79,16 +81,16 @@ class FiltersNode(Node):
         if self.firstGps is None:
             self.firstGps = msg
 
-        filterType = self.config.filter_type
+        # Technically we should not run both and we should only run the one that is active
         self.pf.gps(msg)
         self.reckoning.gps(msg)
 
     def onMotorFeedbackReceived(self, msg: MotorFeedback):
         averages = None
-        # if self.get_parameter_or("simulation", "false") == "true":
-        averages = self.reckoning.feedback(msg)
-        # else:    
-        # averages = self.pf.feedback(msg)
+        if self.config.filter_type == FilterType.DEAD_RECKONING:
+            averages = self.reckoning.feedback(msg)
+        else:    
+            averages = self.pf.feedback(msg)
             
         if averages is None:
             return
@@ -97,12 +99,17 @@ class FiltersNode(Node):
         position.x = averages[0]
         position.y = averages[1]
         position.theta = averages[2]
+
+        if self.config.filter_type == FilterType.PARTICLE_FILTER:
+            msg = self.pf.get_particle_feedback()
+            if msg is not None:
+                self.particleDebugPublisher.publish(msg)
         
-        # if self.firstGps is not None:
-        #     gps_x = self.firstGps.latitude + position.x / self.config.latitude_length
-        #     gps_y = self.firstGps.longitude - position.y / self.config.longitude_length
-        #     position.latitude = gps_x
-        #     position.longitude = gps_y
+        if self.firstGps is not None:
+            gps_x = self.firstGps.latitude + position.x / self.config.latitude_length
+            gps_y = self.firstGps.longitude - position.y / self.config.longitude_length
+            position.latitude = gps_x
+            position.longitude = gps_y
         
         self.positionPublisher.publish(position)
 
