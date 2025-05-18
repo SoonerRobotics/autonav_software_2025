@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, Position
-from autonav_msgs.msg._particle_filter_debug import ParticleFilterDebug
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, Position, ParticleFilterDebug
 from particlefilter import ParticleFilter
 from deadrekt import DeadReckoningFilter
 from autonav_msgs.msg import Position
@@ -19,8 +18,6 @@ class FilterType(IntEnum):
 class FiltersConfig:
     def __init__(self):
         self.filter_type = FilterType.PARTICLE_FILTER
-        self.degree_offset = 107.0
-        self.seed_heading = False
         self.latitude_length = 111086.2
         self.longitude_length = 81978.2
 
@@ -40,27 +37,19 @@ class FiltersNode(Node):
     def init(self):
         self.create_subscription(GPSFeedback, "/autonav/gps", self.on_gps, 20)
         self.create_subscription(MotorFeedback, "/autonav/motor_feedback", self.onMotorFeedbackReceived, 20)
+        self.create_timer(1, self.on_publish_debug)
         self.positionPublisher = self.create_publisher(Position, "/autonav/position", 20)
         self.particleDebugPublisher = self.create_publisher(ParticleFilterDebug, "/autonav/particle_debug", 20)
         self.set_device_state(DeviceState.OPERATING)
 
     def apply_config(self, config):
         self.config.filter_type = config["filter_type"]
-        self.config.degree_offset = config["degree_offset"]
-        self.config.seed_heading = config["seed_heading"]
         self.config.latitude_length = config["latitude_length"]
         self.config.longitude_length = config["longitude_length"]
 
     def on_config_update(self, old_cfg, new_cfg):
         self.pf = ParticleFilter(self.config.latitude_length, self.config.longitude_length)
         self.reckoning = DeadReckoningFilter()
-
-    def get_heading(self, heading: float):
-        if heading < 0:
-            heading = 360 + -heading
-        
-        heading += self.config.degree_offset
-        return heading
 
     def reset(self):
         self.reckoning.reset()
@@ -85,6 +74,12 @@ class FiltersNode(Node):
         self.pf.gps(msg)
         self.reckoning.gps(msg)
 
+    def on_publish_debug(self):
+        if self.config.filter_type == FilterType.PARTICLE_FILTER:
+            msg = self.pf.get_particle_feedback()
+            if msg is not None:
+                self.particleDebugPublisher.publish(msg)
+
     def onMotorFeedbackReceived(self, msg: MotorFeedback):
         averages = None
         if self.config.filter_type == FilterType.DEAD_RECKONING:
@@ -99,11 +94,6 @@ class FiltersNode(Node):
         position.x = averages[0]
         position.y = averages[1]
         position.theta = averages[2]
-
-        if self.config.filter_type == FilterType.PARTICLE_FILTER:
-            msg = self.pf.get_particle_feedback()
-            if msg is not None:
-                self.particleDebugPublisher.publish(msg)
         
         if self.firstGps is not None:
             gps_x = self.firstGps.latitude + position.x / self.config.latitude_length

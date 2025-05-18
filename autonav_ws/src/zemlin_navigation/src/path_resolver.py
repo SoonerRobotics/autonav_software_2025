@@ -177,7 +177,7 @@ class PathResolverNode(Node):
                 
             self.perf_stop("path_resolve")
 
-            self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
+            # self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
             self.motorPublisher.publish(input)
             
             time.sleep(0.05)

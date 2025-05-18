@@ -1,4 +1,4 @@
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, ParticleFilterDebug
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, ParticleFilterDebug, Particle as ParticleMsg
 import numpy as np
 import math
 import random
@@ -68,7 +68,7 @@ class ParticleFilter:
         msg.theta = self.last_feedback[2]
         msg.particles = []
         for particle in self.particles:
-            msg.particles.append(ParticleFilterDebug.Particle())
+            msg.particles.append(ParticleMsg())
             msg.particles[-1].x = particle.x
             msg.particles[-1].y = particle.y
             msg.particles[-1].theta = particle.theta

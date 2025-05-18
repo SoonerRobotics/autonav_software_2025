@@ -58,7 +58,7 @@ class ImageTransformer(Node):
         self.config.flatten_param = config["flatten_param"]
 
     def init(self):
-        self.camera_sub = self.create_subscription(CompressedImage, "/autonav/camera/compressed/front", self.on_image_received, 1)
+        self.camera_sub = self.create_subscription(CompressedImage, "/autonav/camera/front", self.on_image_received, 1)
         self.raw_map_pub = self.create_publisher(OccupancyGrid, "/autonav/cfg_space/raw", 1)
         self.filtered_pub = self.create_publisher(CompressedImage, "/autonav/cfg_space/raw/image", 1)
 

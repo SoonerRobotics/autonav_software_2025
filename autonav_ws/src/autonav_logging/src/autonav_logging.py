@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import rclpy
+import yaml
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState
 from autonav_shared.types import SystemState as SystemStateEnum
@@ -14,6 +15,7 @@ from cv_bridge import CvBridge
 from datetime import datetime
 import os
 import time
+import json
 
 import subprocess
 import cv2
@@ -82,17 +84,30 @@ class LoggingNode(Node):
     def create_entry(self):
         self.log("Create_entry", LogLevel.INFO)
         stateFrmt = "autonomous" if self.system_state == 1 else "manual"
-        filename = f"{stateFrmt}_{self.makeTimestamp()}"
+        cur_time_date = datetime.now()
+        cur_time = cur_time_date.strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{stateFrmt}_{cur_time}.suslog"
         
-        BASE_PATH = os.path.join(self.home_dir, "Documents", "autonav", "logs", filename)
+        BASE_PATH = os.path.join(self.home_dir, ".autonav", "logs")
+        FILE_PATH = os.path.join(BASE_PATH, filename)
+        self.log(f"Creating file {FILE_PATH}", LogLevel.INFO)
         os.makedirs(BASE_PATH, exist_ok=True)
-        self.file = open(os.path.join(BASE_PATH, "log.csv"), "w")
+        self.file = open(FILE_PATH, "w")
+
+        # write the first entry, metadata stuff
+        self.started_logging_at = time.time()
+        event = {
+            "system_state": self.system_state.value,
+            "mobility": self.mobility
+        }
+        self.append_event("metadata", event)
     
     def close_entry(self):
         if self.file is None:
             return
         
         self.get_logger().info("Closing Entry")
+        self.write_file()
         self.file.close()
         self.file = None
 
@@ -103,6 +118,9 @@ class LoggingNode(Node):
             self.close_entry()       
     
     def append_event(self, event_type: str, event):
+        if self.file == None:
+            return
+        
         msg = {
             "timestamp": time.time() - self.started_logging_at,
             "type": event_type,
@@ -115,7 +133,21 @@ class LoggingNode(Node):
             self.log("File is None, not writing", LogLevel.ERROR)
             return
         
-        # Overwrite the entire message with json encoded self.events
+        events_cpy = []
+        for event in self.events:
+            event_cpy = event.copy()
+            try:
+                json.dumps(event_cpy["event"])
+            except TypeError:
+                event_cpy["event"] = yaml.load(str(event["event"]), Loader=yaml.Loader)
+            events_cpy.append(event_cpy)
+
+        json_str = json.dumps(events_cpy)
+        
+        # clear what we have written so far and write the new stuff
+        self.file.seek(0)
+        self.file.truncate()
+        self.file.write(json_str)
         
     def deviceStateCallback(self, msg):
         if self.file == None:
@@ -147,11 +179,17 @@ class LoggingNode(Node):
         
         self.append_event("motor_input", msg)
     
-    def position_feedback(self, msg):
+    def position_feedback(self, msg: Position):
         if not self.config.record_position:
             return
         
-        self.append_event("position", msg)
+        self.append_event("position", {
+            "x": msg.x,
+            "y": msg.y,
+            "theta": msg.theta,
+            "longitude": msg.longitude,
+            "latitude": msg.latitude
+        })
         
     def nuc_feedback(self, msg):
         if not self.config.record_nuc:
@@ -176,7 +214,6 @@ class LoggingNode(Node):
             return
         
         self.append_event("safetylight", msg)
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_SAFETYLIGHT, {msg.autonomous}, {msg.red}, {msg.green}, {msg.blue}")
     
     def performance_feedback(self, msg):
         if not self.config.record_performance:
@@ -184,7 +221,7 @@ class LoggingNode(Node):
         
         self.append_event("performance", msg)
 
-    def log_callback(self, msg):
+    def log_callback(self, msg: Log):
         if self.file == None:
             return
         
