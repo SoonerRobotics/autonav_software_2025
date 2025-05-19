@@ -37,9 +37,11 @@ class ParticleFilter:
         sum_weight = 0
         
         for particle in self.particles:
-            particle.x += feedback.delta_x * 0.95 * math.cos(particle.theta) + feedback.delta_y * math.sin(particle.theta)
-            particle.y += feedback.delta_x * 0.95 * math.sin(particle.theta) + feedback.delta_y * math.cos(particle.theta)
-            particle.theta += feedback.delta_theta * 0.8
+            # particle.x += feedback.delta_x * 0.95 * math.cos(particle.theta) + feedback.delta_y * math.sin(particle.theta)
+            # particle.y += feedback.delta_x * 0.95 * math.sin(particle.theta) + feedback.delta_y * math.cos(particle.theta)
+            particle.x += feedback.delta_x
+            particle.y += feedback.delta_y
+            particle.theta += feedback.delta_theta
             particle.theta = particle.theta % (2 * math.pi)
             weight = particle.weight ** 2
             sum_x += particle.x * weight

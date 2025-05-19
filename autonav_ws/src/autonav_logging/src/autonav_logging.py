@@ -149,35 +149,63 @@ class LoggingNode(Node):
         self.file.truncate()
         self.file.write(json_str)
         
-    def deviceStateCallback(self, msg):
+    def deviceStateCallback(self, msg: DeviceState):
         if self.file == None:
             return
         
-        self.append_event("device_state", msg)
+        self.append_event("device_state", {
+            "device": msg.device,
+            "state": msg.state
+        })
         
     def imu_feedback(self, msg):
         if not self.config.record_imu:
             return
         
-        self.append_event("imu", msg)
+        self.append_event("imu", {
+            "yaw": msg.yaw,
+            "pitch": msg.pitch,
+            "roll": msg.roll,
+            "accel_x": msg.accel_x,
+            "accel_y": msg.accel_y,
+            "accel_z": msg.accel_z,
+            "angular_x": msg.angular_x,
+            "angular_y": msg.angular_y,
+            "angular_z": msg.angular_z,
+            "status": msg.status,
+        })
     
     def gps_feedback(self, msg):
         if not self.config.record_gps:
             return
         
-        self.append_event("gps", msg)
+        self.append_event("gps", {
+            "latitude": msg.latitude,
+            "longitude": msg.longitude,
+            "altitude": msg.altitude,
+            "num_satellites": msg.num_satellites,
+            "gps_fix": msg.gps_fix
+        })
     
     def mfeedback_feedback(self, msg):
         if not self.config.record_motor:
             return
         
-        self.append_event("motor_feedback", msg)
+        self.append_event("motor_feedback", {
+            "delta_x": msg.delta_x,
+            "delta_y": msg.delta_y,
+            "delta_theta": msg.delta_theta,
+        })
         
     def minput_feedback(self, msg):
         if not self.config.record_motor:
             return
         
-        self.append_event("motor_input", msg)
+        self.append_event("motor_input", {
+            "forward_velocity": msg.forward_velocity,
+            "sideways_velocity": msg.sideways_velocity,
+            "angular_velocity": msg.angular_velocity
+        })
     
     def position_feedback(self, msg: Position):
         if not self.config.record_position:
@@ -195,13 +223,22 @@ class LoggingNode(Node):
         if not self.config.record_nuc:
             return
         
-        self.append_event("nuc", msg)
+        self.append_event("nuc", {
+            "timestamp": msg.timestamp,
+            "cpu_percentage": msg.cpu_percentage,
+            "ram_usage": msg.ram_usage,
+            "disk_usage": msg.disk_usage,
+            "gpu_usage": msg.gpu_usage
+        })
     
     def ultrasonic_feedback(self, msg):
         if not self.config.record_ultrasonic:
             return
         
-        self.append_event("ultrasonic", msg)
+        self.append_event("ultrasonic", {
+            "id": msg.id,
+            "distance": msg.distance,
+        })
         
     def conbus_feedback(self, msg):
         if not self.config.record_conbus:
@@ -213,25 +250,52 @@ class LoggingNode(Node):
         if not self.config.record_safetylights:
             return
         
-        self.append_event("safetylight", msg)
+        self.append_event("safetylight", {
+            "mode": msg.mode,
+            "brightness": msg.brightness,
+            "red": msg.red,
+            "green": msg.green,
+            "blue": msg.blue,
+            "blink_period": msg.blink_period
+        })
     
     def performance_feedback(self, msg):
         if not self.config.record_performance:
             return
         
-        self.append_event("performance", msg)
+        self.append_event("performance", {
+            "name": msg.name,
+            "elapsed": msg.elapsed,
+        })
 
     def log_callback(self, msg: Log):
         if self.file == None:
             return
         
-        self.append_event("log", msg)
+        self.append_event("log", {
+            "timestamp": msg.timestamp,
+            "level": msg.level,
+            "node": msg.node,
+            "message": msg.message,
+            "function_caller": msg.function_caller,
+            "line_number": msg.line_number
+        })
 
     def particle_feedback(self, msg):
         if not self.config.record_pf_debug:
             return
         
-        self.append_event("pf_debug", msg)
+        self.append_event("pf_debug", {
+            "x": msg.x,
+            "y": msg.y,
+            "theta": msg.theta,
+            "particles": [{
+                "x": p.x,
+                "y": p.y,
+                "theta": p.theta,
+                "weight": p.weight
+            } for p in msg.particles]
+        })
     
         
 def main():
