@@ -7,12 +7,12 @@ export function SwerveModule(props: {
     const normalizedAngle = props.angle % 360;
 
     return (
-        <div className="w-48 h-48 m-4 shadow-lg">
-            <div className="flex flex-col items-center justify-center p-4">
-                <div className="text-xl font-bold mb-2">{props.id}</div>
-                <div className="w-24 h-24 rounded-full border-4 border-gray-300 flex items-center justify-center relative">
+        <div className="flex items-center justify-center w-full h-full">
+            <div className="flex flex-col items-center justify-center">
+                <div className="text-sm font-bold mb-2">{props.id}</div>
+                <div className="aspect-square w-full h-full rounded-full border-4 border-gray-300 flex items-center justify-center relative">
                     <motion.div
-                        className="w-1 h-10 bg-blue-500 absolut"
+                        className="w-1 h-10 bg-blue-500"
                         animate={{ rotate: -normalizedAngle }}
                         transition={{ duration: 0.05 }}
                     />

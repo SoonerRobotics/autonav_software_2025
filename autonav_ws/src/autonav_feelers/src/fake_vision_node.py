@@ -35,7 +35,8 @@ class ImageCombiner(Node):
         self.feeler_debug_image_subscriber = self.create_subscription(CompressedImage, "/autonav/feelers/debug", self.on_feelers_received, 1) # TEMP TODO FIXME
         self.feeler_debug_image = None
 
-        self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler_test.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
+        # self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler_test.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
+        self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler_test.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (1600, 1600)) #TODO
 
         # publishers
         self.combined_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/filtered", 1)

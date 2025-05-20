@@ -17,6 +17,16 @@
 
 #define now() (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())).count();
 
+//TODO FIXME this is not technically correct, think I need a modulo
+double wrapAngle(double deg) {
+    if (deg < 0) {
+        return deg + 360;
+    } else if (deg > 360) {
+        return deg - 360;
+    }
+    return deg;
+}
+
 // pretty basic gps point struct
 struct GPSPoint {
     double lat;
@@ -36,7 +46,9 @@ struct FeelerNodeConfig {
     double waypointPopDist; // meters?
     double ultrasonic_contribution; // weight between 0 and 2 (or higher)
     unsigned long gpsWaitSeconds;
-
+    double gpsBiasWeight; // pixels
+    double forwardBiasWeight; // pixels
+    
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, waypointPopDist, ultrasonic_contribution, gpsWaitSeconds);
 };
 
@@ -45,12 +57,15 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 650;
-        config.number_of_feelers = 40;
+        config.max_length = 200;
+        config.number_of_feelers = 35;
         config.start_angle = 5;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitSeconds = 5;
+        config.gpsBiasWeight = 50;
+        config.forwardBiasWeight = 50;
+
         this->_config = config;
         this->config = config;
     }
@@ -143,7 +158,7 @@ public:
         for (double angle = this->config.start_angle; angle < 360; angle += (360 / this->config.number_of_feelers)) {
             int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
             int y = this->config.max_length * sin(radians(angle));
-
+            
             this->feelers.push_back(Feeler(x, y));
         }
 
@@ -182,6 +197,8 @@ public:
 
         // this->perf_start("FeelerNode::update");
 
+        //TODO FIXME bias the feelers forwards
+
         // calculate new length of every new feeler
         for (Feeler &feeler : this->feelers) {
             feeler.update(&mask, this);
@@ -197,7 +214,7 @@ public:
         // log(std::to_string(this->feelers.size()), AutoNav::Logging::WARN);
         // log(std::to_string(mask.cols), AutoNav::Logging::WARN);
         // log(std::to_string(mask.rows), AutoNav::Logging::WARN);
-        // log(std::to_string(debug_image_ptr->cols), AutoNav::Logging::WARN); //FIXME TODO
+        // log(std::to_string(debug_image_ptr->cols), AutoNav::Logging::WARN);
         // log(std::to_string(debug_image_ptr->rows), AutoNav::Logging::WARN);
 
         // log("chat are we cooked", AutoNav::Logging::WARN); //FIXME TODO
@@ -236,22 +253,39 @@ public:
 
         this->distToWaypoint = 0;
         if (this->direction != "") { // if we have a direction, then we are good to use it to get waypoints and go towards them
+            // if we don't have any waypoints, however
+            if (this->waypointsDict.size() == 0) {
+                //TODO do something???
+                return;
+            }
             GPSPoint goalPoint = this->waypointsDict.at(this->direction)[this->waypointIndex];
-            //FIXME this doesn't account for the rotation of the robot
-            //FIXME the clamping and proprotional stuff should be configurable so we can make GPS contributions mean more or less
-            //FIXME this should be like, proportional and not just the error where is my kP term
-            double lonError = std::clamp((goalPoint.lon - this->position.longitude) * 1000000, -200.0, 200.0);
-            double latError = std::clamp((goalPoint.lat - this->position.latitude) * 1000000, -200.0, 200.0);
-
-            // https://github.com/SoonerRobotics/autonav_software_2025/blob/main/autonav_ws/src/autonav_manual/src/manual_25.py in compose_motorinput_mesage_global()
-            int x = lonError * cos(msg.theta) + latError * sin(msg.theta);
-            int y = lonError * sin(msg.theta) - latError * cos(msg.theta); // theta is in radians according to last year's PF code
             
-            this->gpsFeeler = Feeler(x, y);
-            
-            this->gpsFeeler.setColor(cv::Scalar(200, 100, 120)); //GPS feeler is red
+            // log("biasing my robot rn", AutoNav::Logging::INFO);
 
-            // log("PIDing my robot rn", AutoNav::Logging::INFO);
+            // make a vector pointing towards the GPS waypoint
+            double latError = goalPoint.lat - this->position.latitude;
+            double lonError = goalPoint.lon - this->position.longitude;
+            Feeler gpsFeeler = Feeler(lonError, latError);
+
+            Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
+
+            // calculate bias for every feeler
+            for (Feeler feeler : this->feelers) {
+                double gps_bias = this->config.gpsBiasWeight * (feeler * gpsFeeler); // dot product (normalized, don't worry)
+                double forward_bias = this->config.forwardBiasWeight * (feeler * velocityFeeler); // dot product
+
+                if (gps_bias < 0.0) {
+                    gps_bias = 0.0;
+                }
+
+                if (forward_bias < 0.0) {
+                    forward_bias = 0.0;
+                }
+
+                feeler.bias(gps_bias + forward_bias);
+            }
+
+            // log("ROBOT has been BIASED", AutoNav::Logging::INFO);
 
             this->distToWaypoint = std::sqrt(std::pow((goalPoint.lon - this->position.longitude)*this->latitudeLength, 2) + std::pow((goalPoint.lat - this->position.latitude)*this->longitudeLength, 2));
 
@@ -314,13 +348,12 @@ public:
             // log(feeler.to_string(), AutoNav::Logging::WARN);
         }
 
-        // draw the ultrasonic feelers on the image (on top of the vision feelers)
-        for (Feeler feeler : this->ultrasonic_feelers) {
-            feeler.draw(this->debug_image_ptr->image);
-        }
+        // log("DREW FEELERS!", AutoNav::Logging::ERROR); //FIXME TODO
 
-        // draw the GPS feeler
-        this->gpsFeeler.draw(this->debug_image_ptr->image);
+        // draw the ultrasonic feelers on the image (on top of the vision feelers)
+        // for (Feeler feeler : this->ultrasonic_feelers) {
+        //     feeler.draw(this->debug_image_ptr->image);
+        // }
 
         // draw the heading arrow on top of everything else
         this->headingArrow.draw(this->debug_image_ptr->image);
@@ -338,12 +371,11 @@ public:
      * on the motor manager PCB will disable the motors if it hasn't received a motor command after a short period of time.
      */
     void calculateOutputs() {
-        // reinitialize the heading arrow (with a bias towards going 'forwards')
-        //TODO what if forwards isn't forwards? we re-initialize this a lot, so FIXME does not account for robot rotation
-        this->headingArrow = Feeler(0, 50); //TODO this should be configurable (the bias forwards, that is)
-        this->headingArrow.setColor(cv::Scalar(0, 250, 0)); //TODO this should be configurable?
+        // reinitialize the heading arrow
+        this->headingArrow = Feeler(0, 0);
+        this->headingArrow.setColor(cv::Scalar(200, 200, 0));
 
-        // add all the vision-based feelers together
+        // add all the feelers together
         for (Feeler feeler : this->feelers) {
             //FIXME the weight of the feelers should be configurable (outside of MAX_LENGTH), or like give them a custom response curve or something
             this->headingArrow = this->headingArrow + feeler;
@@ -352,11 +384,8 @@ public:
         // add all the ultrasonic feelers together
         for (Feeler feeler : this->ultrasonic_feelers) {
             // FIXME TODO use the config ultrasonics_weight to determine how much ultrasonics effect the heading arrow
-            this->headingArrow = this->headingArrow + feeler;
+            // this->headingArrow = this->headingArrow + feeler;
         }
-
-        // add the GPS feeler in too
-        this->headingArrow = this->headingArrow + this->gpsFeeler;
     }
 
     /**
@@ -433,7 +462,6 @@ private:
     // feelers
     std::vector<Feeler> feelers;
     std::vector<Feeler> ultrasonic_feelers;
-    Feeler gpsFeeler = Feeler(0, 0);
     Feeler headingArrow = Feeler(0, 0);
 
     // config

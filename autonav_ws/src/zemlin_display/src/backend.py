@@ -9,6 +9,7 @@ import rclpy
 
 from flask import Flask, Response, jsonify
 from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 import threading
 from threading import Lock
 import logging
@@ -55,7 +56,10 @@ class DisplayBackend(Node):
         super().__init__("autonav_sd_display")
         self.config = DisplayBackendConfig() # Set the default config
 
-        self.camera_last_frame = None
+        self.camera_last_frame_front = None
+        self.camera_last_frame_back = None
+        self.camera_last_frame_left = None
+        self.camera_last_frame_right = None
         self.filtered_last_frame = None
         self.expanded_last_frame = None
         self.back_cam = None
@@ -83,12 +87,21 @@ class DisplayBackend(Node):
 
 
         # Subscribers
-        # self.camera_sub = self.create_subscription(
-        #     CompressedImage, "/autonav/camera/compressed", self.camera_callback, 10
-        # )
-        # self.filered_sub = self.create_subscription(
-        #     CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
-        # )
+        self.camera_sub_front = self.create_subscription(
+            CompressedImage, "/autonav/camera/front", self.camera_callback_front, 10
+        )
+        self.camera_sub_back = self.create_subscription(
+            CompressedImage, "/autonav/camera/back", self.camera_callback_back, 10
+        )
+        self.camera_sub_left = self.create_subscription(
+            CompressedImage, "/autonav/camera/left", self.camera_callback_left, 10
+        )
+        self.camera_sub_right = self.create_subscription(
+            CompressedImage, "/autonav/camera/right", self.camera_callback_right, 10
+        )
+        self.filered_sub = self.create_subscription(
+            CompressedImage, "/autonav/vision/combined/filtered", self.filtered_callback, 10
+        )
         # self.expanded_sub = self.create_subscription(
         #     CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
         # )
@@ -124,8 +137,17 @@ class DisplayBackend(Node):
         )
 
 
-    def camera_callback(self, msg):
-        self.camera_last_frame = msg
+    def camera_callback_front(self, msg: CompressedImage):
+        self.camera_last_frame_front = msg
+        
+    def camera_callback_back(self, msg: CompressedImage):
+        self.camera_last_frame_back = msg
+        
+    def camera_callback_left(self, msg: CompressedImage):
+        self.camera_last_frame_left = msg
+        
+    def camera_callback_right(self, msg: CompressedImage):
+        self.camera_last_frame_right = msg
 
     def filtered_callback(self, msg):
         self.filtered_last_frame = msg
@@ -133,87 +155,93 @@ class DisplayBackend(Node):
     def expanded_callback(self, msg):
         self.expanded_last_frame = msg
 
+    def emit(self, type: str, msg: dict):
+        packet = {
+            "type": type,
+            "msg": msg
+        }
+        self.socketio.emit("message", json.dumps(packet))
+
     def on_web_config_updated(self, msg: ConfigurationUpdate):
-        self.socketio.emit("configs", json.dumps({
-            "configs": self.other_cfgs
-        }))
+        self.emit("configs", {
+            "configs": msg.configs
+        })
 
     def _device_state_callback(self, msg: DeviceState):
-        self.socketio.emit("device_state", json.dumps({
+        self.emit("device_state", {
             "device": msg.device,
             "state": msg.state
-        }))
+        })
 
     def on_mobility_updated(self, old, new):
-        self.socketio.emit("system_state", json.dumps({
+        self.emit("system_state", {
             "state": self.get_system_state(),
             "mobility": new
-        }))    
+        })   
     
     def on_system_state_updated(self, old, new):
-        self.socketio.emit("system_state", json.dumps({
+        self.emit("system_state", {
             "state": new,
             "mobility": self.is_mobility()
-        }))
+        })
 
     def motor_feedback_callback(self, msg: MotorFeedback):
         if not self.limiter.use("motor_feedback"):
             return
 
-        self.socketio.emit("motor_feedback", json.dumps({
+        self.emit("motor_feedback", {
             "delta_x": msg.delta_x,
             "delta_y": msg.delta_y,
             "delta_theta": msg.delta_theta
-        }))
+        })
 
     def absolute_encoder_callback(self, msg: SwerveAbsoluteFeedback):
         if not self.limiter.use("absolute"):
             return
 
-        # self.log(f"Absolute encoder callback: {msg.module} {msg.position}")
-        self.socketio.emit("absolute_encoder", json.dumps({
+        self.emit("absolute_encoder", {
             "position_fl": msg.position_fl,
             "position_fr": msg.position_fr,
             "position_bl": msg.position_bl,
             "position_br": msg.position_br
-        }))
+        })
 
     def position_callback(self, msg: Position):
         if not self.limiter.use("position"):
             return
 
-        self.socketio.emit("position", json.dumps({
+        self.emit("position", {
             "x": msg.x,
             "y": msg.y,
             "theta": msg.theta
-        }))
+        })
 
     def motor_input_callback(self, msg: MotorInput):
         if not self.limiter.use("motor_input"):
             return
 
-        self.socketio.emit("motor_input", json.dumps({
+        self.emit("motor_input", {
             "angular_velocity": msg.angular_velocity,
             "sideways_velocity": msg.sideways_velocity,
             "forward_velocity": msg.forward_velocity
-        }))
+        })
 
     def gps_feedback(self, msg: GPSFeedback):
         if not self.limiter.use("gps_feedback"):
             return
 
-        self.socketio.emit("gps_feedback", json.dumps({
+        self.emit("gps_feedback", {
             "latitude": msg.latitude,
             "longitude": msg.longitude,
             "altitude": msg.altitude,
             "gps_fix": msg.gps_fix,
             # "is_locked": msg.is_locked,
             "num_satellites": msg.num_satellites
-        }))
+        })
 
     def init_flask_server(self):
         """Initialize Flask server in a separate thread."""
-        app = Flask(__name__)
+        app = Flask(__name__)        
         socketio = SocketIO(app, cors_allowed_origins="*")
         config = self.config
         self.socketio = socketio
@@ -229,12 +257,57 @@ class DisplayBackend(Node):
             return jsonify({"current_time_ms": millis})
         
         # Left camera stream that updates based on the camera fps configuration
-        @app.route("/camera")
+        @app.route("/camera_front")
+        def front_cam():
+            def generate():
+                while True:
+                    if self.camera_last_frame_front is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.camera_last_frame_front.data, np.uint8), cv2.IMREAD_COLOR)
+                        _, jpeg = cv2.imencode(".jpg", frame)
+                        yield (
+                            b"--frame\r\n"
+                            b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
+                        )
+                    time.sleep(1 / config.camera_fps)
+            return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        
+        # Back camera stream that updates based on the camera fps configuration
+        @app.route("/camera_back")
+        def back_cam():
+            def generate():
+                while True:
+                    if self.camera_last_frame_back is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.camera_last_frame_back.data, np.uint8), cv2.IMREAD_COLOR)
+                        _, jpeg = cv2.imencode(".jpg", frame)
+                        yield (
+                            b"--frame\r\n"
+                            b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
+                        )
+                    time.sleep(1 / config.camera_fps)
+            return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        
+        # Left camera stream that updates based on the camera fps configuration
+        @app.route("/camera_left")
         def left_cam():
             def generate():
                 while True:
-                    if self.camera_last_frame is not None:
-                        frame = cv2.imdecode(np.frombuffer(self.camera_last_frame.data, np.uint8), cv2.IMREAD_COLOR)
+                    if self.camera_last_frame_left is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.camera_last_frame_left.data, np.uint8), cv2.IMREAD_COLOR)
+                        _, jpeg = cv2.imencode(".jpg", frame)
+                        yield (
+                            b"--frame\r\n"
+                            b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
+                        )
+                    time.sleep(1 / config.camera_fps)
+            return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+        
+        # Left camera stream that updates based on the camera fps configuration
+        @app.route("/camera_right")
+        def right_cam():
+            def generate():
+                while True:
+                    if self.camera_last_frame_right is not None:
+                        frame = cv2.imdecode(np.frombuffer(self.camera_last_frame_right.data, np.uint8), cv2.IMREAD_COLOR)
                         _, jpeg = cv2.imencode(".jpg", frame)
                         yield (
                             b"--frame\r\n"
@@ -245,7 +318,7 @@ class DisplayBackend(Node):
         
         # Right camera stream that updates based on the camera fps configuration
         @app.route("/filtered")
-        def right_cam():
+        def filtered_cam():
             def generate():
                 while True:
                     if self.filtered_last_frame is not None:
@@ -260,7 +333,7 @@ class DisplayBackend(Node):
         
         # Front camera stream that updates based on the camera fps configuration
         @app.route("/expanded")
-        def front_cam():
+        def expanded_cam():
             def generate():
                 while True:
                     if self.expanded_last_frame is not None:
@@ -312,10 +385,14 @@ class DisplayBackend(Node):
                 self.set_system_state(int(state))
                 self.log(f"Setting system state to {state}", LogLevel.INFO)
 
-                self.socketio.emit("system_state", json.dumps({
+                # self.socketio.emit("system_state", json.dumps({
+                #     "state": state,
+                #     "mobility": self.is_mobility()
+                # }))
+                self.emit("system_state", {
                     "state": state,
                     "mobility": self.is_mobility()
-                }))
+                })
             else:
                 self.log("No state provided", LogLevel.ERROR)
 
@@ -326,22 +403,28 @@ class DisplayBackend(Node):
                 self.set_mobility(bool(mobility))
                 self.log(f"Setting mobility to {mobility}", LogLevel.INFO)
 
-                self.socketio.emit("system_state", json.dumps({
+                # self.socketio.emit("system_state", json.dumps({
+                #     "state": self.get_system_state(),
+                #     "mobility": bool(mobility)
+                # }))
+                self.emit("system_state", {
                     "state": self.get_system_state(),
                     "mobility": bool(mobility)
-                }))
+                })
             else:
                 self.log("No mobility state provided", LogLevel.ERROR)
 
         @socketio.on("connect")
         def handle_connect():
             """Handle a new client connection."""
+            self.log("Client connected", LogLevel.INFO)
+            
             # Send the current system state
             system_state = {
                 "state": self.get_system_state(),
                 "mobility": self.is_mobility()
             }
-            self.socketio.emit("system_state", json.dumps(system_state))
+            self.emit("system_state", system_state)
 
             # Loop through the device_states map and send each device state
             for device, state in self.device_states.items():
@@ -349,17 +432,19 @@ class DisplayBackend(Node):
                     "device": device,
                     "state": state
                 }
-                self.socketio.emit("device_state", json.dumps(device_state))
+                self.emit("device_state", device_state)
 
             # Send current configs
-            self.socketio.emit("configs", json.dumps({
+            self.emit("configs", {
                 "configs": self.other_cfgs
-            }))
+            })
 
         @socketio.on("disconnect")
         def handle_disconnect():
             """Handle a client disconnect."""
             pass
+        
+        self.log("Flask server initialized", LogLevel.INFO)
 
         # Run Flask server in a separate thread to avoid blocking the ROS node.
         thread = threading.Thread(

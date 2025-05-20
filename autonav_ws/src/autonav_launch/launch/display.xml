@@ -1,4 +1,8 @@
 <launch>
-  <include file="$(find-pkg-share rosbridge_server)/launch/rosbridge_websocket_launch.xml" />
-  <node pkg="zemlin_display" exec="standalone.py" output="screen" emulate_tty="true"/>
+  <node pkg="ros_tcp_endpoint" exec="default_server_endpoint" output="screen" emulate_tty="true"/>
+  <node pkg="autonav_commander" exec="commander.py" output="screen" emulate_tty="true"/>
+      <node pkg="autonav_vision" exec="transformations.py" output="screen" emulate_tty="true" />
+    <node pkg="autonav_vision" exec="combination.py" output="screen" emulate_tty="true" />
+    <!-- <node pkg="autonav_feelers" exec="feeler_node" output="screen" emulate_tty="true" /> -->
+  <node pkg="zemlin_display" exec="backend.py" output="screen" emulate_tty="true"/>
 </launch>

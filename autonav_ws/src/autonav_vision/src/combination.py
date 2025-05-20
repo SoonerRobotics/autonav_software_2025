@@ -260,8 +260,8 @@ class ImageCombiner(Node):
         # self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
         # self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
         
-        self.frame += 1
-        self.log(f"combining frame {self.frame}. . .", LogLevel.WARN)
+        # self.frame += 1
+        self.log(f"combining frame. . .", LogLevel.WARN)
     
     # def on_feelers_received(self, msg):
     #     self.feeler_debug_image = msg #TEMP TODO FIXME

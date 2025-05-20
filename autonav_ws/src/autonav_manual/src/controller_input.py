@@ -22,7 +22,7 @@ TRIGGER_MAX = 1023
 
 class ControllerInputNode(Node):
     def __init__(self):
-        super().__init__('controller_input')
+        super().__init__('autonav_controller_input')
 
 
     def init(self):
@@ -237,4 +237,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

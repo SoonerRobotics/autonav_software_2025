@@ -11,30 +11,17 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
     }
 
     let websocket;
-    if (websocket)
-        websocket.onreadystatechange = function () {
-            //When do these happen?
-            if (!websocket) {
-                console.log("Websocket undefined");
-                ntf('Websocket undefined', 'error');
-            } else if (websocket.readyState === 1) {
-                ntf('Connected to the server', 'success');
-                console.log("Connected to the server")
-            } else if (websocket.readyState === 3) {
-                ntf('Disconnected from the server', 'alert');
-                console.log("Disconnected from the server")
-            }
-        }
 
-    const createWebsocket = () => {
+    const createWebsocket = () => {// check if pref.host is being overwritten somewhr? (See default values aren't being loaded in...)
         $("#main").show();
         const userID = generateUUID();
+        const fallbackHost = 'localhost';
+        const host = development_mode ? fallbackHost : preferences.host;
+        const port = preferences.port;
+        const wsUrl = `ws://${host}:${port}/?id=${userID}`;
 
-        const url = `ws://${preferences.host}:${preferences.port}/?id=${userID}`
-        if (development_mode)
-            websocket = new WebSocket("ws://localhost:8080");
-        else
-            websocket = new WebSocket(url);
+        console.log("Connecting to WebSocket:", wsUrl);
+        websocket = new WebSocket(wsUrl);
 
         websocket.onopen = function (event) {
             if (connected) {
@@ -160,7 +147,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
         websocket.onclose = function (event) {
             clearGlobals();
             if (!connected) {
-                console.log("ahh");
                 ntf('Disconnected from the server', 'error');
                 connected = !connected
             }
@@ -560,10 +546,10 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
         switch (this.id) {
             case "input_port":
                 const intt = parseInt($(this).val());
-                preferences.port = isNaN(intt) ? 8023 : intt;
+                preferences.port = isNaN(intt) ? 8080 : intt;
 
                 if (/\D/.test($(this).val())) {//check for non-integer vals
-                    $(this).val(8023);
+                    $(this).val(8080);
                     ntf('Port must be an integer, assigned to default 8023', 'error');
                     console.log("Port must be an integer, assigned to default 8023. Delete following if statement " +
                         "to unforce this: if (/\\D/.test($(this).val())) {//check for non-integer vals");
