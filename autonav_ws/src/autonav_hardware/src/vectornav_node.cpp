@@ -18,7 +18,6 @@ class VectorNavNode : public AutoNav::Node {
 public:
     VectorNavNode() : AutoNav::Node("autonav_vectornav") {}
     ~VectorNavNode() {
-        // disconnect the sensor when we're done with it
         sensor.disconnect();
     }
 
@@ -39,6 +38,12 @@ public:
             std::this_thread::sleep_for(std::chrono::seconds(2)); // wait 2 seconds
             sensor.autoConnect(this->port); // and try again
             log("Connecting...", AutoNav::Logging::WARN);
+
+            if (rclcpp::ok() == false) {
+                log("Ctrl + C detected, shutting down...", AutoNav::Logging::ERROR);
+                rclcpp::shutdown();
+                return;
+            }
         }
 
         log("VectorNav Connected!", AutoNav::Logging::INFO);
@@ -116,7 +121,7 @@ public:
 private:
     // vectornav stuff
     VN::Sensor sensor; // the actual vectornav object (we have a VN200 rugged)
-    std::string port = "/dev/autonav-imu";
+    std::string port = "/dev/ttyUSB0";
     VN::Sensor::BaudRate baudRate = VN::Sensor::BaudRate::Baud115200;
     VN::Registers::System::BinaryOutput1 outputRegister;
 

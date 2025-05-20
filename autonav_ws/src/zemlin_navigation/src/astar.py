@@ -36,7 +36,8 @@ class AStarConfig:
         self.waypoint_pop_distance = 3
         self.waypoint_direction = 0
         self.use_only_waypoints = False
-        self.waypoint_delay = 20.5
+        # self.waypoint_delay = 20.5
+        self.waypoint_delay = 200000.5
         self.latitude_length = 110944.2
         self.longitude_length = 91065.46
 

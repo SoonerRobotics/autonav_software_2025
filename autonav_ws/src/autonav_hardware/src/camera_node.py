@@ -20,10 +20,16 @@ CV_BRIDGES = {
 
 #TODO these will not be correct, fix when we actually plug them into the NUC
 camera_ids = {
-    "front":  1,
-    "left" :  2,
-    "right":  4,
-    "back" :  0
+    "front":  0,
+    # "left" :  2,
+    # "right":  4,
+    # "back" :  0
+}
+
+camera_settings = {
+    "front": {
+        "flip": True
+    }
 }
 
 # Class to hold our configuration information in
@@ -94,6 +100,11 @@ class CameraNode(Node):
                     # self.log("Camera " + self.direction + " failed to read frame!", LogLevel.ERROR)
                     continue
 
+                # Check if we need to flip the frame
+                if camera_settings[self.direction]["flip"]:
+                    # flip the frame vertically
+                    frame = cv2.flip(frame, 0)
+
                 # convert the frame to a CompressedImage
                 msg = CompressedImage()
                 msg.header.stamp = self.get_clock().now().to_msg()
@@ -115,10 +126,10 @@ def main():
     executor = rclpy.executors.MultiThreadedExecutor()
 
     nodes = [
-        CameraNode("left"),
+        # CameraNode("left"),
         CameraNode("front"),
-        CameraNode("right"),
-        CameraNode("back"),
+        # CameraNode("right"),
+        # CameraNode("back"),
     ]
     
     for node in nodes:
