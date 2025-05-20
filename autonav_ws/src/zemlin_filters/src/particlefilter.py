@@ -60,6 +60,14 @@ class ParticleFilter:
         self.last_feedback = [avg_x, avg_y, avg_theta]
         return [avg_x, avg_y, avg_theta]
     
+    def clamp_between(self, value: float, min_value: float, max_value: float) -> float:
+        if value < min_value:
+            return min_value
+        elif value > max_value:
+            return max_value
+        else:
+            return value
+    
     def get_particle_feedback(self) -> ParticleFilterDebug:
         if self.last_feedback is None:
             return None
@@ -71,10 +79,10 @@ class ParticleFilter:
         msg.particles = []
         for particle in self.particles:
             msg.particles.append(ParticleMsg())
-            msg.particles[-1].x = particle.x
-            msg.particles[-1].y = particle.y
-            msg.particles[-1].theta = particle.theta
-            msg.particles[-1].weight = particle.weight
+            msg.particles[-1].x = self.clamp_between(particle.x, -1000, 1000)
+            msg.particles[-1].y = self.clamp_between(particle.y, -1000, 1000)
+            msg.particles[-1].theta = self.clamp_between(particle.theta, -1000, 1000)
+            msg.particles[-1].weight = self.clamp_between(particle.weight, -1000, 1000)
 
         return msg
      
