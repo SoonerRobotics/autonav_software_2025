@@ -20,14 +20,9 @@ TRIGGER_MAX = 1023
 # enable UserspaceHID=true in /etc/bluetooth/input.conf
 # robot ip: 192.168.1.79
 
-class ControllerInputConfig():
-    def __init__(self):
-        self.deadzone = 30.0
-
 class ControllerInputNode(Node):
     def __init__(self):
-        super().__init__('controller_input')
-        self.write_config(ControllerInputConfig())
+        super().__init__('autonav_controller_input')
 
 
     def init(self):
@@ -117,11 +112,11 @@ class ControllerInputNode(Node):
 
                 if ecodes.EV[event.type] == "EV_ABS": # joysticks, dpad, or triggers
                     if codename in self.stick_names:
-                        value = self.normalize(event.value, -1, 1, JOY_MIN, JOY_MAX, self.config.get("deadzone"))
+                        value = self.normalize(event.value, -1, 1, JOY_MIN, JOY_MAX, 10.0)
                     elif codename in self.dpad_names:
                         value = float(event.value)
                     else: #trigger
-                        value = self.normalize(event.value, 0, 1, TRIGGER_MIN, TRIGGER_MAX, self.config.get("deadzone"))
+                        value = self.normalize(event.value, 0, 1, TRIGGER_MIN, TRIGGER_MAX, 10.0)
 
                 elif ecodes.EV[event.type] == "EV_KEY": # buttons
                     value = float(event.value)
@@ -242,4 +237,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

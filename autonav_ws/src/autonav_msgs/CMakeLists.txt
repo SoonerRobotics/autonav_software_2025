@@ -30,6 +30,8 @@ set(msg_files
     "msg/MotorInput.msg"
     "msg/MotorStatistics.msg"
     "msg/NUCStatistics.msg"
+    "msg/Particle.msg"
+    "msg/ParticleFilterDebug.msg"
     "msg/PathingDebug.msg"
     "msg/Performance.msg"
     "msg/Position.msg"
