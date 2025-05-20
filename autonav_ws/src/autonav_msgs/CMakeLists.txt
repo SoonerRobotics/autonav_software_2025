@@ -23,7 +23,7 @@ set(msg_files
     "msg/DeviceState.msg"
     "msg/GPSFeedback.msg"
     "msg/HardwarePerformance.msg"
-    "msg/IMUData.msg"
+    "msg/IMUFeedback.msg"
     "msg/LinearPIDStatistics.msg"
     "msg/Log.msg"
     "msg/MotorFeedback.msg"

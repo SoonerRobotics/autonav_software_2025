@@ -7,16 +7,11 @@ import { SystemStatus } from "@/components/dashboard/system-status"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CombinedCameraGrid } from "./combined-camera-grid"
 
-interface DashboardContentProps {
-    systemState: string
-    mobility: boolean
-}
-
-export function DashboardContent({ systemState, mobility }: DashboardContentProps) {
+export function DashboardContent() {
     return (
         <div className="flex flex-col h-full p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <SystemStatus systemState={systemState} mobility={mobility} />
+                <SystemStatus />
                 <Card>
                     <CardHeader>
                         <CardTitle>Camera Feeds</CardTitle>

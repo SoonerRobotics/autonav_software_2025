@@ -39,8 +39,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     const [lastMessage, setLastMessage] = useState<SocketMessage | null>(null);
     const [state, setState] = useState<'connected' | 'disconnected'>('disconnected');
     const [address, setAddressState] = useState<{ ip: string; port: number }>({
-        ip: 'localhost',
-        port: 3000,
+        ip: '192.168.1.76',
+        port: 4029,
     });
 
     const connectSocket = useCallback(() => {
@@ -65,16 +65,17 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         });
 
         newSocket.on('message', (message: any) => {
+            const msg = JSON.parse(message);
             const parsedMessage: SocketMessage = {
-                type: message.type,
-                data: message.data,
+                type: msg.type,
+                data: msg.msg,
             };
-
+            
             if (parsedMessage.type == null)
             {
                 return;
             }
-
+                
             setLastMessage(parsedMessage);
         });
 

@@ -16,13 +16,13 @@
 
   <!-- hardware -->
   <node pkg="autonav_hardware" exec="sparkmax_node.py" output="screen" emulate_tty="true"/>
-
+  <node pkg="autonav_hardware" exec="camera_node.py" output="screen" emulate_tty="true"/>
+  <!-- <node pkg="autonav_hardware" exec="can_node.py" output="screen" emulate_tty="true"/> -->
+  <node pkg="autonav_hardware" exec="vectornav_node" output="screen" emulate_tty="true"/>
   <!-- <node pkg="autonav_hardware" exec="audible_feedback.py" output="screen" emulate_tty="true" /> -->
 
-
-  <!-- example nodes -->
-  <!-- <node pkg="example_py" exec="main.py" output="screen" emulate_tty="true"/> -->
-  <!-- <node pkg="example_cpp" exec="example_cpp" output="screen" emulate_tty="true"/> -->
+  <!-- logging -->
+  <node pkg="autonav_logging" exec="autonav_logging.py" output="screen" emulate_tty="true"/>
 
   <!-- zemlin code :) -->
   <!-- <node pkg="zemlin_vision" exec="expandify" output="screen" emulate_tty="true"/> -->
