@@ -16,7 +16,7 @@
 
 class VectorNavNode : public AutoNav::Node {
 public:
-    VectorNavNode() : AutoNav::Node("vectornav_node") {}
+    VectorNavNode() : AutoNav::Node("autonav_vectornav") {}
     ~VectorNavNode() {
         // disconnect the sensor when we're done with it
         sensor.disconnect();
@@ -30,8 +30,7 @@ public:
 
         // if the sensor didn't connect, log it
         if (e != VN::Error::None) {
-            // log("VectorNav Error: " + *VN::errorCodeToString(e), AutoNav::Logging::ERROR);
-            log("VectorNav Connection Error!", AutoNav::Logging::ERROR);
+            log("VectorNav Error: " + *VN::errorCodeToString(e), AutoNav::Logging::ERROR);
             set_device_state(AutoNav::DeviceState::ERROR);
         }
 
