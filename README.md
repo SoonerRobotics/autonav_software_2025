@@ -2,7 +2,9 @@
 
 ![Github Workflow Status](https://img.shields.io/github/actions/workflow/status/SoonerRobotics/autonav_software_2025/compile_run.yml)
 
-Software for our 2025 [Intelligent Ground Vehicle Competition](http://www.igvc.org/) AutoNav challenge entry, **Twistopher**.  
+
+Software for our 2025 [Intelligent Ground Vehicle Competition](http://www.igvc.org/) AutoNav and Self Drive challenge entry, **Twistopher**.  
+
 We are using [ROS2 Jazzy](https://docs.ros.org/en/jazzy/index.html) on [Ubuntu 24.04](https://releases.ubuntu.com/24.04/).
 
 ## Dependencies
