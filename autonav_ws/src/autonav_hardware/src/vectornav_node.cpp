@@ -4,6 +4,7 @@
 #include "autonav_shared/node.hpp"
 #include "autonav_msgs/msg/position.hpp"
 #include "autonav_msgs/msg/gps_feedback.hpp"
+#include "autonav_msgs/msg/imu_feedback.hpp"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic" // to supress all the "ISO prevents anonymous structs" warnings
@@ -31,7 +32,6 @@ public:
         if (e != VN::Error::None) {
             // log("VectorNav Error: " + *VN::errorCodeToString(e), AutoNav::Logging::ERROR);
             log("VectorNav Connection Error!", AutoNav::Logging::ERROR);
-
             set_device_state(AutoNav::DeviceState::ERROR);
         }
 
@@ -39,7 +39,6 @@ public:
         while (!sensor.verifySensorConnectivity()) {
             std::this_thread::sleep_for(std::chrono::seconds(2)); // wait 2 seconds
             sensor.autoConnect(this->port); // and try again
-
             log("Connecting...", AutoNav::Logging::WARN);
         }
 
@@ -51,9 +50,7 @@ public:
         // configure the binary output register
         this->outputRegister.rateDivisor = 200;
         this->outputRegister.asyncMode.serial1 = true;
-
-        this->outputRegister.imu.temperature = true;
-
+        this->outputRegister.attitude.ypr = true;
         this->outputRegister.gnss.gnss1NumSats = true;
         this->outputRegister.gnss.gnss1Fix = true;
         this->outputRegister.gnss.gnss1PosLla = true;
@@ -68,7 +65,8 @@ public:
         this->sensor.asyncOutputEnable(VN::AsyncOutputEnable::State::Enable);
 
         // publishers
-        gpsPublisher = create_publisher<autonav_msgs::msg::GPSFeedback>("/autonav/gps", 1);
+        gpsPublisher = create_publisher<autonav_msgs::msg::GPSFeedback>("/autonav/gps", 10);
+        imuPublisher = create_publisher<autonav_msgs::msg::IMUFeedback>("/autonav/imu", 10);
 
         // timers
         publishTimer = this->create_wall_timer(std::chrono::milliseconds(this->gpsRate), std::bind(&VectorNavNode::publishGps, this));
@@ -89,39 +87,45 @@ public:
             return;
         }
 
-        if (this->get_device_state() != AutoNav::DeviceState::OPERATING) {
-            // if we actually have data then we should be operating just fine
-            this->set_device_state(AutoNav::DeviceState::OPERATING);
-        }
-
         // if the binary output matches the message we configured it to give
         if (compositeData->matchesMessage(this->outputRegister)) {
+            if (this->get_device_state() != AutoNav::DeviceState::OPERATING) {
+                // if we actually have data then we should be operating just fine
+                this->set_device_state(AutoNav::DeviceState::OPERATING);
+            }
+
             // make the message
-            autonav_msgs::msg::GPSFeedback msg;
+            autonav_msgs::msg::GPSFeedback gps_msg;
+            autonav_msgs::msg::IMUFeedback imu_msg;
 
-            // get the reading
-            msg.latitude = compositeData->gnss.gnss1PosLla.value().lat;
-            msg.longitude = compositeData->gnss.gnss1PosLla.value().lon;
-            msg.num_satellites = compositeData->gnss.gnss1NumSats.value();
-            msg.gps_fix = compositeData->gnss.gnss1Fix.value();
+            // Get the GPS Data
+            gps_msg.latitude = compositeData->gnss.gnss1PosLla.value().lat;
+            gps_msg.longitude = compositeData->gnss.gnss1PosLla.value().lon;
+            gps_msg.num_satellites = compositeData->gnss.gnss1NumSats.value();
+            gps_msg.gps_fix = compositeData->gnss.gnss1Fix.value();
 
-            this->gpsPublisher->publish(msg);
-        } else {
-            // log("Unrecognized VectorNav message", AutoNav::Logging::ERROR);
-            this->set_device_state(AutoNav::DeviceState::ERROR);
+            // Get the IMU Data
+            imu_msg.roll = compositeData->attitude.ypr.value().roll;
+            imu_msg.pitch = compositeData->attitude.ypr.value().pitch;
+            imu_msg.yaw = compositeData->attitude.ypr.value().yaw;
+
+            // Publish the messages
+            this->gpsPublisher->publish(gps_msg);
+            this->imuPublisher->publish(imu_msg);
         }
     }
 private:
     // vectornav stuff
     VN::Sensor sensor; // the actual vectornav object (we have a VN200 rugged)
-    std::string port = "/dev/ttyUSB0";
+    std::string port = "/dev/autonav-imu";
     VN::Sensor::BaudRate baudRate = VN::Sensor::BaudRate::Baud115200;
     VN::Registers::System::BinaryOutput1 outputRegister;
 
     // publishers
     rclcpp::Publisher<autonav_msgs::msg::GPSFeedback>::SharedPtr gpsPublisher;
+    rclcpp::Publisher<autonav_msgs::msg::IMUFeedback>::SharedPtr imuPublisher;
     rclcpp::TimerBase::SharedPtr publishTimer;
-    int gpsRate = 1/5 * 1000; // 5 Hz in milliseconds
+    int gpsRate = 1 / 10 * 1000; // 10 Hz in milliseconds
 };
 
 int main(int argc, char** argv) {

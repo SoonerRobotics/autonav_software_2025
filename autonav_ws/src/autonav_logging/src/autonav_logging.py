@@ -89,7 +89,7 @@ class LoggingNode(Node):
             self.create_subscription(CompressedImage, topic, lambda msg, topic=topic: self.camera_callback(msg, topic), self.QOS)
         
         # IMU is still TBD
-        self.imu_subscriber  = self.create_subscription(IMUData, '/autonav/imu', self.imu_feedback, self.QOS)
+        self.imu_subscriber  = self.create_subscription(IMUFeedback, '/autonav/imu', self.imu_feedback, self.QOS)
         self.gps_subscriber = self.create_subscription(GPSFeedback, '/autonav/gps', self.gps_feedback, self.QOS)
         self.input_subscriber = self.create_subscription(MotorInput, '/autonav/motor_input', self.minput_feedback, self.QOS)
         self.feedback_subscriber = self.create_subscription(MotorFeedback, '/autonav/motor_feedback', self.mfeedback_feedback, self.QOS)
@@ -252,14 +252,7 @@ class LoggingNode(Node):
         self.append_event("imu", {
             "yaw": msg.yaw,
             "pitch": msg.pitch,
-            "roll": msg.roll,
-            "accel_x": msg.accel_x,
-            "accel_y": msg.accel_y,
-            "accel_z": msg.accel_z,
-            "angular_x": msg.angular_x,
-            "angular_y": msg.angular_y,
-            "angular_z": msg.angular_z,
-            "status": msg.status,
+            "roll": msg.roll
         })
     
     def gps_feedback(self, msg):
