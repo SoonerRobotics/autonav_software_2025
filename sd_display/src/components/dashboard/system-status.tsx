@@ -1,37 +1,52 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useSocket } from "@/providers/SocketProvider"
+import { useEffect, useState } from "react"
 
-interface SystemStatusProps {
-    systemState: string
-    mobility: boolean
-}
+export function SystemStatus() {
+    const [gpsData, setGpsData] = useState({
+        latitude: 0,
+        longitude: 0,
+    })
+    const [positionData, setPositionData] = useState({
+        x: 0,
+        y: 0,
+        theta: 0,
+    })
+    const [motorFeedback, setMotorFeedback] = useState({
+        delta_x: 0,
+        delta_y: 0,
+        delta_theta: 0,
+    })
+    const [motorInput, setMotorInput] = useState({
+        forward_velocity: 0,
+        sideways_velocity: 0,
+        angular_velocity: 0,
+    })
+    const { lastMessage } = useSocket();
 
-export function SystemStatus({ systemState, mobility }: SystemStatusProps) {
-    // Mock GPS data
-    const gpsData = {
-        latitude: 37.7749,
-        longitude: -122.4194,
-    }
+    useEffect(() => {
+        if (lastMessage == null)
+        {
+            return;
+        }
 
-    // Mock position data
-    const positionData = {
-        x: 2.45,
-        y: 1.32,
-        theta: 0.78,
-    }
-
-    // Mock motor feedback data
-    const motorFeedback = {
-        delta_x: 0.1,
-        delta_y: -0.05,
-        delta_theta: 0.02,
-    }
-
-    // Mock motor input data
-    const motorInput = {
-        forward: 0.5,
-        sideways: -0.2,
-        angular: 0.1,
-    }
+        if (lastMessage.type == "motor_feedback")
+        {
+            setMotorFeedback(lastMessage.data);
+        }
+        if (lastMessage.type == "motor_input")
+        {
+            setMotorInput(lastMessage.data);
+        }
+        if (lastMessage.type == "gps")
+        {
+            setGpsData(lastMessage.data);
+        }
+        if (lastMessage.type == "position")
+        {
+            setPositionData(lastMessage.data);
+        }
+    }, [lastMessage]);
 
     return (
         <Card>
@@ -94,15 +109,15 @@ export function SystemStatus({ systemState, mobility }: SystemStatusProps) {
                     <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="bg-muted p-2 rounded-md">
                             <div className="text-xs text-muted-foreground">Forward</div>
-                            <div>{motorInput.forward.toFixed(2)}</div>
+                            <div>{motorInput.forward_velocity.toFixed(2)}</div>
                         </div>
                         <div className="bg-muted p-2 rounded-md">
                             <div className="text-xs text-muted-foreground">Sideways</div>
-                            <div>{motorInput.sideways.toFixed(2)}</div>
+                            <div>{motorInput.sideways_velocity.toFixed(2)}</div>
                         </div>
                         <div className="bg-muted p-2 rounded-md">
                             <div className="text-xs text-muted-foreground">Angular</div>
-                            <div>{motorInput.angular.toFixed(2)}</div>
+                            <div>{motorInput.angular_velocity.toFixed(2)}</div>
                         </div>
                     </div>
                 </div>
