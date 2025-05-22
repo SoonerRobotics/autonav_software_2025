@@ -18,7 +18,7 @@ import { Cog, Eye, LayoutDashboard, MoreHorizontal, Settings } from "lucide-reac
 import { useEffect, useState } from "react"
 
 export function DashboardSidebar() {
-    const { lastMessage } = useSocket();
+    const { lastMessage, api } = useSocket();
     const [systemState, setSystemState] = useState("0");
     const [mobility, setMobility] = useState(false);
 
@@ -29,6 +29,14 @@ export function DashboardSidebar() {
             setMobility(lastMessage.data.mobility);
         }
     }, [lastMessage]);
+
+    const setMobilityExternal = (value: boolean) => {
+        api.set_mobility(value);
+    }
+
+    const setSystemStateExternal = (value: string) => {
+        api.set_system_state(value);
+    }
 
     return (
         <Sidebar>
@@ -74,7 +82,9 @@ export function DashboardSidebar() {
             <SidebarFooter className="p-4 space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="system-state">System State</Label>
-                    <Select value={systemState} onValueChange={(value) => setSystemState(value as any)}>
+                    <Select value={systemState} onValueChange={(value) => {
+                        setSystemStateExternal(value);
+                    }}>
                         <SelectTrigger id="system-state">
                             <SelectValue placeholder="Select state" />
                         </SelectTrigger>
@@ -89,7 +99,7 @@ export function DashboardSidebar() {
 
                 <div className="flex items-center justify-between">
                     <Label htmlFor="mobility">Mobility</Label>
-                    <Switch id="mobility" checked={mobility} onCheckedChange={setMobility} />
+                    <Switch id="mobility" checked={mobility} onCheckedChange={setMobilityExternal} />
                 </div>
             </SidebarFooter>
         </Sidebar>
