@@ -109,18 +109,23 @@ class SelfDriveOverwatch(Node):
         # Check if we have a loaded sequence
         if len(self.state_queue) == 0:
             self.current_state = SelfDriveBIGState.IDLE
+            self.get_logger().info("No sequence loaded, returning to IDLE state")
             return
         
         if self.current_state == SelfDriveBIGState.IDLE:
             self.current_state = self.state_queue.pop(0)
+            self.get_logger().info(f"Starting sequence: {self.current_state}")
+            
 
     def advance_state(self):
         # Check if we have a loaded sequence
         if len(self.state_queue) == 0:
             self.current_state = SelfDriveBIGState.IDLE
+            self.get_logger().info("Sequence complete, returning to IDLE state")
             return
         
         self.current_state = self.state_queue.pop(0)
+        self.get_logger().info(f"Advancing to state: {self.current_state}")
 
  
 def main():
