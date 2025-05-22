@@ -35,9 +35,9 @@ class AStarConfig:
     def __init__(self):
         self.waypoint_pop_distance = 3
         self.waypoint_direction = 0
-        self.use_only_waypoints = True
+        self.use_only_waypoints = False
         # self.waypoint_delay = 20.5
-        self.waypoint_delay = 4.0
+        self.waypoint_delay = 400000.0
         self.latitude_length = 110944.2
         self.longitude_length = 91065.46
 
@@ -46,6 +46,7 @@ class AStarNode(Node):
     def __init__(self):
         super().__init__("zemlin_astar")
         self.config = AStarConfig()
+        self.robot_position_y = 68
         self.on_reset()
 
     def init(self):
@@ -109,7 +110,7 @@ class AStarNode(Node):
         
         self.perf_start("create_path")
         
-        robot_pos = (40, 78)
+        robot_pos = (40, self.robot_position_y)
         path = self.find_path_to_point(robot_pos, self.bestPosition, self.costMap, 80, 80)
         if path is not None:
             global_path = Path()
@@ -211,11 +212,11 @@ class AStarNode(Node):
         self.perf_start("astar_pathfinding")
 
         grid_data = msg.data
-        temp_best_pos = (40, 78)
+        temp_best_pos = (40, self.robot_position_y)
         best_pos_cost = -1000
 
         frontier = set()
-        frontier.add((40, 78))
+        frontier.add((40, self.robot_position_y))
         explored = set()
 
         if self.config.use_only_waypoints:

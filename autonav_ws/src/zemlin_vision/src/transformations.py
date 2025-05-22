@@ -33,7 +33,7 @@ class TransformationsConfig:
         self.upper_hue = 255
         self.upper_saturation = 95
         self.upper_value = 230
-        self.flatten_param = 0.3
+        self.flatten_param = 0.35
         self.blur = 5
         self.blur_iterations = 3
         self.region_of_disinterest_offset = 45
@@ -76,20 +76,19 @@ class ImageTransformer(Node):
         return masked_image
 
     def flatten(self, img):
-        top_left = (int)(img.shape[1] * self.config.flatten_param), (int)(img.shape[0])
-        top_right = (int)(img.shape[1] - img.shape[1] * self.config.flatten_param), (int)(img.shape[0])
+        top_left = (int)(img.shape[1] * 0.26), (int)(img.shape[0])
+        top_right = (int)(img.shape[1] - img.shape[1] * 0.26), (int)(img.shape[0])
         bottom_left = 0, 0
         bottom_right = (int)(img.shape[1]), 0
 
         src_pts = np.float32([[top_left], [top_right], [bottom_left], [bottom_right]])
-        
-        dest_pts = np.float32([[0, 480], [640, 480], [100, 0], [550, 0]])
+        dest_pts = np.float32([ [0, 480], [640, 480] ,[0, 0], [640, 0]])
 
         matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
-        output = cv2.warpPerspective(img, matrix, (640, 370))
+        output = cv2.warpPerspective(img, matrix, (640, 480))
         return output
 
-    def publish_map(self, img):
+    def publishOccupancyMap(self, img):
         datamap = cv2.resize(img, dsize=(MAP_RES, MAP_RES), interpolation=cv2.INTER_LINEAR) / 2
         flat = list(datamap.flatten().astype(int))
         msg = OccupancyGrid(info=g_mapData, data=flat)
@@ -134,7 +133,7 @@ class ImageTransformer(Node):
         mask = self.flatten(mask)
 
         # Actually generate the map
-        self.publish_map(mask)
+        self.publishOccupancyMap(mask)
         
         preview_image = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
         # poly lines

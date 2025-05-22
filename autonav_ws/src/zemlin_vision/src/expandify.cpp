@@ -15,6 +15,7 @@ struct ExpandifyConfig
     float max_range;
 	float no_go_percent;
 	float no_go_range;
+    int robot_pos_y;
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(ExpandifyConfig, vertical_fov, horizontal_fov, map_res, max_range, no_go_percent, no_go_range)
 };
@@ -36,8 +37,9 @@ public:
         config.horizontal_fov = 3.4;
         config.map_res = 80;
         config.max_range = 0.55;
-        config.no_go_percent = 0.50;
+        config.no_go_percent = 0.45;
 		config.no_go_range = 0;
+        config.robot_pos_y = 58;
         this->_config = config;
 
         // If you care about type safety, do this

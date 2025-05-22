@@ -155,9 +155,9 @@ class PathResolverNode(Node):
                 sideways_speed = self.clamp(-self.config.forward_speed * math.sin(angle_to_pp_goal) * (1 - abs(error)) ** 5, -2.1, 2.1)
                 angular_speed = -self.clamp(self.angle_diff(angle_to_pp_goal, self.position.theta) * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
                 
-                input.forward_velocity = forward_speed
-                input.sideways_velocity = sideways_speed
-                input.angular_velocity = angular_speed
+                input.forward_velocity = float(forward_speed)
+                input.sideways_velocity = float(sideways_speed)
+                input.angular_velocity = float(angular_speed)
                 
                 if self.status == 0:
                     self.status = 1
