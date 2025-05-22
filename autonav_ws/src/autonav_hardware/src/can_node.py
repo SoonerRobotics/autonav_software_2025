@@ -40,7 +40,7 @@ class SafetyLightsPacket(Structure):
 
 class CanNode(Node):
     def __init__(self):
-        super().__init__("CAN_node")
+        super().__init__("autonav_can")
         self.can_stats_record = CanStats()
         self.can = None
 

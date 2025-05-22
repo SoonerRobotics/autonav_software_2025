@@ -32,7 +32,7 @@ class TransformationsConfig:
         self.lower_value = 0
         self.upper_hue = 255
         self.upper_saturation = 95
-        self.upper_value = 210
+        self.upper_value = 230
         self.flatten_param = 0.3
         self.blur = 5
         self.blur_iterations = 3
