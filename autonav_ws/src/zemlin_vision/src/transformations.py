@@ -82,10 +82,11 @@ class ImageTransformer(Node):
         bottom_right = (int)(img.shape[1]), 0
 
         src_pts = np.float32([[top_left], [top_right], [bottom_left], [bottom_right]])
-        dest_pts = np.float32([[0, 400], [640, 400], [200, 0], [440, 0]])
+        
+        dest_pts = np.float32([[0, 480], [640, 480], [100, 0], [550, 0]])
 
         matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
-        output = cv2.warpPerspective(img, matrix, (640, 480))
+        output = cv2.warpPerspective(img, matrix, (640, 370))
         return output
 
     def publish_map(self, img):
@@ -122,29 +123,22 @@ class ImageTransformer(Node):
         # Apply region of disinterest and flattening
         height = img.shape[0]
         width = img.shape[1]
-        # region_of_disinterest_vertices=[
-        #     (0, height),
-        #     (width / 2, height / 2 + self.config.region_of_disinterest_offset),
-        #     (width, height)
-        # ]
-        # mask = self.region_of_interest(mask, np.array([region_of_disinterest_vertices], np.int32))
-        # mask[mask < 250] = 0
-        
-        # Cut off a 50 by 50 px square from the bottom center
-        vertices = [
+        region_of_disinterest_vertices=[
             (0, height),
-            (width / 2 - 50, height / 2 + self.config.region_of_disinterest_offset),
-            (width / 2 + 50, height / 2 + self.config.region_of_disinterest_offset),
+            (40, height / 2 + self.config.region_of_disinterest_offset),
+            (width - 40, height / 2 + self.config.region_of_disinterest_offset),
             (width, height)
         ]
-        mask = self.region_of_interest(mask, np.array([vertices], np.int32))
-
+        mask = self.region_of_interest(mask, np.array([region_of_disinterest_vertices], np.int32))
+        mask[mask < 250] = 0
         mask = self.flatten(mask)
 
         # Actually generate the map
         self.publish_map(mask)
         
         preview_image = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+        # poly lines
+        preview_image = cv2.polylines(preview_image, [np.array(region_of_disinterest_vertices, np.int32)], isClosed=True, color=(0, 255, 0), thickness=3)
         preview_msg = g_bridge.cv2_to_compressed_imgmsg(preview_image)
         preview_msg.header = image.header
         preview_msg.format = "jpeg"

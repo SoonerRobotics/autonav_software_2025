@@ -148,10 +148,7 @@ class PathResolverNode(Node):
             # move towards the target and rotate towards the target
             # we are using a swerve drive
             
-            if lookahead is not None:
-                # forward should be cos(angle_to_pp_goal)
-                # sideways should be sin(angle_to_pp_goal)
-                
+            if self.backCount == -1 and (lookahead is not None and ((lookahead[1] - cur_pos[1]) ** 2 + (lookahead[0] - cur_pos[0]) ** 2) > 0.25):
                 error = self.angle_diff(math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0]), self.position.theta) / math.pi
                 angle_to_pp_goal = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
                 forward_speed = self.clamp(self.config.forward_speed * math.cos(angle_to_pp_goal) * (1 - abs(error)) ** 5, -2.1, 2.1)
@@ -176,10 +173,8 @@ class PathResolverNode(Node):
                 input.sideways_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
                 
             self.perf_stop("path_resolve")
-
-            # self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
             self.motorPublisher.publish(input)
-            
+    
             time.sleep(0.05)
 
  

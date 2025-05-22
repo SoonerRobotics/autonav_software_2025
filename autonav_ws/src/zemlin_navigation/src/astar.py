@@ -18,7 +18,7 @@ import time
 
 GRID_SIZE = 0.1
 VERTICAL_CAMERA_DIST = 2.75
-HORIZONTAL_CAMERA_DIST = 3
+HORIZONTAL_CAMERA_DIST = 3.4
 CV_BRIDGE = cv_bridge.CvBridge()
 
 simulation_waypoints = [
@@ -35,9 +35,9 @@ class AStarConfig:
     def __init__(self):
         self.waypoint_pop_distance = 3
         self.waypoint_direction = 0
-        self.use_only_waypoints = False
+        self.use_only_waypoints = True
         # self.waypoint_delay = 20.5
-        self.waypoint_delay = 200000.5
+        self.waypoint_delay = 4.0
         self.latitude_length = 110944.2
         self.longitude_length = 91065.46
 
@@ -108,29 +108,34 @@ class AStarNode(Node):
             return
         
         self.perf_start("create_path")
-
-        robot_pos = (40, 68)
+        
+        robot_pos = (40, 78)
         path = self.find_path_to_point(robot_pos, self.bestPosition, self.costMap, 80, 80)
         if path is not None:
             global_path = Path()
             global_path.poses = [self.pathToGlobalPose(pp[0], pp[1]) for pp in path]
-            self.lastPath = path
-            self.pathPublisher.publish(global_path)
+            self.last_path = path
 
-            # # Draw the cost map onto a debug iamge
+            if self.system_state == SystemState.AUTONOMOUS and self.mobility:
+                self.pathPublisher.publish(global_path)
+
+            # Draw the cost map onto a debug iamge
             cvimg = np.zeros((80, 80), dtype=np.uint8)
             for i in range(80):
                 for j in range(80):
-                    val = self.costMap[i * 80 + j] * 255
-                    cvimg[i, j] = min(255, max(0, val))
+                    cvimg[i, j] = self.costMap[i * 80 + j] * 255
             cvimg = cv2.cvtColor(cvimg, cv2.COLOR_GRAY2RGB)
 
             for pp in path:
                 cv2.circle(cvimg, (pp[0], pp[1]), 1, (0, 255, 0), 1)
 
             cv2.circle(cvimg, (self.bestPosition[0], self.bestPosition[1]), 1, (255, 0, 0), 1)
+            cvimg = cv2.resize(cvimg, (320, 320), interpolation=cv2.INTER_NEAREST)
             
-            cvimg = cv2.resize(cvimg, (800, 800), interpolation=cv2.INTER_NEAREST)
+            # Draw a grid on the image that is the scale of the original image, so it should be a 80x80 grid scaled up 4x
+            for i in range(80):
+                cv2.line(cvimg, (0, i * 4), (320, i * 4), (85, 85, 85), 1)
+                cv2.line(cvimg, (i * 4, 0), (i * 4, 320), (85, 85, 85), 1)
             self.pathDebugImagePublisher.publish(CV_BRIDGE.cv2_to_compressed_imgmsg(cvimg))
 
         self.perf_stop("create_path")
@@ -206,11 +211,11 @@ class AStarNode(Node):
         self.perf_start("astar_pathfinding")
 
         grid_data = msg.data
-        temp_best_pos = (40, 68)
+        temp_best_pos = (40, 78)
         best_pos_cost = -1000
 
         frontier = set()
-        frontier.add((40, 68))
+        frontier.add((40, 78))
         explored = set()
 
         if self.config.use_only_waypoints:
@@ -236,7 +241,7 @@ class AStarNode(Node):
             next_waypoint = self.waypoints[0]
             north_to_gps = (next_waypoint[0] - self.position.latitude) * self.config.latitude_length
             west_to_gps = (self.position.longitude - next_waypoint[1]) * self.config.longitude_length
-            heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
+            heading_to_gps = (math.atan2(west_to_gps, north_to_gps) % (2 * math.pi))
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypoint_pop_distance:
                 self.push_safety_lights(0, 255, 0, 1, 2)
@@ -266,7 +271,7 @@ class AStarNode(Node):
 
                 if len(self.waypoints) > 0:
                     heading_err_to_gps = abs(self.angle_diff(self.position.theta + math.atan2(40 - x, 80 - y), heading_to_gps)) * 180 / math.pi
-                    cost -= max(heading_err_to_gps, 10)
+                    cost -= max(heading_err_to_gps, 15)
 
                 if cost > best_pos_cost:
                     best_pos_cost = cost
