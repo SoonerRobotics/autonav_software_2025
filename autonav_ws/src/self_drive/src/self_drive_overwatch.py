@@ -7,6 +7,7 @@ import rclpy
 from autonav_shared.node import Node
 from autonav_shared.types import DeviceState, SystemState
 from nav_msgs.msg import OccupancyGrid
+from self_drive_path_planner import SelfDrivePathPlanner
 
 class SelfDriveBIGState(Enum):
     IDLE = 0
@@ -27,8 +28,9 @@ class SelfDriveOverwatch(Node):
             SelfDriveBIGState.IDLE
         ]
 
-        self.motor_input = MotorInput()
+        self.path_planner = SelfDrivePathPlanner()
 
+        self.motor_input = MotorInput()
         self.obstacle_detected = False
 
     def init(self):
