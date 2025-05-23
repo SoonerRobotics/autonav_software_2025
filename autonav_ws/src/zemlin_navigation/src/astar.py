@@ -33,9 +33,9 @@ class AStarNode(Node):
         super().__init__("autonav_nav_astar")
         
         self.waypoint_pop_distance = 1.1
-        self.waypoint_delay = 4
+        self.waypoint_delay = 20
         self.robotY = 66
-        self.use_only_waypoints = True
+        self.use_only_waypoints = False
 
         self.onReset()
         self.latitudeLength = self.declare_parameter("latitude_length", 111086.2).get_parameter_value().double_value
