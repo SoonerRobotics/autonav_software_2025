@@ -17,7 +17,7 @@
   <!-- hardware -->
   <node pkg="autonav_hardware" exec="sparkmax_node.py" output="screen" emulate_tty="true"/>
   <node pkg="autonav_hardware" exec="camera_node.py" output="screen" emulate_tty="true"/>
-  <!-- <node pkg="autonav_hardware" exec="can_node.py" output="screen" emulate_tty="true"/> -->
+  <node pkg="autonav_hardware" exec="can_node.py" output="screen" emulate_tty="true"/>
   <!-- <node pkg="autonav_hardware" exec="vectornav_node" output="screen" emulate_tty="true"/> -->
   <node pkg="autonav_hardware" exec="audible_feedback.py" output="screen" emulate_tty="true" />
 

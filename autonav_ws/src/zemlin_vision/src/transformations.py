@@ -46,7 +46,7 @@ class ImageTransformer(Node):
         self.upper_value = 210
         self.blur = 5
         self.blur_iterations = 3
-        self.region_of_disinterest_offset = 50
+        self.region_of_disinterest_offset = 30
 
     def init(self):
         self.cameraSubscriber = self.create_subscription(CompressedImage, "/autonav/camera/front", self.onImageReceived, 1)
@@ -115,8 +115,8 @@ class ImageTransformer(Node):
         width = img.shape[1]
         region_of_disinterest_vertices=[
             (0, height),
-            ((width / 2) - 170, height / 2 + self.region_of_disinterest_offset),
-            ((width / 2) + 170, height / 2 + self.region_of_disinterest_offset),
+            ((width / 2) - 200, height / 2 + self.region_of_disinterest_offset),
+            ((width / 2) + 200, height / 2 + self.region_of_disinterest_offset),
             (width, height)
         ]
         mask = self.regionOfDisinterest(mask, np.array([region_of_disinterest_vertices], np.int32))

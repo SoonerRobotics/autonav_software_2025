@@ -117,7 +117,7 @@ class AStarNode(Node):
     def createDebug(self):
         while True and rclpy.ok():
             path = self.nextDebugImage
-            if self.nextDebugImage is not None:
+            if self.nextDebugImage is not None and self.costMap is not None:
                 # Draw the cost map onto a debug iamge
                 cvimg = np.zeros((80, 80), dtype=np.uint8)
                 for i in range(80):

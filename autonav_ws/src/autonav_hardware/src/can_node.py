@@ -98,15 +98,17 @@ class CanNode(Node):
             if self.can is not None:
                 return
 
+            self.log("CAN device found at " + CAN_PATH, LogLevel.INFO)
             self.can = can.ThreadSafeBus(
-                bustype="slcan", channel=CAN_PATH, bitrate=100000)
+                bustype="slcan", channel=CAN_PATH, bitrate=CAN_SPEED)
             self.set_device_state(DeviceState.OPERATING)
         except:
+            self.log("CAN device not found at " + CAN_PATH, LogLevel.ERROR)
             if self.can is not None:
                 self.can = None
 
-            if self.get_device_state() != DeviceState.WARMING:
-                self.set_device_state(DeviceState.WARMING)
+            if self.get_device_state() != DeviceState.READY:
+                self.set_device_state(DeviceState.READY)
 
 
     def can_thread_worker(self):
@@ -115,7 +117,7 @@ class CanNode(Node):
                 continue
             if self.can is not None:
                 try:
-                    msg = self.can.recv(timeout=0.01)
+                    msg = self.can.recv()
                     if msg is not None:
                         self.onCanMessageReceived(msg)
                 except Exception as e:
