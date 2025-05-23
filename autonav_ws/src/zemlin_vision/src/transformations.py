@@ -42,7 +42,7 @@ class ImageTransformer(Node):
         self.lower_saturation = 0
         self.lower_value = 0
         self.upper_hue = 255
-        self.upper_saturation = 95
+        self.upper_saturation = 140
         self.upper_value = 210
         self.blur = 5
         self.blur_iterations = 3
@@ -115,8 +115,8 @@ class ImageTransformer(Node):
         width = img.shape[1]
         region_of_disinterest_vertices=[
             (0, height),
-            ((width / 2) - 130, height / 2 + self.region_of_disinterest_offset),
-            ((width / 2) + 130, height / 2 + self.region_of_disinterest_offset),
+            ((width / 2) - 170, height / 2 + self.region_of_disinterest_offset),
+            ((width / 2) + 170, height / 2 + self.region_of_disinterest_offset),
             (width, height)
         ]
         mask = self.regionOfDisinterest(mask, np.array([region_of_disinterest_vertices], np.int32))

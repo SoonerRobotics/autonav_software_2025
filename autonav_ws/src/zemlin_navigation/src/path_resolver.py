@@ -22,7 +22,7 @@ class PathResolverConfig:
         self.radius_multiplier = 1.2
         self.radius_max = 4.0
         self.radius_start = 0.7
-        self.angular_aggressiveness = 2.3
+        self.angular_aggressiveness = 8
         self.max_angular_speed = 4
 
 

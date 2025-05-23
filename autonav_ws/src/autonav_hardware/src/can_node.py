@@ -111,7 +111,7 @@ class CanNode(Node):
 
     def can_thread_worker(self):
         while rclpy.ok():
-            if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
+            if self.get_device_state() != DeviceState.OPERATING:
                 continue
             if self.can is not None:
                 try:
@@ -125,6 +125,8 @@ class CanNode(Node):
     def onCanMessageReceived(self, msg):
         self.can_stats_record.rx = self.can_stats_record.rx + 1
         arbitration_id = msg.arbitration_id
+
+        self.log(f"Received CAN message with id: {arbitration_id}", LogLevel.DEBUG)
 
         if arbitration_id == arbitration_ids["EStop"]:
             self.set_mobility(False)

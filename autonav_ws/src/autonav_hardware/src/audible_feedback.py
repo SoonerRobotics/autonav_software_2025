@@ -28,6 +28,8 @@ class AudibleFeedbackNode(Node):
         self.main_track = None
         self.old_system_state = self.system_state
 
+        self.log("Audible feedback node started", LogLevel.INFO)
+
         # 
         self.audible_feedback_subscriber = self.create_subscription(
             AudibleFeedback, 
@@ -41,6 +43,7 @@ class AudibleFeedbackNode(Node):
 
 
     def on_audible_feedback_received(self, msg:AudibleFeedback):
+        self.log(f"Received audible feedback message: {msg}", LogLevel.INFO)
         self.monitor_tracks()
 
         if msg.stop_all:
@@ -125,6 +128,7 @@ class AudibleFeedbackNode(Node):
     def monitor_system_state(self):
         self.monitor_tracks()
         if self.system_state == SystemState.AUTONOMOUS and self.old_system_state != SystemState.AUTONOMOUS:
+            self.get_logger().info("Autonomous mode sound")
             playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
 
             try:
@@ -141,6 +145,7 @@ class AudibleFeedbackNode(Node):
             self.old_system_state = SystemState.AUTONOMOUS
 
         elif self.system_state == SystemState.MANUAL and self.old_system_state != SystemState.MANUAL:
+            self.get_logger().info("Manual mode sound")
             playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
 
             try:

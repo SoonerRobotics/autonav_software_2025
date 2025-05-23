@@ -104,6 +104,7 @@ class CameraNode(Node):
                 if camera_settings[self.direction]["flip"]:
                     # flip the frame vertically
                     frame = cv2.flip(frame, 0)
+                    frame = cv2.flip(frame, 1)
 
                 # convert the frame to a CompressedImage
                 msg = CompressedImage()
