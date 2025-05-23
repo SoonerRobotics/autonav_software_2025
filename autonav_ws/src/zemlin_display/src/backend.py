@@ -119,7 +119,7 @@ class DisplayBackend(Node):
             Position, "/autonav/position", self.position_callback, 10
         )
         self.pathing_debug_sub = self.create_subscription(
-            PathingDebug, "/autonav/pathing_debug", self.on_pathing_debug, 10
+            PathingDebug, "/autonav/debug/astar", self.on_pathing_debug, 10
         )
         # self.device_state_sub = self.create_subscription(
         #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
