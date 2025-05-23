@@ -9,6 +9,7 @@ from autonav_shared.node import Node
 from autonav_shared.types import DeviceState, SystemState
 from enum import IntEnum
 import rclpy
+import math
 
 
 class FilterType(IntEnum):
@@ -18,7 +19,7 @@ class FilterType(IntEnum):
 
 class FiltersConfig:
     def __init__(self):
-        self.filter_type = FilterType.DEAD_RECKONING
+        self.filter_type = FilterType.BEARING_FILTER
         self.latitude_length = 110944.2
         self.longitude_length = 91065.46
 
@@ -88,7 +89,7 @@ class FiltersNode(Node):
             position = Position()
             position.x = x
             position.y = y
-            position.theta = theta
+            position.theta = (2 * math.pi) - theta
             position.latitude = msg.latitude
             position.longitude = msg.longitude
             self.positionPublisher.publish(position)
