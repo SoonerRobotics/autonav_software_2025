@@ -57,7 +57,7 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 200;
+        config.max_length = 300;
         config.number_of_feelers = 35;
         config.start_angle = 5;
         config.waypointPopDist = 2;

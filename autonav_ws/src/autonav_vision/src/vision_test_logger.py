@@ -70,6 +70,7 @@ class VideoLogger(Node):
 
         self.log("starting video logger...", LogLevel.DEBUG)
         self.set_device_state(DeviceState.READY)
+        self.frame = 0
 
     # raw
     def on_front_received(self, msg):
@@ -110,6 +111,25 @@ class VideoLogger(Node):
 
         self.frame += 1 #TODO FIXME find a way to not have this
 
+        if self.frame > 100:
+            self.front_video_writer.release()
+            self.left_video_writer.release()
+            self.right_video_writer.release()
+            self.back_video_writer.release()
+            
+            self.front_debug_video_writer.release()
+            self.left_debug_video_writer.release()
+            self.right_debug_video_writer.release()
+            self.back_debug_video_writer.release()
+        
+            self.combined_video_writer.release()
+            self.combined_debug_video_writer.release()
+            self.feeler_video_writer.release()
+            
+            self.log("Vision Logger finished!", LogLevel.INFO)
+            
+            raise SystemExit
+
     
 
 def main():
@@ -117,25 +137,25 @@ def main():
 
     node = VideoLogger()
     
-    try:
-        rclpy.spin(node)
-    except Exception as e:
-        node.front_video_writer.release()
-        node.left_video_writer.release()
+    # try:
+    rclpy.spin(node)
+    # except Exception as e:
+    #     node.front_video_writer.release()
+    #     node.left_video_writer.release()
 
-        node.right_video_writer.release()
-        node.back_video_writer.release()
+    #     node.right_video_writer.release()
+    #     node.back_video_writer.release()
 
-        node.front_debug_video_writer.release()
-        node.left_debug_video_writer.release()
+    #     node.front_debug_video_writer.release()
+    #     node.left_debug_video_writer.release()
 
-        node.right_debug_video_writer.release()
-        node.back_debug_video_writer.release()
+    #     node.right_debug_video_writer.release()
+    #     node.back_debug_video_writer.release()
 
-        node.combined_video_writer.release()
+    #     node.combined_video_writer.release()
 
-        node.combined_debug_video_writer.release()
-        node.feeler_video_writer.release()
+    #     node.combined_debug_video_writer.release()
+    #     node.feeler_video_writer.release()
         
     # cleanup
     node.front_video_writer.release()
