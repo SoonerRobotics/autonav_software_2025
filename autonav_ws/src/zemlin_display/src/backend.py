@@ -385,10 +385,14 @@ class DisplayBackend(Node):
                 self.set_system_state(int(state))
                 self.log(f"Setting system state to {state}", LogLevel.INFO)
 
-                self.socketio.emit("system_state", json.dumps({
+                # self.socketio.emit("system_state", json.dumps({
+                #     "state": state,
+                #     "mobility": self.is_mobility()
+                # }))
+                self.emit("system_state", {
                     "state": state,
                     "mobility": self.is_mobility()
-                }))
+                })
             else:
                 self.log("No state provided", LogLevel.ERROR)
 
@@ -399,10 +403,14 @@ class DisplayBackend(Node):
                 self.set_mobility(bool(mobility))
                 self.log(f"Setting mobility to {mobility}", LogLevel.INFO)
 
-                self.socketio.emit("system_state", json.dumps({
+                # self.socketio.emit("system_state", json.dumps({
+                #     "state": self.get_system_state(),
+                #     "mobility": bool(mobility)
+                # }))
+                self.emit("system_state", {
                     "state": self.get_system_state(),
                     "mobility": bool(mobility)
-                }))
+                })
             else:
                 self.log("No mobility state provided", LogLevel.ERROR)
 

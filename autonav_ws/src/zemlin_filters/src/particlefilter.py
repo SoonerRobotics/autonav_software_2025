@@ -1,4 +1,4 @@
-from autonav_msgs.msg import MotorFeedback, GPSFeedback
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, ParticleFilterDebug, Particle as ParticleMsg
 import numpy as np
 import math
 import random
@@ -14,9 +14,11 @@ class ParticleFilter:
     def __init__(self, latitudeLength, longitudeLength) -> None:
         self.num_particles = 750
         self.gps_noise = [0.45]
+        self.particles = []
         self.odom_noise = [0, 0, 0.1]
         self.init_particles()
         self.first_gps = None
+        self.last_feedback = None
         
         self.latitudeLength = latitudeLength
         self.longitudeLength = longitudeLength
@@ -35,9 +37,11 @@ class ParticleFilter:
         sum_weight = 0
         
         for particle in self.particles:
-            particle.x += feedback.delta_x * 0.95 * math.cos(particle.theta) + feedback.delta_y * math.sin(particle.theta)
-            particle.y += feedback.delta_x * 0.95 * math.sin(particle.theta) + feedback.delta_y * math.cos(particle.theta)
-            particle.theta += feedback.delta_theta * 0.8
+            # particle.x += feedback.delta_x * 0.95 * math.cos(particle.theta) + feedback.delta_y * math.sin(particle.theta)
+            # particle.y += feedback.delta_x * 0.95 * math.sin(particle.theta) + feedback.delta_y * math.cos(particle.theta)
+            particle.x += feedback.delta_x
+            particle.y += feedback.delta_y
+            particle.theta += feedback.delta_theta
             particle.theta = particle.theta % (2 * math.pi)
             weight = particle.weight ** 2
             sum_x += particle.x * weight
@@ -53,8 +57,35 @@ class ParticleFilter:
         avg_y = sum_y / sum_weight
         avg_theta = math.atan2(sum_theta_y / sum_weight, sum_theta_x / sum_weight) % (2 * math.pi)
         
+        self.last_feedback = [avg_x, avg_y, avg_theta]
         return [avg_x, avg_y, avg_theta]
     
+    def clamp_between(self, value: float, min_value: float, max_value: float) -> float:
+        if value < min_value:
+            return min_value
+        elif value > max_value:
+            return max_value
+        else:
+            return value
+    
+    def get_particle_feedback(self) -> ParticleFilterDebug:
+        if self.last_feedback is None:
+            return None
+        
+        msg = ParticleFilterDebug()
+        msg.x = self.last_feedback[0]
+        msg.y = self.last_feedback[1]
+        msg.theta = self.last_feedback[2]
+        msg.particles = []
+        for particle in self.particles:
+            msg.particles.append(ParticleMsg())
+            msg.particles[-1].x = self.clamp_between(particle.x, -1000, 1000)
+            msg.particles[-1].y = self.clamp_between(particle.y, -1000, 1000)
+            msg.particles[-1].theta = self.clamp_between(particle.theta, -1000, 1000)
+            msg.particles[-1].weight = self.clamp_between(particle.weight, -1000, 1000)
+
+        return msg
+     
     def gps(self, gps: GPSFeedback) -> list[float]:
         if self.first_gps is None:
             self.first_gps = gps

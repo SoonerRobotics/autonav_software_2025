@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import rclpy
+import yaml
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState
 from autonav_shared.types import SystemState as SystemStateEnum
@@ -14,11 +15,38 @@ from cv_bridge import CvBridge
 from datetime import datetime
 import os
 import time
+import json
 
 import subprocess
 import cv2
+import threading
 
 bridge = CvBridge()
+camera_topics = [
+    # Regular Cameras
+    "/autonav/camera/front",
+    "/autonav/camera/back",
+    "/autonav/camera/left",
+    "/autonav/camera/right",
+
+    # Zemlin Code
+    "/autonav/cfg_space/expanded/image",
+    "/autonav/cfg_space/raw/image",
+
+    # Processed Cameras
+    "/autonav/vision/filtered/front",
+    "/autonav/vision/filtered/back",
+    "/autonav/vision/filtered/left",
+    "/autonav/vision/filtered/right",
+
+    # Combined Cameras
+    "/autonav/vision/combined/filtered"
+
+    # Feelers Debug
+    "/autonav/feelers/debug"
+]
+
+FPS = 8
 
 class LogConfig:
     def __init__(self):
@@ -31,6 +59,7 @@ class LogConfig:
         self.record_conbus = True
         self.record_safetylights = True
         self.record_performance = True
+        self.record_pf_debug = True
 
 class LoggingNode(Node):
     """
@@ -41,15 +70,23 @@ class LoggingNode(Node):
         super().__init__('autonav_logging')
         
         self.file = None
-        
-        self.QOS = 10
+        self.events = []
+
+        self.video_writers = {}
+        self.QOS = 20
+        self.started_logging_at = time.time()
         self.home_dir = os.path.expanduser("~")
-        self.system_state = 0
         self.config = LogConfig()
         
+        # Timer for periodically writing to the file
+        self.file_timer = self.create_timer(5, self.write_file)
+
         # Topic Listeners
-        self.systemStateSub = self.create_subscription(SystemState, '/autonav/shared/system', self.systemStateCallback, self.QOS)
         self.deviceStateSub = self.create_subscription(DeviceState, '/autonav/shared/device', self.deviceStateCallback, self.QOS)
+
+        # Create camera subscribers
+        for topic in camera_topics:
+            self.create_subscription(CompressedImage, topic, lambda msg, topic=topic: self.camera_callback(msg, topic), self.QOS)
         
         # IMU is still TBD
         self.imu_subscriber  = self.create_subscription(IMUData, '/autonav/imu', self.imu_feedback, self.QOS)
@@ -62,245 +99,290 @@ class LoggingNode(Node):
         self.conbus_subscriber = self.create_subscription(Conbus, '/autonav/CONbus', self.conbus_feedback, self.QOS)
         self.safetylight_subscriber = self.create_subscription(SafetyLights, '/autonav/safety_lights', self.safetylight_feedback, self.QOS)
         self.performance_subscriber = self.create_subscription(Performance, '/autonav/performance', self.performance_feedback, self.QOS)
+        self.particle_subscriber = self.create_subscription(ParticleFilterDebug, '/autonav/particle_debug', self.particle_feedback, self.QOS)
+        self.log_sub = self.create_subscription(Log, "/autonav/shared/log", self.log_callback, self.QOS)
 
-        
-        
-        self.FRAMERATE = 30
-        self.vid_path = os.path.join(self.home_dir, "Documents", "AutoNav", "Vids", self.makeTimestamp())
-        os.makedirs(self.vid_path, exist_ok=True)
-        # Raw Camera Record Settings
-        self.record_command = ['ffmpeg','-y', '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-framerate', str(self.FRAMERATE), '-s', '640x480', '-i', '-']
-        
-        # Raw Camera Topics
-        cameraQOS = rclpy.qos.qos_profile_sensor_data
-        self.camera1 = self.create_subscription(CompressedImage, 'autonav/camera/left', lambda msg: self.cameraCallback(msg, 'left'), cameraQOS)
-        self.camera2 = self.create_subscription(CompressedImage, 'autonav/camera/right', lambda msg: self.cameraCallback(msg, 'right'), cameraQOS)
-        self.camera3 = self.create_subscription(CompressedImage, 'autonav/camera/front', lambda msg: self.cameraCallback(msg, 'front'), cameraQOS)
-        self.camera4 = self.create_subscription(CompressedImage, 'autonav/camera/back', lambda msg: self.cameraCallback(msg, 'back'), cameraQOS)
-        # Additional Video Feeds
-        self.combined = self.create_subscription(CompressedImage, '/autonav/vision/combined/filtered', lambda msg: self.cameraCallback(msg, 'combined'), self.QOS)
-        self.feelers = self.create_subscription(CompressedImage, '/autonav/feelers/debug', lambda msg: self.cameraCallback(msg, 'feelers'), self.QOS)
-        
-        # FFmpeg Process Dict - Stores the ffmpeg pipes
-        self.process_dict = {'left':None, 'right':None, 'front':None, 'back':None, 'combined':None, 'feelers':None}
-        
-        # Tracks pipe status
-        self.closed_dict = {'left':False, 'right':False, 'front':False, 'back':False, 'combined':False, 'feelers':False}
-        
-        # Video Buffer List | Generally cutoff is equal to number of frames, in this case 15 frames ~ 1 sec of footage
-        self.buffer_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
-        # Time is money
-        t = time.time()
-        self.base_time_dict = {'left':t, 'right':t, 'front':t, 'back':t, 'combined':t, 'feelers':t}
-        del t
-        
-        # Video Stream Performance Tracking
-        # List of times in seconds to record every frame
-        self.performance_dict = {'left':[], 'right':[], 'front':[], 'back':[], 'combined':[], 'feelers':[]}
-
-
-    def cameraCallback(self, msg, id):
-        if not self.system_state == 1 or self.system_state == 2:
-            return
-        path = self.vid_path
-        
-        def new_process(id: str):
-            self.log('Opening new Proccess')
-            
-            # Adjust the command output filename
-            c = self.record_command
-            c.append(path+'/'+id+'.mp4')
-            self.process_dict[id] = subprocess.Popen(c, stdin=subprocess.PIPE)
-            
-            # Start tracking time as soon as pipe opens
-            self.buffer_dict[id].append(msg)
-            self.base_time_dict[id] = time.time()
-        
-        def check_buffer(id: str):
-            # Check the buffer to see if it has a whole second of frames
-            if len(self.buffer_dict[id]) == 30:
-                frame_time = self.get_elapsed_seconds(self.base_time_dict[id])
-                self.base_time_dict[id] = time.time()
-                self.performance_dict[id].append(frame_time)
-                # Then Process the whole buffer
-                self.process_frame_buffer(self.buffer_dict[id], self.process_dict[id])
-                self.print_performance(self.performance_dict[id])
-                self.buffer_dict[id] = []
-            self.buffer_dict[id].append(msg)
-        
-        if self.process_dict[id] == None and not self.closed_dict[id]:
-            new_process(id)
-        
-        
-        if not self.closed_dict[id]:
-            check_buffer(id)
-    
-    def process_img(self, msg, process):
-        image = bridge.compressed_imgmsg_to_cv2(msg, "bgr8")
-        success, encoded_image = cv2.imencode('.jpg', image)
-        if success:
-            process.stdin.write(encoded_image.tobytes())
-        else:
-            self.log("Image Encoding Failed")
-    
-    def print_performance(self, performance):
-        bad = max(performance)
-        good = min(performance)
-        mean = sum(performance) / len(performance)
-        self.log(f"Complete! Longest Frame: {bad} | Quickest Frame: {good}")
-        self.log(f"Average write time of {mean}")
-    
-    # This whole method is cancer but bear with me
-    def process_frame_buffer(self, buffer, process):
-        self.log("About to process a whole buffer")
-        for img in buffer:
-            self.process_img(img, process)
-    
-    def get_elapsed_seconds(self, base: float):
-        return time.time() - base
-    
-    def close_recording(self):
-        i = 0
-        for c in self.closed_dict.values():
-            if c == True:
-                i += 1
-            if i >= 6:
-                return
-        
-        
-        self.log('Closing Recordings')
-        for proccess in self.process_dict.values():
-            proccess.stdin.close()
-            proccess.wait()
-            proccess = None
-        
-        for c in self.closed_dict:
-            self.closed_dict[c] = True
-    
-    
-    def systemStateCallback(self, msg):
-        # 0 DISABLED
-        # 1 AUTONOMOUS
-        # 2 MANUAL
-        # 3 SHUTDOWN
-        
-        if self.file == None and (self.system_state == SystemStateEnum.MANUAL or self.system_state == SystemStateEnum.AUTONOMOUS):
-            self.create_entry()
-        elif self.system_state != SystemStateEnum.MANUAL and self.system_state != SystemStateEnum.AUTONOMOUS:
-            if self.file != None:
-                self.close_entry()
-                self.close_recording()
-        
-    
-    def deviceStateCallback(self, msg):
-        # 0 OFF
-        # 1 BOOTING
-        # 2 STANDBY
-        # 3 READY
-        # 4 OPERATING
-        # 5 ERRORED
-        
-        if self.file == None:
-            return
-        
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_DEVICE, {msg.device}, {msg.state}")
-    
-    
-    def makeTimestamp(self) -> str:
-        time = datetime.now()
-        frmt = time.strftime("%Y-%m-%d_%H-%M-%S")
-        return frmt
-    
-    def write_file(self, msg):
-        if self.file == None:
-            self.log("File is None!", LogLevel.ERROR)
-            return
-        
-        # self.get_logger().info("Writing")
-        # self.log("TEST!", LogLevel.ERROR)
-        self.file.write(msg + "\n")
-    
+    def apply_config(self, config):
+        self.config.record_imu = config["record_imu"]
+        self.config.record_gps = config["record_gps"]
+        self.config.record_motor = config["record_motor"]
+        self.config.record_position = config["record_position"]
+        self.config.record_nuc = config["record_nuc"]
+        self.config.record_ultrasonic = config["record_ultrasonic"]
+        self.config.record_conbus = config["record_conbus"]
+        self.config.record_safetylights = config["record_safetylights"]
+        self.config.record_performance = config["record_performance"]
     
     def create_entry(self):
         self.log("Create_entry", LogLevel.INFO)
-        stateFrmt = "autonomous" if self.system_state == 1 else "manual"
-        filename = f"{stateFrmt}_{self.makeTimestamp()}"
+        stateFrmt = "autonomous" if self.system_state == 2 else "manual"
+        cur_time_date = datetime.now()
+        self.started_recording_at = cur_time_date.strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"output.suslog"
         
-        BASE_PATH = os.path.join(self.home_dir, "Documents", "AutoNav", "Logs", filename)
-        os.makedirs(BASE_PATH, exist_ok=True)
-        
-        self.log("Creating Entry", LogLevel.INFO)
-        self.file = open(os.path.join(BASE_PATH, "log.csv"), "w")
-        self.file.write("timestamp, type\n")
+        self.BASE_PATH = os.path.join(self.home_dir, ".autonav", "logs", stateFrmt, self.started_recording_at)
+        self.FILE_PATH = os.path.join(self.BASE_PATH, filename)
+        self.log(f"Creating file {self.FILE_PATH}", LogLevel.INFO)
+        os.makedirs(self.BASE_PATH, exist_ok=True)
+        self.file = open(self.FILE_PATH, "w")
+
+        # create video file in append mode so we can add videos as we write them
+        self.video_file = open(os.path.join(self.BASE_PATH, "video_list.txt"), "a")
+
+        # write the first entry, metadata stuff
+        self.started_logging_at = time.time()
+        event = {
+            "system_state": self.system_state.value,
+            "mobility": self.mobility
+        }
+        self.append_event("metadata", event)
     
-    def close_entry(self):
+    def normalize_topic(self, topic: str):
+        topic = topic.replace("/", "_")
+        topic = topic.lower()
+        topic = ''.join(e for e in topic if e.isalnum() or e == "_")
+        topic = topic.strip("_")
+
+        return topic
+
+    def close_entry(self, state):
         if self.file is None:
             return
         
         self.get_logger().info("Closing Entry")
+        self.write_file()
         self.file.close()
         self.file = None
+
+        # Close the video files and write the video list
+        for topic, writer in self.video_writers.items():
+            if writer is not None:
+                writer.release()
+                self.video_writers[topic] = None
+
+        # Sleep for a sec
+        time.sleep(1)
+
+        # Stuff
+        stateFrmt = "autonomous" if state == 2 else "manual"
+
+        # Zip the entire log folder
+        zip_file = os.path.join(self.home_dir, ".autonav", "logs", f"{stateFrmt}_{self.started_recording_at}.zip")
+        subprocess.run(["zip", "-r", zip_file, self.BASE_PATH])
+        self.get_logger().info(f"Zipped logs to {zip_file}")
+
+
+    def on_system_state_updated(self, old, new):
+        if self.file == None and (new == SystemStateEnum.MANUAL or new == SystemStateEnum.AUTONOMOUS):
+            self.create_entry()
+        elif new != SystemStateEnum.MANUAL and new != SystemStateEnum.AUTONOMOUS and self.file != None:
+            self.close_entry(old)       
+    
+    def append_event(self, event_type: str, event):
+        if self.file == None:
+            return
+        
+        msg = {
+            "timestamp": time.time() - self.started_logging_at,
+            "type": event_type,
+            "event": event
+        }
+        self.events.append(msg)
+
+    def write_file(self):
+        if self.file == None:
+            self.log("File is None, not writing", LogLevel.ERROR)
+            return
+        
+        events_cpy = []
+        for event in self.events:
+            event_cpy = event.copy()
+            try:
+                json.dumps(event_cpy["event"])
+            except TypeError:
+                event_cpy["event"] = yaml.load(str(event["event"]), Loader=yaml.Loader)
+            events_cpy.append(event_cpy)
+
+        json_str = json.dumps(events_cpy)
+        
+        # clear what we have written so far and write the new stuff
+        self.file.seek(0)
+        self.file.truncate()
+        self.file.write(json_str)
+
+
+    def on_mobility_updated(self, old, new):
+        if self.file == None:
+            return
+        
+        if old != new:
+            self.mobility = new
+            event = {
+                "mobility": new
+            }
+            self.append_event("mobility", event)
+
+    def camera_callback(self, msg: CompressedImage, topic: str):
+        if self.file == None:
+            return
+        
+        topic = self.normalize_topic(topic)
+        if topic not in self.video_writers:
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            filename = os.path.join(self.BASE_PATH, f"{topic}.avi")
+            self.video_writers[topic] = cv2.VideoWriter(filename, fourcc, FPS, (640, 480))
+
+        if self.video_writers[topic] is not None:
+            cv_image = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            self.video_writers[topic].write(cv_image)
+        
+    def deviceStateCallback(self, msg: DeviceState):
+        if self.file == None:
+            return
+        
+        self.append_event("device_state", {
+            "device": msg.device,
+            "state": msg.state
+        })
         
     def imu_feedback(self, msg):
         if not self.config.record_imu:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_IMU, {msg.yaw}, {msg.pitch}, {msg.roll}, {msg.accel_x}, {msg.accel_y}, {msg.accel_z}, {msg.angular_x}, {msg.angular_y}, {msg.angular_z}")
+        self.append_event("imu", {
+            "yaw": msg.yaw,
+            "pitch": msg.pitch,
+            "roll": msg.roll,
+            "accel_x": msg.accel_x,
+            "accel_y": msg.accel_y,
+            "accel_z": msg.accel_z,
+            "angular_x": msg.angular_x,
+            "angular_y": msg.angular_y,
+            "angular_z": msg.angular_z,
+            "status": msg.status,
+        })
     
     def gps_feedback(self, msg):
         if not self.config.record_gps:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_GPS, {msg.latitude}, {msg.longitude}, {msg.altitude}, {msg.gps_fix}, {msg.num_satellites}")
+        self.append_event("gps", {
+            "latitude": msg.latitude,
+            "longitude": msg.longitude,
+            "altitude": msg.altitude,
+            "num_satellites": msg.num_satellites,
+            "gps_fix": msg.gps_fix
+        })
     
     def mfeedback_feedback(self, msg):
         if not self.config.record_motor:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_FEEDBACK, {msg.delta_x}, {msg.delta_y}, {msg.delta_theta}")
+        self.append_event("motor_feedback", {
+            "delta_x": msg.delta_x,
+            "delta_y": msg.delta_y,
+            "delta_theta": msg.delta_theta,
+        })
         
     def minput_feedback(self, msg):
         if not self.config.record_motor:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_INPUT, {msg.forward_velocity}, {msg.sideways_velocity}, {msg.angular_velocity}")
+        self.append_event("motor_input", {
+            "forward_velocity": msg.forward_velocity,
+            "sideways_velocity": msg.sideways_velocity,
+            "angular_velocity": msg.angular_velocity
+        })
     
-    def position_feedback(self, msg):
+    def position_feedback(self, msg: Position):
         if not self.config.record_position:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_POSITION, {msg.x}, {msg.y}, {msg.theta}, {msg.latitude}, {msg.longitude}")
+        self.append_event("position", {
+            "x": msg.x,
+            "y": msg.y,
+            "theta": msg.theta,
+            "longitude": msg.longitude,
+            "latitude": msg.latitude
+        })
         
     def nuc_feedback(self, msg):
         if not self.config.record_nuc:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_PERFORMACE, {msg.timestamp}, {msg.cpu_percentage}, {msg.ram_usage}, {msg.disk_usage}, {msg.gpu_usage}")
+        self.append_event("nuc", {
+            "timestamp": msg.timestamp,
+            "cpu_percentage": msg.cpu_percentage,
+            "ram_usage": msg.ram_usage,
+            "disk_usage": msg.disk_usage,
+            "gpu_usage": msg.gpu_usage
+        })
     
     def ultrasonic_feedback(self, msg):
         if not self.config.record_ultrasonic:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_ULTRASONIC, {msg.id}, {msg.distance}")
+        self.append_event("ultrasonic", {
+            "id": msg.id,
+            "distance": msg.distance,
+        })
         
     def conbus_feedback(self, msg):
         if not self.config.record_conbus:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_CONBUS, {msg.id}, {msg.data}, {msg.iterator}")
+        self.append_event("conbus", msg)
     
     def safetylight_feedback(self, msg):
         if not self.config.record_safetylights:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_SAFETYLIGHT, {msg.autonomous}, {msg.red}, {msg.green}, {msg.blue}")
+        self.append_event("safetylight", {
+            "mode": msg.mode,
+            "brightness": msg.brightness,
+            "red": msg.red,
+            "green": msg.green,
+            "blue": msg.blue,
+            "blink_period": msg.blink_period
+        })
     
     def performance_feedback(self, msg):
         if not self.config.record_performance:
             return
         
-        self.write_file(f"{self.makeTimestamp()}, ENTRY_PERFORMANCE, {msg.name}, {msg.duration}")
-    
+        self.append_event("performance", {
+            "name": msg.name,
+            "elapsed": msg.elapsed,
+        })
+
+    def log_callback(self, msg: Log):
+        if self.file == None:
+            return
+        
+        self.append_event("log", {
+            "timestamp": msg.timestamp,
+            "level": msg.level,
+            "node": msg.node,
+            "message": msg.message,
+            "function_caller": msg.function_caller,
+            "line_number": msg.line_number
+        })
+
+    def particle_feedback(self, msg):
+        if not self.config.record_pf_debug:
+            return
+        
+        self.append_event("pf_debug", {
+            "x": msg.x,
+            "y": msg.y,
+            "theta": msg.theta,
+            "particles": [{
+                "x": p.x,
+                "y": p.y,
+                "theta": p.theta,
+                "weight": p.weight
+            } for p in msg.particles]
+        })
     
         
 def main():

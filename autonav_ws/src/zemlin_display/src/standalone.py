@@ -25,7 +25,7 @@ class AppBackend(Node):
         self.set_device_state(DeviceState.OPERATING)
 
         # Setup ROS subscriber
-        self.create_subscription(CompressedImage, "/autonav/camera/compressed/front", self.camera_compressed_callback, 10)
+        self.create_subscription(CompressedImage, "/autonav/camera/front", self.camera_compressed_callback, 10)
         self.create_subscription(CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10)
         self.create_subscription(CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10)
 
