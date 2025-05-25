@@ -12,24 +12,22 @@ from swerve.swerve_module import SUSwerveDriveModule
 from swerve.can_spark_max import CanSparkMax
 from swerve.swerve_config import *
 
-#FIXME CanConfig isn't working right right now
-class CanNodeConfig:
-    def __init__(self):
-        self.canable_filepath = "/dev/ttyACM0" #TODO this may or may not be right, there are two CANables so not sure
+
+CAN_PATH = "/dev/autonav-can-rev"
+CAN_SPEED = 1_000_000
+
 
 class SparkMAXNode(Node):
     def __init__(self):
         super().__init__("sparkmax_can_node")
-        self.write_config(CanNodeConfig())
         self.can = None
         self.motors = []
-        self.hasConfigured = False
     
     def init(self):
         self.set_device_state(DeviceState.WARMING)
 
         # make the CAN object
-        self.can = can.ThreadSafeBus(bustype="slcan", channel="/dev/ttyACM0", bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
+        self.can = can.ThreadSafeBus(bustype="slcan", channel=CAN_PATH, bitrate=CAN_SPEED)
         self.canReadThread = threading.Thread(target=self.can_reader)
         self.canReadThread.daemon = True
         self.canReadThread.start()
@@ -73,6 +71,9 @@ class SparkMAXNode(Node):
     #TODO: is there a better way to do this? maybe have a timer in each object itself? 
     # I feel like this should be more abstracted away, at least from this file
     def send_heartbeat(self):
+        if self.get_system_state() == SystemState.DISABLED:
+            return
+
         for idx, motor in enumerate(self.motors):
             motor.sendHeartbeat()
 
@@ -116,8 +117,7 @@ class SparkMAXNode(Node):
     
     def reconnect_can(self):
         try:
-            # self.log("Attempting to reconnect SparkMAX CAN bus...", LogLevel.INFO)
-            self.can = can.ThreadSafeBus(bustype="slcan", channel=self.config.canable_filepath, bitrate=1_000_000) # FRC CAN runs at 1 Mbit/sec
+            self.can = can.ThreadSafeBus(bustype="slcan", channel=CAN_PATH, bitrate=CAN_SPEED)
             self.reconnect_timer.destroy() # can is connected, don't need to keep trying
             self.set_device_state(DeviceState.READY)
         except:

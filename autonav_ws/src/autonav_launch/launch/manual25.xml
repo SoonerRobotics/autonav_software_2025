@@ -1,7 +1,9 @@
 <launch>
   <!-- Manual controller -->
+  <node pkg="autonav_commander" exec="commander.py" output="screen" emulate_tty="true"/>
   <node pkg="autonav_manual" exec="controller_input.py" output="screen" emulate_tty="true" />
   <node pkg="autonav_manual" exec="manual_25.py" output="screen" emulate_tty="true" />
+  <node pkg="autonav_manual" exec="motormessage_listener.py" output="screen" emulate_tty="true" />
   <node pkg="autonav_hardware" exec="audible_feedback.py" output="screen" emulate_tty="true" />
   <!-- <node pkg="autonav_manual" exec="motormessage_listener.py"/> -->
 

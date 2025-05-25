@@ -13,16 +13,31 @@ import {
     SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Switch } from "@/components/ui/switch"
+import { useSocket } from "@/providers/SocketProvider"
 import { Cog, Eye, LayoutDashboard, MoreHorizontal, Settings } from "lucide-react"
+import { useEffect, useState } from "react"
 
-interface DashboardSidebarProps {
-    systemState: "Disabled" | "Manual" | "Autonomous" | "Shutdown"
-    setSystemState: (state: "Disabled" | "Manual" | "Autonomous" | "Shutdown") => void
-    mobility: boolean
-    setMobility: (mobility: boolean) => void
-}
+export function DashboardSidebar() {
+    const { lastMessage, api } = useSocket();
+    const [systemState, setSystemState] = useState("0");
+    const [mobility, setMobility] = useState(false);
 
-export function DashboardSidebar({ systemState, setSystemState, mobility, setMobility }: DashboardSidebarProps) {
+    useEffect(() => {
+        if (lastMessage?.type == "system_state")
+        {
+            setSystemState(`${lastMessage.data.state}`);
+            setMobility(lastMessage.data.mobility);
+        }
+    }, [lastMessage]);
+
+    const setMobilityExternal = (value: boolean) => {
+        api.set_mobility(value);
+    }
+
+    const setSystemStateExternal = (value: string) => {
+        api.set_system_state(value);
+    }
+
     return (
         <Sidebar>
             <SidebarHeader className="flex items-center justify-center py-4">
@@ -67,22 +82,24 @@ export function DashboardSidebar({ systemState, setSystemState, mobility, setMob
             <SidebarFooter className="p-4 space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="system-state">System State</Label>
-                    <Select value={systemState} onValueChange={(value) => setSystemState(value as any)}>
+                    <Select value={systemState} onValueChange={(value) => {
+                        setSystemStateExternal(value);
+                    }}>
                         <SelectTrigger id="system-state">
                             <SelectValue placeholder="Select state" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Disabled">Disabled</SelectItem>
-                            <SelectItem value="Manual">Manual</SelectItem>
-                            <SelectItem value="Autonomous">Autonomous</SelectItem>
-                            <SelectItem value="Shutdown">Shutdown</SelectItem>
+                            <SelectItem value={"0"}>Disabled</SelectItem>
+                            <SelectItem value={"1"}>Manual</SelectItem>
+                            <SelectItem value={"2"}>Autonomous</SelectItem>
+                            <SelectItem value={"3"}>Shutdown</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
 
                 <div className="flex items-center justify-between">
                     <Label htmlFor="mobility">Mobility</Label>
-                    <Switch id="mobility" checked={mobility} onCheckedChange={setMobility} />
+                    <Switch id="mobility" checked={mobility} onCheckedChange={setMobilityExternal} />
                 </div>
             </SidebarFooter>
         </Sidebar>

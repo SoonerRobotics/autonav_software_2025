@@ -17,13 +17,13 @@ BACK_SPEED = 0.40
 
 class PathResolverConfig:
     def __init__(self):
-        self.forward_speed = 1.5
-        self.reverse_speed = -0.4
+        self.forward_speed = 1.8
+        self.reverse_speed = -0.7
         self.radius_multiplier = 1.2
         self.radius_max = 4.0
         self.radius_start = 0.7
-        self.angular_aggressiveness = 1.8
-        self.max_angular_speed = 3
+        self.angular_aggressiveness = 14
+        self.max_angular_speed = 4
 
 
 class PathResolverNode(Node):
@@ -113,55 +113,13 @@ class PathResolverNode(Node):
                 time.sleep(0.05)
                 continue
 
-            # if self.backCount == -1 and (lookahead is not None and ((lookahead[1] - cur_pos[1]) ** 2 + (lookahead[0] - cur_pos[0]) ** 2) > 0.25):
-            #     angle_diff = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
-            #     error = self.angle_diff(angle_diff, self.position.theta) / math.pi
-            #     forward_speed = self.config.forward_speed * (1 - abs(error)) ** 5
-            #     inputPacket.forward_velocity = forward_speed
-            #     inputPacket.angular_velocity = self.clamp(error * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
+            if self.backCount == -1 and (lookahead is not None and ((lookahead[1] - cur_pos[1]) ** 2 + (lookahead[0] - cur_pos[0]) ** 2) > 0.25):
+                angle_diff = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
+                error = self.angle_diff(angle_diff, self.position.theta) / math.pi
+                forward_speed = self.config.forward_speed * (1 - abs(error)) ** 5
+                inputPacket.forward_velocity = forward_speed
+                inputPacket.angular_velocity = self.clamp(error * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
 
-            #     if self.status == 0:
-            #         self.status = 1
-            # else:
-            #     if self.backCount == -1:
-            #         self.backCount = 8
-            #     else:
-            #         self.status = 0
-            #         self.backCount -= 1
-
-            #     inputPacket.forward_velocity = self.config.reverse_speed
-            #     inputPacket.angular_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
-
-            # if not self.is_mobility:
-            #     inputPacket.forward_velocity = 0.0
-            #     inputPacket.angular_velocity = 0.0
-
-            # self.log(f"Forward: {inputPacket.forward_velocity}, Angular: {inputPacket.angular_velocity}")
-
-            # self.motorPublisher.publish(inputPacket)
-            
-            input = MotorInput()
-            input.forward_velocity = 0.0
-            input.sideways_velocity = 0.0
-            input.angular_velocity = 0.0
-            
-            # move towards the target and rotate towards the target
-            # we are using a swerve drive
-            
-            if lookahead is not None:
-                # forward should be cos(angle_to_pp_goal)
-                # sideways should be sin(angle_to_pp_goal)
-                
-                error = self.angle_diff(math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0]), self.position.theta) / math.pi
-                angle_to_pp_goal = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
-                forward_speed = self.clamp(self.config.forward_speed * math.cos(angle_to_pp_goal) * (1 - abs(error)) ** 5, -2.1, 2.1)
-                sideways_speed = self.clamp(-self.config.forward_speed * math.sin(angle_to_pp_goal) * (1 - abs(error)) ** 5, -2.1, 2.1)
-                angular_speed = -self.clamp(self.angle_diff(angle_to_pp_goal, self.position.theta) * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
-                
-                input.forward_velocity = forward_speed
-                input.sideways_velocity = sideways_speed
-                input.angular_velocity = angular_speed
-                
                 if self.status == 0:
                     self.status = 1
             else:
@@ -171,15 +129,13 @@ class PathResolverNode(Node):
                     self.status = 0
                     self.backCount -= 1
 
-                input.forward_velocity = self.config.reverse_speed
-                input.angular_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
-                input.sideways_velocity = BACK_SPEED if IS_SOUTH else (-1 * BACK_SPEED)
+                inputPacket.forward_velocity = self.config.reverse_speed
+                inputPacket.angular_velocity = BACK_SPEED
+
+            self.motorPublisher.publish(inputPacket)
                 
             self.perf_stop("path_resolve")
-
-            # self.log(f"Forward: {input.forward_velocity}, Angular: {input.angular_velocity}, Sideways: {input.sideways_velocity}")
-            self.motorPublisher.publish(input)
-            
+    
             time.sleep(0.05)
 
  

@@ -6,7 +6,8 @@ import { io, Socket } from 'socket.io-client';
 interface SocketContextType {
     lastMessage: SocketMessage | null;
     api: {
-        ping: () => void;
+        set_mobility: (value: boolean) => void;
+        set_system_state: (value: string) => void;
     };
     setAddress: (ip: string, port: number) => void;
     getAddress: () => { ip: string; port: number };
@@ -18,7 +19,8 @@ interface ServerToClientEvents {
 }
 
 interface ClientToServerEvents {
-    ping: () => void;
+    set_mobility: (value: boolean) => void;
+    set_system_state: (value: string) => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -39,8 +41,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     const [lastMessage, setLastMessage] = useState<SocketMessage | null>(null);
     const [state, setState] = useState<'connected' | 'disconnected'>('disconnected');
     const [address, setAddressState] = useState<{ ip: string; port: number }>({
-        ip: 'localhost',
-        port: 3000,
+        ip: '192.168.1.76',
+        port: 4029,
     });
 
     const connectSocket = useCallback(() => {
@@ -65,16 +67,17 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         });
 
         newSocket.on('message', (message: any) => {
+            const msg = JSON.parse(message);
             const parsedMessage: SocketMessage = {
-                type: message.type,
-                data: message.data,
+                type: msg.type,
+                data: msg.msg,
             };
-
+            
             if (parsedMessage.type == null)
             {
                 return;
             }
-
+                
             setLastMessage(parsedMessage);
         });
 
@@ -90,13 +93,17 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }, [connectSocket]);
 
     const api: SocketContextType['api'] = {
-        ping: () => {
-            if (socket && socket.connected) {
-                socket.emit('ping');
-            } else {
-                console.warn('Socket is not connected');
+        set_mobility: (value: boolean) => {
+            if (socket) {
+                socket.emit('set_mobility', value);
             }
         },
+        set_system_state: (value: string) => {
+            if (socket) {
+                socket.emit('set_system_state', value);
+            }
+        },
+        
     };
 
     const setAddress: SocketContextType['setAddress'] = (ip, port) => {

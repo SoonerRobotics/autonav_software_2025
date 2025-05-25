@@ -23,7 +23,7 @@ class Manual25Config:
     def __init__(self):
         self.max_forward_speed = -3
         self.max_sideways_speed = -3
-        self.max_angular_speed = -np.pi / 3
+        self.max_angular_speed = -np.pi
         self.odom_fudge_factor = 1
         self.sound_buffer = 0.5 # seconds
         self.main_song_path = '~/autonav_software_2025/music/vivalavida.wav'
@@ -34,9 +34,11 @@ class Manual25Node(Node):
     def __init__(self):
         super().__init__('autonav_manual')
         self.write_config(Manual25Config())
+        # self.log("Manual 25 node __init__", LogLevel.INFO)
 
 
     def init(self):
+        self.log("Manual 25 node init", LogLevel.INFO)
         self.mode = ControllerMode.LOCAL
         self.orientation = 0
         self.last_time = 0
@@ -47,6 +49,8 @@ class Manual25Node(Node):
         # self.max_angular_speed = np.pi/4
 
         self.controller_state = {}
+
+        
 
         self.audio_manager = threading.Thread(target=self.manage_audio)
         self.audio_manager.daemon = True
@@ -233,6 +237,7 @@ class Manual25Node(Node):
 
 
     def manage_audio(self):
+        self.log("Audio manager started", LogLevel.INFO)
         while rclpy.ok():
             if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
                 continue
