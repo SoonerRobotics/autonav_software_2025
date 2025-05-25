@@ -116,6 +116,8 @@ class FiltersNode(Node):
         position.x = averages[0]
         position.y = averages[1]
         position.theta = averages[2]
+
+        # self.log(f"Position: {position.x}, {position.y}, {position.theta}")
         
         if self.firstGps is not None:
             gps_x = self.firstGps.latitude + position.x / self.config.latitude_length

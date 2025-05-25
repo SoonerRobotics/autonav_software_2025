@@ -25,17 +25,18 @@ CV_BRIDGE = cv_bridge.CvBridge()
 # STARTING_PT = (42.6681268, -83.218887)
 
 waypoints = [
-    [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)] 
+    # [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)],
+    [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)]
 ]
 
 class AStarNode(Node):
     def __init__(self):
         super().__init__("autonav_nav_astar")
         
-        self.waypoint_pop_distance = 1.1
-        self.waypoint_delay = 20
+        self.waypoint_pop_distance = 1.4
+        self.waypoint_delay = 5
         self.robotY = 66
-        self.use_only_waypoints = False
+        self.use_only_waypoints = True
 
         self.onReset()
         self.latitudeLength = self.declare_parameter("latitude_length", 111086.2).get_parameter_value().double_value
@@ -82,17 +83,23 @@ class AStarNode(Node):
         if new == SystemState.AUTONOMOUS and self.mobility and len(self.waypoints) == 0:
             self.log(f"Waypoints will activate in {self.waypoint_delay} seconds")
             self.waypointTime = time.time() + self.waypoint_delay
+            self.push_safety_lights(255, 255, 255, 1, 0)
             
         if new != SystemState.AUTONOMOUS and self.get_device_state() == DeviceState.OPERATING:
             self.onReset()
+            self.push_safety_lights(255, 255, 255, 0, 0)
 
     def on_mobility_updated(self, old, new):
         if self.get_system_state() == SystemState.AUTONOMOUS and new and len(self.waypoints) == 0:
             self.log(f"Waypoints will activate in {self.waypoint_delay} seconds")
             self.waypointTime = time.time() + self.waypoint_delay
+            self.push_safety_lights(255, 255, 255, 1, 0)
             
         if (self.get_system_state() != SystemState.AUTONOMOUS or not new) and self.get_device_state() == DeviceState.OPERATING:
             self.onReset()
+
+        if old == True and new == False and self.get_system_state() == SystemState.AUTONOMOUS:
+            self.push_safety_lights(255, 255, 255, 0, 0)
             
     def onPoseReceived(self, msg: Position):
         self.position = msg
@@ -222,6 +229,8 @@ class AStarNode(Node):
         if len(self.waypoints) == 0 and time.time() > self.waypointTime and self.waypointTime != 0:
             self.waypoints = [wp for wp in self.getWaypointsForDirection()]
             self.waypointTime = 0
+            self.push_safety_lights(255, 255, 0, 1, 2)
+            self.push_safety_lights(255, 255, 255, 1, 0)
         
         if time.time() < self.waypointTime and len(self.waypoints) == 0:
             time_remaining = self.waypointTime - time.time()
@@ -241,6 +250,8 @@ class AStarNode(Node):
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.waypoint_pop_distance:
+                self.push_safety_lights(0, 255, 0, 1, 2)
+                self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
                 # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = time.time() + 1.5
