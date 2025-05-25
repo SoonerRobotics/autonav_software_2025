@@ -61,16 +61,16 @@ int getData(const char *array) {
 
 int changeSensor() {
     if (digitalRead(lowSelect) == 0 && digitalRead(midSelect) == 0) {
-        digitalWrite(lowSelect, HIGH); return 2;
+        digitalWrite(lowSelect, HIGH); return 1;
       }
     else if (digitalRead(lowSelect) == 1 && digitalRead(midSelect) == 0) {
-         digitalWrite(midSelect, HIGH); digitalWrite(lowSelect, LOW); return 3;
+         digitalWrite(midSelect, HIGH); digitalWrite(lowSelect, LOW); return 2;
       }
     else if (digitalRead(lowSelect) == 0 && digitalRead(midSelect) == 1) {
-        digitalWrite(lowSelect, HIGH); return 4;
+        digitalWrite(lowSelect, HIGH); return 3;
       }
     else if (digitalRead(lowSelect) == 1 && digitalRead(midSelect) == 1) {
-        digitalWrite(lowSelect, LOW); digitalWrite(midSelect, LOW); return 1;
+        digitalWrite(lowSelect, LOW); digitalWrite(midSelect, LOW); return 4;
       }
     else {return 0;} 
 }
