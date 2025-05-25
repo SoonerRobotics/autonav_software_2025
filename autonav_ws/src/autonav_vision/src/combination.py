@@ -43,6 +43,8 @@ class ImageCombiner(Node):
     def init(self):
         self.set_device_state(DeviceState.WARMING)
 
+        self.oneCamera = True
+
         self.image_front = None
         self.image_left = None
         self.image_right = None
@@ -154,9 +156,20 @@ class ImageCombiner(Node):
         return combined_image
 
     def try_combine_images(self):
+        # if only one camera, only check one camera
+        if self.oneCamera and self.image_front is not None and self.debug_image_front is not None:
+            # make fakes for all the remaining images
+            self.image_right = np.zeros_like(self.image_front)
+            self.image_left = np.zeros_like(self.image_front)
+            self.image_back = np.zeros_like(self.image_front)
+            self.debug_image_right = np.zeros_like(self.debug_image_front)
+            self.debug_image_left = np.zeros_like(self.debug_image_front)
+            self.debug_image_back = np.zeros_like(self.debug_image_front)
+
         # this is a horrendous line of code pls don't actually do it this way FIXME
-        if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
-            return
+        else:
+            if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
+                return
         
         # self.log("COMBINING ALL...", LogLevel.ERROR)
 
