@@ -1,9 +1,12 @@
-# Can
-KERNEL=="ttyACM*", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", ATTRS{serial}=="002D00254E53511520363936", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-can-835"
-KERNEL=="ttyACM*", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", ATTRS{serial}=="0037001E5834570120343833", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-can-835"
+# REV Can
+KERNEL=="ttyACM*", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", ATTRS{serial}=="003500394B57530720373832", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-can-rev"
+
+# SCR Can
+KERNEL=="ttyACM*", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", ATTRS{serial}=="003B001B3730511220333152", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-can-scr"
 
 # IMU
-KERNEL=="ttyUSB*", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AU057VHW", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-imu-200"
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AU057VHW", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-imu"
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AU05RFV7", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-imu"
 
 # Steam Controller
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput", MODE="0666"

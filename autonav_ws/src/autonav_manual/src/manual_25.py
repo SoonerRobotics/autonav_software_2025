@@ -23,16 +23,16 @@ class Manual25Config:
     def __init__(self):
         self.max_forward_speed = -3
         self.max_sideways_speed = -3
-        self.max_angular_speed = -np.pi
+        self.max_angular_speed = -np.pi / 3
         self.odom_fudge_factor = 1
         self.sound_buffer = 0.5 # seconds
-        self.main_song_path = '~/Documents/vivalavida.wav'
-        self.x_button_sound = '~/Documents/vine-boom.mp3'
+        self.main_song_path = '~/autonav_software_2025/music/vivalavida.wav'
+        self.x_button_sound = '~/autonav_software_2025/music/vine-boom.mp3'
 
 
 class Manual25Node(Node):
     def __init__(self):
-        super().__init__('manual25_node')
+        super().__init__('autonav_manual')
         self.write_config(Manual25Config())
 
 
@@ -93,14 +93,16 @@ class Manual25Node(Node):
         self.new_time = time.time()
         self.delta_t = self.new_time - self.last_time
 
-        self.set_device_state(DeviceState.OPERATING)
+        if self.get_device_state() != DeviceState.OPERATING:
+            self.set_device_state(DeviceState.OPERATING)
         self.deserialize_controller_state(msg)
 
         self.change_controller_mode()
         self.change_system_state()
         self.handle_encoders()
 
-        # local vs. global toggle
+        # # self.log(f"orientation: {self.orientation}")
+        # # local vs. global toggle
 
         if self.mode == ControllerMode.LOCAL:
             self.compose_motorinput_message_local()
@@ -129,24 +131,20 @@ class Manual25Node(Node):
             self.orientation = 0
             self.mode = ControllerMode.LOCAL
 
+    def on_system_state_updated(self, old, new):
+        if new != SystemState.MANUAL and old == SystemState.MANUAL:
+            motor_msg = MotorInput()
+            self.motorPublisher.publish(motor_msg)
 
     def change_system_state(self):
-        new_system_state = self.system_state
         if self.controller_state['btn_east'] == 1.0:
-            new_system_state = SystemState.SHUTDOWN
-            self.set_system_state(new_system_state)
-            
+            self.set_system_state(SystemState.SHUTDOWN)
         elif self.controller_state['btn_start'] == 1.0:
-            new_system_state = SystemState.MANUAL
-            self.set_system_state(new_system_state)
-
+            self.set_system_state(SystemState.MANUAL)
         elif self.controller_state['btn_mode'] == 1.0:
-            new_system_state = SystemState.AUTONOMOUS
-            self.set_system_state(new_system_state)
-
+            self.set_system_state(SystemState.AUTONOMOUS)
         elif self.controller_state['btn_select'] == 1.0:
-            new_system_state = SystemState.DISABLED
-            self.set_system_state(new_system_state)
+            self.set_system_state(SystemState.DISABLED)
 
     
     def handle_encoders(self):
@@ -160,37 +158,33 @@ class Manual25Node(Node):
 
 
     def compose_motorinput_message_local(self):
-        forward_velocity = 0.0
-        sideways_velocity = 0.0
-        angular_velocity = 0.0
-        if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
-            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
+        if self.system_state != SystemState.MANUAL:
+            return
+        
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), -1.0, 1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), -1.0, 1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity
         motor_msg.sideways_velocity = sideways_velocity
         motor_msg.angular_velocity = angular_velocity
-
         self.motorPublisher.publish(motor_msg)
     
 
     # https://math.stackexchange.com/questions/2895880/inversion-of-rotation-matrix
     def compose_motorinput_message_global(self):
-        forward_velocity = 0.0
-        sideways_velocity = 0.0
-        angular_velocity = 0.0
-        if self.system_state == SystemState.MANUAL:
-            forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
-            sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-            angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
+        if self.system_state != SystemState.MANUAL:
+            return
+        
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
         motor_msg.sideways_velocity = -1 * sideways_velocity * np.cos(self.orientation) + forward_velocity * np.sin(self.orientation)
         motor_msg.angular_velocity = angular_velocity
-
         self.motorPublisher.publish(motor_msg)
 
 
