@@ -14,10 +14,15 @@ import {
 } from "@/components/ui/sidebar"
 import { Switch } from "@/components/ui/switch"
 import { useSocket } from "@/providers/SocketProvider"
-import { Cog, Eye, LayoutDashboard, MoreHorizontal, Settings } from "lucide-react"
+import { Cog, LayoutDashboard, MoreHorizontal, Settings } from "lucide-react"
 import { useEffect, useState } from "react"
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+    activeScreen: string;
+    onActiveScreenChange: (screen: string) => void;
+}
+
+export function DashboardSidebar(props: DashboardSidebarProps) {
     const { lastMessage, api } = useSocket();
     const [systemState, setSystemState] = useState("0");
     const [mobility, setMobility] = useState(false);
@@ -47,31 +52,25 @@ export function DashboardSidebar() {
             <SidebarContent>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton isActive>
+                        <SidebarMenuButton isActive={props.activeScreen === "dashboard"} onClick={() => props.onActiveScreenChange("dashboard")}>
                             <LayoutDashboard />
                             <span>Dashboard</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                        <SidebarMenuButton>
-                            <Settings />
-                            <span>Swerve</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton>
-                            <Eye />
-                            <span>Vision</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton>
+                        <SidebarMenuButton isActive={props.activeScreen === "config"} onClick={() => props.onActiveScreenChange("config")}>
                             <Cog />
                             <span>Configuration</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                        <SidebarMenuButton>
+                        <SidebarMenuButton isActive={props.activeScreen === "swerve"} onClick={() => props.onActiveScreenChange("swerve")}>
+                            <Settings />
+                            <span>Swerve</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton isActive={props.activeScreen === "other"} onClick={() => props.onActiveScreenChange("other")}>
                             <MoreHorizontal />
                             <span>Other</span>
                         </SidebarMenuButton>

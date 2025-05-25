@@ -9,6 +9,8 @@ interface SocketContextType {
         set_mobility: (value: boolean) => void;
         set_system_state: (value: string) => void;
     };
+    configuration: any;
+    setConfiguration: (configuration: any) => void;
     setAddress: (ip: string, port: number) => void;
     getAddress: () => { ip: string; port: number };
     state: 'connected' | 'disconnected';
@@ -114,8 +116,14 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         return address;
     };
 
+    const setConfiguration = (configuration: any) => {
+        if (socket) {
+            // socket.emit('set_configuration', configuration);
+        }
+    };
+
     return (
-        <SocketContext.Provider value={{ lastMessage, api, setAddress, state, getAddress }}>
+        <SocketContext.Provider value={{ lastMessage, api, setAddress, state, getAddress, setConfiguration, configuration: {} }}>
             {children}
         </SocketContext.Provider>
     );
