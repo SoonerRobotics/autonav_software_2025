@@ -2,7 +2,7 @@
 
     <node pkg="ros_tcp_endpoint" exec="default_server_endpoint" output="screen" emulate_tty="true"/>
     <node pkg="autonav_display" exec="display.py" output="screen" emulate_tty="true"/>
-      <node pkg="autonav_manual" exec="controller_input.py"/>
-  <node pkg="autonav_manual" exec="manual_25.py" output="screen" emulate_tty="true"/>
-  <node pkg="autonav_hardware" exec="audible_feedback.py" output="screen" emulate_tty="true" />
+    <node pkg="autonav_manual" exec="controller_input.py"/>
+    <node pkg="autonav_manual" exec="manual_25.py" output="screen" emulate_tty="true"/>
+    <node pkg="autonav_hardware" exec="audible_feedback.py" output="screen" emulate_tty="true"/>
 </launch>

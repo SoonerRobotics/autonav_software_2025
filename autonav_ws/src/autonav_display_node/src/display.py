@@ -21,7 +21,7 @@ from enum import Enum
 
 class Topics(Enum):
     # Topic List
-    BROADCAST = "autonav/shared/broadcast"
+    BROADCAST = "autonav/shared/autonav_display_broadcast"
     SYSTEM_STATE = "autonav/shared/system"
     DEVICE_STATE = "autonav/shared/device"
 
@@ -30,14 +30,14 @@ class Topics(Enum):
     AUTONAV_GPS = "/autonav/gps"
     MOTOR_INPUT = "/autonav/MotorInput"
     POSITION = "/autonav/position"
-    CONTROLLER_INP = '/autonav/controller_input'  # todo implement
+    # CONTROLLER_INP = '/autonav/controller_input'  # todo implement, pretty sure this just doesn't exist may be able to -rm
 
     MOTOR_FEEDBACK = "/autonav/MotorFeedback"
-    NUC_STATISTICS = "/autonav/statistic"
-    ULTRASONICS = "/autonav/ultrasonics"
+    NUC_STATISTICS = "/autonav/statistic"#todo implement in index
+    ULTRASONICS = "/autonav/ultrasonics"#todo implement in index
     CONBUS = "/autonav/conbus"
-    SAFETY_LIGHTS = "/autonav/safety_lights"
-    PERFORMANCE = "autonav/performance"
+    SAFETY_LIGHTS = "/autonav/SafetyLights"#todo implement in index
+    PERFORMANCE = "autonav/performance"#todo implement in index
 
     # Raw camera
     RAW_LEFT = "autonav/camera/left"
@@ -47,10 +47,13 @@ class Topics(Enum):
 
     # Other Camera Nodes
     COMBINED_IMAGE = "/autonav/vision/combined/filtered"
-    FEELERS = "/autonav/feelers/debug"  # todo does this transmit an image?
+    FEELERS = "/autonav/feelers/debug"  # todo implement in index
 
     # Others
-    CONFIGURATION = "/scr/configuration"  # TODO is this still a topic?
+    # CONFIGURATION = "/autonav/shared/config/"  # TODO is this still a topic? (I just gussed the path here..)
+    CONFIGURATION_UPDATE = "/autonav/shared/config/updates" #todo implement in index
+    CONFIG_PRESTS_LOAD = "/autonav/presets/load"#todo implement in index
+    CONFIG_PRESTS_SAVE = "/autonav/presets/save"#todo implement in index
     PLAYBACK = "autonav/autonav_playback"  # TODO see how to feed this data in
     AUDIBLE_FEEDBACK = '/autonav/audible_feedback'  # todo implement!
 
@@ -114,45 +117,37 @@ class BroadcastNode(Node):
         self.limiter.setLimit(Topics.PLAYBACK.value, 1)
         self.limiter.setLimit(Topics.AUDIBLE_FEEDBACK.value, 1)
         self.limiter.setLimit(Topics.PERFORMANCE.value, 1)
-        self.limiter.setLimit(Topics.CONFIGURATION.value, 1)
+        # self.limiter.setLimit(Topics.CONFIGURATION.value, 1)
 
 
-        # Clients TODO a lot of these dont exist anymore
-        self.system_state_c = self.create_subscription(
-                    SystemState, Topics.SYSTEM_STATE.value, self.systemStateCallback, 20
-                )
-        #self.system_state_c = self.create_client(
-        #            SetSystemState, Topics.SYSTEM_STATE.value
-        #        )
-        self.config_c = self.create_client(Topics.CONFIGURATION.value)
-#        self.get_presets_c = self.create_client(Topics.GET_PRESETS.value)# TODO THESE Don't EXIST ANYMORE
-#        self.set_active_preset_c = self.create_client(
-#           SetActivePreset, Topics.SET_ACTIVE_PRESET.value
-#        )
-#        self.save_active_preset_c = self.create_client(
-#           SaveActivePreset, Topics.SAVE_ACTIVE_PRESET.value
-#         )
-#        self.delete_preset_c = self.create_client(DeletePreset, Topics.DELETE_PRESET.value)
+        # Clients todo none of the clients work rn...
+        # self.system_state_c = self.create_subscription(SystemState, Topics.SYSTEM_STATE, self.systemStateCallback, 20)
+        # self.config_c = self.create_client(ConfigurationUpdate, Topics.CONFIGURATION_UPDATE)
+        # self.get_presets_c = self.create_client(GetPresets, Topics.CONFIG_PRESTS_LOAD)
+        # self.save_active_preset_c = self.create_client(SaveActivePreset, Topics.CONFIG_PRESTS_SAVE)
+        # self.delete_preset_c = self.create_client(DeletePreset, "/scr/delete_preset")
+        # self.set_active_preset_c = self.create_client(SetActivePreset, "/scr/set_active_preset")
 
-        # Publishers todo when does create_publisher come frm?, node currently not publishing!
-#        self.broadcast_p = self.create_publisher(Empty, Topics.BROADCAST.value, 20)
+       #  Publishers
+        self.broadcast_p = self.create_publisher(Empty, Topics.BROADCAST.value, 20)
+       #
+       #  Subscriptions
+       #
+       #  Topic List
 
-        # Subscriptions
+        # self.broadcast = self.create_subscription( todo delete pretty sure this doesn't exist as it wasn't in the original build
+        #     SystemState,
+        #     Topics.BROADCAST.value,
+        #     self.systemStateCallback,
+        #     20,
+        # )
 
-        # Topic List
-        self.broadcast = self.create_subscription(
-            SystemState,
-            Topics.BROADCAST.value, #todo does this transmit a value?
-            self.systemStateCallback,
-            20,
-        )
-
-        self.system_state_s = self.create_subscription(
-            SystemState,
-            Topics.SYSTEM_STATE.value,
-            self.systemStateCallback,
-            20,
-        )
+        # self.system_state_s = self.create_subscription( todo delete, same reason as method above
+        #     SystemState,
+        #     Topics.SYSTEM_STATE.value,
+        #     self.systemStateCallback,
+        #     20,
+        # )
 
         self.device_state_s = self.create_subscription(
             DeviceState,
@@ -185,12 +180,12 @@ class BroadcastNode(Node):
             self.positionCallback,
             20,
         )
-        self.controller_input = self.create_subscription(
-            controller_input,
-            Topics.CONTROLLER_INP,
-            self.controllerInputCallback,
-            20
-        )
+        # self.controller_input = self.create_subscription( fixme? no controller input exists at this time..
+        #     ControllerInput,
+        #     Topics.CONTROLLER_INP,
+        #     self.controllerInputCallback,
+        #     20
+        # )
 
         self.motor_feedback_s = self.create_subscription(
             MotorFeedback,
@@ -198,26 +193,33 @@ class BroadcastNode(Node):
             self.motorFeedbackCallback,
             20,
         )
-        self.statistic = self.create_subscription(
-            statistic,
+        self.NUC_statistic = self.create_subscription(
+            NUCStatistics,
             Topics.NUC_STATISTICS.value,
             self.statisticCallback,
             20
         )
-        self.ultrasonics = self.create_subscription(
-            ultrasonics,
+
+        # self.Motor_statistic = self.create_subscription(
+        #     MotorStatistics,
+        #     Topics.NUC_STATISTICS.value, todo on this part..
+        #     self.statisticCallback,
+        #     20
+        # )
+        self.ultrasonic = self.create_subscription(
+            Ultrasonic,
             Topics.ULTRASONICS.value,
             self.ultrasonicsCallback,
             20
         )
         self.conbus = self.create_subscription(
-            conbus,
+            Conbus,
             Topics.CONBUS.value,
             self.conbusCallback,
             20
         )
-        self.saftey_lights = self.create_subscription(
-            saftey_lights,
+        self.SafetyLights = self.create_subscription(
+            SafetyLights,
             Topics.SAFETY_LIGHTS.value,
             self.safteyLightsCallback,
             20
@@ -270,8 +272,8 @@ class BroadcastNode(Node):
     async def startHttpApp(self):
         app = web.Application()
         app.router.add_get(
-            "/", self.handler  # WebSocket upgrade on root
-        )  # should this be index.html? or what should it expect possible //CHECKME 21/11/2024
+            "/", self.handler
+        )
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, self.host, self.port)
@@ -318,7 +320,7 @@ class BroadcastNode(Node):
             self.send_map[unique_id].append(message)
 
     async def handler(self, request):
-        # Upgrade HTTP request to WebSocket, this casues the viewable 8080 to have some issues though..
+
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
@@ -337,7 +339,7 @@ class BroadcastNode(Node):
                 else:
                     await asyncio.sleep(0.01)
 
-        async def consumer():  #original async msg handlers moved to function below
+        async def consumer():
             async for msg in ws:
                 if msg.type == web.WSMsgType.TEXT:
                     obj = json.loads(msg.data)
@@ -375,8 +377,8 @@ class BroadcastNode(Node):
                     "mobility": self.mobility
                 }
             }), uid)
-        elif obj.get("op") == "set_system_state":
-            self.set_system_total_state(int(obj["state"]), int(obj["mode"]), bool(obj["mobility"]))
+        # elif obj.get("op") == "set_system_state": TODO DELETE NO SET_SYS_STATE IN USE ANYMORE
+        #     self.set_system_total_state(int(obj["state"]), int(obj["mode"]), bool(obj["mobility"]))
         # TODO: add configuration, conbus, preset ops from prev commits
 
 # Topic List todo, how tf do I not have seperate statements for everythn
