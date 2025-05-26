@@ -17,6 +17,10 @@
 
 #define now() (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())).count();
 
+// these should really be like configurable or something, but...
+const cv::Scalar BLUE = cv::Scalar(200, 0, 0);
+const cv::Scalar RED = cv::Scalar(0, 0, 200);
+
 //TODO FIXME this is not technically correct, think I need a modulo
 double wrapAngle(double deg) {
     if (deg < 0) {
@@ -46,7 +50,7 @@ struct FeelerNodeConfig {
     double waypointPopDist; // meters?
     double ultrasonic_contribution; // weight between 0 and 2 (or higher)
     unsigned long gpsWaitSeconds;
-    double gpsBiasWeight; // pixels
+    double gpsBiasWeight; // pixels TODO FIXME shouldn't this be like an int? you can't have fractional pixels?
     double forwardBiasWeight; // pixels
     
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, waypointPopDist, ultrasonic_contribution, gpsWaitSeconds);
@@ -162,8 +166,15 @@ public:
             this->feelers.push_back(Feeler(x, y));
         }
 
-        for (Feeler feeler : feelers) {
-            feeler.setColor(cv::Scalar(200, 0, 0)); // feelers are blue, openCV is in BGR
+        Feeler forwardsFeeler = Feeler(0, 100); // ~~negative~~ positive (?!) y is upwards in an image
+
+        // feelers are blue, openCV is in BGR. lerp towards red based on how biased it is
+        for (int i = 0; i < this->feelers.size(); i++) {
+            // bias feelers forwards
+            this->feelers.at(i).bias(this->config.forwardBiasWeight * (this->feelers.at(i) * forwardsFeeler));
+            cv::Scalar color_ = lerp(BLUE, RED, this->feelers.at(i).getBiasAmount() / (this->config.forwardBiasWeight));
+
+            // log("BIAS AMOUNT: " + std::to_string(this->feelers.at(i).getBiasAmount()));
         }
 
         log("FEELERS BUILT!", AutoNav::Logging::WARN); //FIXME TODO
@@ -196,8 +207,6 @@ public:
         // log("drew that one image", AutoNav::Logging::INFO); //FIXME TODO
 
         // this->perf_start("FeelerNode::update");
-
-        //TODO FIXME bias the feelers forwards
 
         // calculate new length of every new feeler
         for (Feeler &feeler : this->feelers) {
@@ -270,9 +279,9 @@ public:
             Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
 
             // calculate bias for every feeler
-            for (Feeler feeler : this->feelers) {
-                double gps_bias = this->config.gpsBiasWeight * (feeler * gpsFeeler); // dot product (normalized, don't worry)
-                double forward_bias = this->config.forwardBiasWeight * (feeler * velocityFeeler); // dot product
+            for (int i = 0; i < this->feelers.size(); i++) {
+                double gps_bias = this->config.gpsBiasWeight * (this->feelers.at(i) * gpsFeeler); // dot product (normalized, don't worry)
+                double forward_bias = this->config.forwardBiasWeight * (this->feelers.at(i) * velocityFeeler); // dot product
 
                 if (gps_bias < 0.0) {
                     gps_bias = 0.0;
@@ -282,7 +291,7 @@ public:
                     forward_bias = 0.0;
                 }
 
-                feeler.bias(gps_bias + forward_bias);
+                this->feelers.at(i).bias(gps_bias + forward_bias);
             }
 
             // log("ROBOT has been BIASED", AutoNav::Logging::INFO);
@@ -344,6 +353,11 @@ public:
             // log(feeler.to_string(), AutoNav::Logging::WARN);
             // log("==================", AutoNav::Logging::WARN);
             // feeler.setXY(100, 100);
+
+            // color biased feelers differently TODO FIXME why do we need to recalculate this every time?
+            cv::Scalar color_ = lerp(BLUE, RED, feeler.getBiasAmount() / (this->config.forwardBiasWeight));
+            feeler.setColor(color_);
+
             feeler.draw(this->debug_image_ptr->image);
             // log(feeler.to_string(), AutoNav::Logging::WARN);
         }
@@ -360,7 +374,7 @@ public:
         // this->perf_stop("FeelerNode::draw", true);
 
         // publish the debug image
-        this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg())); //TODO
+        this->debugPublisher->publish(*(debug_image_ptr->toCompressedImageMsg()));
     }
 
     /**
