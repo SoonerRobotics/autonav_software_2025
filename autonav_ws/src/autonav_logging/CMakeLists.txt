@@ -20,7 +20,7 @@ find_package(OpenCV REQUIRED)
 
 # Install Python programs
 install(PROGRAMS
-  src/logging.py
+  src/autonav_logging.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -22,13 +22,13 @@ TRIGGER_MAX = 1023
 
 class ControllerInputNode(Node):
     def __init__(self):
-        super().__init__('controller_input')
+        super().__init__('autonav_controller_input')
 
 
     def init(self):
         self.set_device_state(DeviceState.WARMING)
 
-        self.timer_period_s = 0.1
+        self.timer_period_s = 0.05
         self.publisher = self.create_publisher(ControllerInput, '/autonav/controller_input', 10)
         
         self.controller = self.get_controller()
@@ -209,7 +209,7 @@ class ControllerInputNode(Node):
 
         time.sleep(self.timer_period_s)
 
-        self.get_logger().info("attempting to reconnect...")
+        # self.get_logger().info("attempting to reconnect...")
         self.controller = None
         self.controller = self.get_controller()
 
@@ -237,4 +237,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
