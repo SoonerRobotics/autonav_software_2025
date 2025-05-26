@@ -20,6 +20,7 @@ import { useEffect, useState } from "react"
 interface DashboardSidebarProps {
     activeScreen: string;
     onActiveScreenChange: (screen: string) => void;
+    onCameraViewToggle?: () => void;
 }
 
 export function DashboardSidebar(props: DashboardSidebarProps) {
@@ -100,6 +101,10 @@ export function DashboardSidebar(props: DashboardSidebarProps) {
                     <Label htmlFor="mobility">Mobility</Label>
                     <Switch id="mobility" checked={mobility} onCheckedChange={setMobilityExternal} />
                 </div>
+
+                <SidebarMenuButton onClick={props.onCameraViewToggle}>
+                    <span>Toggle Camera View</span>
+                </SidebarMenuButton>
             </SidebarFooter>
         </Sidebar>
     )

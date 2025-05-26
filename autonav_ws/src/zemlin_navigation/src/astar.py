@@ -22,26 +22,33 @@ VERTICAL_CAMERA_DIST = 2.75
 HORIZONTAL_CAMERA_DIST = 3
 CV_BRIDGE = cv_bridge.CvBridge()
 
-# STARTING_PT = (42.6681268, -83.218887)
-
-waypoints = [
-    # [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)],
-    [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)]
-]
+class AStarConfig:
+    def __init__(self):
+        self.latitudeLength = 111086.2  # meters per degree latitude
+        self.longitudeLength = 91978.2   # meters per degree longitude
+        self.waypointPopDistance = 1.4    # meters
+        self.waypointDelay = 5            # seconds
+        self.robotY = 66                  # Y position of the robot in the grid
+        self.useOnlyWaypoints = True       # Use only waypoints for navigation
+        self.waypoints = [
+            # [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)],
+            [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)]
+        ]
 
 class AStarNode(Node):
     def __init__(self):
         super().__init__("autonav_nav_astar")
-        
-        self.waypoint_pop_distance = 1.4
-        self.waypoint_delay = 5
-        self.robotY = 66
-        self.use_only_waypoints = True
-
+        self.config = AStarConfig()
         self.onReset()
-        self.latitudeLength = self.declare_parameter("latitude_length", 111086.2).get_parameter_value().double_value
-        # self.longitudeLength = self.declare_parameter("longitude_length", 81978.2).get_parameter_value().double_value
-        self.longitudeLength = self.declare_parameter("longitude_length", 91978.2).get_parameter_value().double_value
+
+    def apply_config(self, config):
+        self.config.latitudeLength = config["latitude_length"]
+        self.config.longitudeLength = config["longitude_length"]
+        self.config.waypointPopDistance = config["waypoint_pop_distance"]
+        self.config.waypointDelay = config["waypoint_delay"]
+        self.config.robotY = config["robot_y"]
+        self.config.useOnlyWaypoints = config["use_only_waypoints"]
+        self.config.waypoints = config["waypoints"]
 
     def init(self):
         self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.onConfigSpaceReceived, 20)
@@ -77,12 +84,12 @@ class AStarNode(Node):
         self.waypointTime = 0.0
 
     def getWaypointsForDirection(self):
-        return waypoints[0]
+        return self.config.waypoints[0]
 
     def on_system_state_updated(self, old, new):
         if new == SystemState.AUTONOMOUS and self.mobility and len(self.waypoints) == 0:
-            self.log(f"Waypoints will activate in {self.waypoint_delay} seconds")
-            self.waypointTime = time.time() + self.waypoint_delay
+            self.log(f"Waypoints will activate in {self.config.waypoint_delay} seconds")
+            self.waypointTime = time.time() + self.config.waypoint_delay
             self.push_safety_lights(255, 255, 255, 1, 0)
             
         if new != SystemState.AUTONOMOUS and self.get_device_state() == DeviceState.OPERATING:
@@ -91,8 +98,8 @@ class AStarNode(Node):
 
     def on_mobility_updated(self, old, new):
         if self.get_system_state() == SystemState.AUTONOMOUS and new and len(self.waypoints) == 0:
-            self.log(f"Waypoints will activate in {self.waypoint_delay} seconds")
-            self.waypointTime = time.time() + self.waypoint_delay
+            self.log(f"Waypoints will activate in {self.config.waypoint_delay} seconds")
+            self.waypointTime = time.time() + self.config.waypoint_delay
             self.push_safety_lights(255, 255, 255, 1, 0)
             
         if (self.get_system_state() != SystemState.AUTONOMOUS or not new) and self.get_device_state() == DeviceState.OPERATING:
@@ -110,7 +117,7 @@ class AStarNode(Node):
                 time.sleep(0.1)
                 continue
             
-            robot_pos = (40, self.robotY)
+            robot_pos = (40, self.config.robotY)
             path = self.findPathToPoint(robot_pos, self.bestPosition, self.costMap, 80, 80)
             if path is not None:
                 global_path = Path()
@@ -216,14 +223,14 @@ class AStarNode(Node):
         self.perf_start("Smellification")
 
         grid_data = msg.data
-        temp_best_pos = (40, self.robotY)
+        temp_best_pos = (40, self.config.robotY)
         best_pos_cost = -1000
 
         frontier = set()
-        frontier.add((40, self.robotY))
+        frontier.add((40, self.config.robotY))
         explored = set()
 
-        if self.use_only_waypoints == True:
+        if self.config.useOnlyWaypoints == True:
             grid_data = [0] * len(msg.data)
             
         if len(self.waypoints) == 0 and time.time() > self.waypointTime and self.waypointTime != 0:
@@ -245,11 +252,11 @@ class AStarNode(Node):
 
         if len(self.waypoints) > 0:
             next_waypoint = self.waypoints[0]
-            north_to_gps = (next_waypoint[0] - self.position.latitude) * self.latitudeLength
-            west_to_gps = (self.position.longitude - next_waypoint[1]) * self.longitudeLength
+            north_to_gps = (next_waypoint[0] - self.position.latitude) * self.config.latitudeLength
+            west_to_gps = (self.position.longitude - next_waypoint[1]) * self.config.longitudeLength
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
-            if north_to_gps ** 2 + west_to_gps ** 2 <= self.waypoint_pop_distance:
+            if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypointPopDistance:
                 self.push_safety_lights(0, 255, 0, 1, 2)
                 self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)

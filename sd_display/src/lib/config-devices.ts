@@ -14,7 +14,7 @@ export interface ConfigOptionGroup {
 export interface ConfigOption {
 	key: string
 	label: string
-	type: "string" | "number" | "boolean" | "dropdown"
+	type: "string" | "number" | "boolean" | "dropdown" | "waypoints"
 	defaultValue: any
 	placeholder?: string
 	description?: string
@@ -160,4 +160,67 @@ export const configDevices: ConfigDevice[] = [
 			}
 		]
 	},
+	{
+		id: "autonav_nav_astar",
+		name: "A* Navigation",
+		options: [
+			{
+				key: "latitude_length",
+				label: "Latitude Length",
+				type: "number",
+				defaultValue: 111086.2,
+				min: 0,
+				max: 1000000,
+				step: 0.1,
+			},
+			{
+				key: "longitude_length",
+				label: "Longitude Length",
+				type: "number",
+				defaultValue: 91978.2,
+				min: 0,
+				max: 1000000,
+				step: 0.1,
+			},
+			{
+				key: "waypoint_pop_distance",
+				label: "Waypoint Pop Distance",
+				type: "number",
+				defaultValue: 1.0,
+				min: 0,
+				max: 1000,
+				step: 0.1,
+			},
+			{
+				key: "waypoint_delay",
+				label: "Waypoint Delay",
+				type: "number",
+				defaultValue: 10,
+				min: 0,
+				max: 1000,
+				step: 0.1,
+			},
+			{
+				key: "robot_y",
+				label: "Robot Y Offset",
+				type: "number",
+				defaultValue: 70,
+				min: -1000,
+				max: 1000,
+				step: 1,
+			},
+			{
+				key: "use_only_waypoints",
+				label: "Use Only Waypoints",
+				type: "boolean",
+				defaultValue: false,
+			},
+			{
+				key: "waypoints",
+				label: "Waypoints",
+				type: "waypoints",
+				defaultValue: [],
+			}
+		]
+	}
 ]

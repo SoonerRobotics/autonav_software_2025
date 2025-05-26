@@ -28,6 +28,8 @@ export function RoboticsDashboard() {
             <div className="flex h-screen w-full bg-background max-h-screen">
                 <DashboardSidebar activeScreen={screen} onActiveScreenChange={(new_screen) => {
                     setScreen(new_screen);
+                }} onCameraViewToggle={() => {
+                    setIsPopupOpen((prev) => !prev);
                 }} />
                 <div className="flex-1 overflow-auto">
                     {
