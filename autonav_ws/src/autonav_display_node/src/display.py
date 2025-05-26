@@ -134,7 +134,7 @@ class BroadcastNode(Node):
         self.limiter.setLimit(Topics.AUDIBLE_FEEDBACK.value, 1)
         self.limiter.setLimit(Topics.PERFORMANCE.value, 1)
         # self.limiter.setLimit(Topics.CONFIGURATION_BROADCAST.value, 1)
-
+        #todo add limiter for new topics?
 
         # Clients todo none of the clients work rn...
         # self.system_state_c = self.create_subscription(SystemState, Topics.SYSTEM_STATE, self.systemStateCallback, 20)
@@ -164,7 +164,7 @@ class BroadcastNode(Node):
         #     self.systemStateCallback,
         #     20,
         # )
-
+        #todo create new subs for new topics
         self.device_state_s = self.create_subscription(
             DeviceState,
             Topics.DEVICE_STATE.value,
@@ -196,12 +196,6 @@ class BroadcastNode(Node):
             self.positionCallback,
             20,
         )
-        # self.controller_input = self.create_subscription( fixme? no controller input exists at this time..
-        #     ControllerInput,
-        #     Topics.CONTROLLER_INPUT,
-        #     self.controllerInputCallback,
-        #     20
-        # )
 
         self.motor_feedback_s = self.create_subscription(
             MotorFeedback,
@@ -326,7 +320,7 @@ class BroadcastNode(Node):
         else:
             self.send_map[unique_id].append(message_json)
 
-    def push_old(self, message, unique_id=None):  # CHECKME refactor to delete ltr
+    def push_old(self, message, unique_id=None):  # todo document the diff btwn this and normal push
         if not self.send_map:
             return
         if unique_id is None:
@@ -374,8 +368,7 @@ class BroadcastNode(Node):
         return ws
 
     async def handle_ws_message(self, obj, uid):
-        # todo swtich to swtich/case instead of elseif?
-        # Todo What are all expected messages?
+        # Todo What are all expected messages? Or is
         if obj.get("op") == "broadcast":
             self.broadcast_p.publish(Empty())
         elif obj.get("op") == "get_nodes":
@@ -393,11 +386,12 @@ class BroadcastNode(Node):
                     "mobility": self.mobility
                 }
             }), uid)
-        # elif obj.get("op") == "set_system_state": TODO DELETE NO SET_SYS_STATE IN USE ANYMORE
+        # elif obj.get("op") == "set_system_state": todo fix setting sys state?
         #     self.set_system_total_state(int(obj["state"]), int(obj["mode"]), bool(obj["mobility"]))
-        # TODO: add configuration, conbus, preset ops from prev commits
+        # TODO: add configuration, conbus, preset ops to ws msg
 
-# Topic List todo, how tf do I not have seperate statements for everythn
+
+#todo add new callbacks
     def systemStateCallback(self, msg: SystemState):
         self.push(Topics.SYSTEM_STATE.value, msg)
 
