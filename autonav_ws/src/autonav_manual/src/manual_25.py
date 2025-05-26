@@ -92,6 +92,14 @@ class Manual25Node(Node):
 
         self.controllerSubscriber  # prevent unused variable warning
 
+    def apply_config(self, config):
+        self.config.max_forward_speed = config["max_forward_speed"]
+        self.config.max_sideways_speed = config["max_sideways_speed"]
+        self.config.max_angular_speed = config["max_angular_speed"]
+        self.config.odom_fudge_factor = config["odom_fudge_factor"]
+        self.config.sound_buffer = config["sound_buffer"]
+        self.config.main_song_path = config["main_song_path"]
+        self.config.x_button_sound = config["x_button_sound"]
 
     def input_callback(self, msg):
         self.new_time = time.time()
