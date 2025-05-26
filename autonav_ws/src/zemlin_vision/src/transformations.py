@@ -23,21 +23,9 @@ g_mapData.origin.position.y = -10.0
 
 MAP_RES = 80
 
-LOWER_HUE = "lower_hue"
-LOWER_SATURATION = "lower_saturation"
-LOWER_VALUE = "lower_value"
-UPPER_HUE = "upper_hue"
-UPPER_SATURATION = "upper_saturation"
-UPPER_VALUE = "upper_value"
-BLUR = "blur"
-BLUR_ITERATIONS = "blur_iterations"
-REGION_OF_DISINTEREST_OFFSET = "region_of_disinterest_offset"
 
-
-class ImageTransformer(Node):
+class ImageTransformerConfig:
     def __init__(self):
-        super().__init__("autonav_vision_transformer")
-
         self.lower_hue = 0
         self.lower_saturation = 0
         self.lower_value = 0
@@ -48,15 +36,32 @@ class ImageTransformer(Node):
         self.blur_iterations = 3
         self.region_of_disinterest_offset = 30
 
+
+class ImageTransformer(Node):
+    def __init__(self):
+        super().__init__("autonav_vision_transformer")
+        self.config = ImageTransformerConfig()
+
     def init(self):
         self.cameraSubscriber = self.create_subscription(CompressedImage, "/autonav/camera/front", self.onImageReceived, 1)
         self.rawMapPublisher = self.create_publisher(OccupancyGrid, "/autonav/cfg_space/raw", 1)
         self.filteredImagePublisher = self.create_publisher(CompressedImage, "/autonav/cfg_space/raw/image", 1)
-
         self.set_device_state(DeviceState.OPERATING)
 
+    def apply_config(self, config):
+        self.log("Applying new configuration to ImageTransformer")
+        self.config.lower_hue = config["lower_hue"]
+        self.config.lower_saturation = config["lower_saturation"]
+        self.config.lower_value = config["lower_value"]
+        self.config.upper_hue = config["upper_hue"]
+        self.config.upper_saturation = config["upper_saturation"]
+        self.config.upper_value = config["upper_value"]
+        self.config.blur = config["blur"]
+        self.config.blur_iterations = config["blur_iterations"]
+        self.config.region_of_disinterest_offset = config["region_of_disinterest_offset"]
+
     def getBlur(self):
-        blur = self.blur
+        blur = self.config.blur
         blur = max(1, blur)
         return (blur, blur)
 
@@ -92,20 +97,20 @@ class ImageTransformer(Node):
         cv_image = g_bridge.compressed_imgmsg_to_cv2(image)
 
         # Blur it up
-        for _ in range(self.blur_iterations):
+        for _ in range(self.config.blur_iterations):
             cv_image = cv2.blur(cv_image, self.getBlur())
 
         # Apply filter and return a mask
         img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
         lower = (
-            self.lower_hue,
-            self.lower_saturation,
-            self.lower_value
+            self.config.lower_hue,
+            self.config.lower_saturation,
+            self.config.lower_value
         )
         upper = (
-            self.upper_hue,
-            self.upper_saturation,
-            self.upper_value
+            self.config.upper_hue,
+            self.config.upper_saturation,
+            self.config.upper_value
         )
         mask = cv2.inRange(img, lower, upper)
         mask = 255 - mask
@@ -115,8 +120,8 @@ class ImageTransformer(Node):
         width = img.shape[1]
         region_of_disinterest_vertices=[
             (0, height),
-            ((width / 2) - 200, height / 2 + self.region_of_disinterest_offset),
-            ((width / 2) + 200, height / 2 + self.region_of_disinterest_offset),
+            ((width / 2) - 200, height / 2 + self.config.region_of_disinterest_offset),
+            ((width / 2) + 200, height / 2 + self.config.region_of_disinterest_offset),
             (width, height)
         ]
         mask = self.regionOfDisinterest(mask, np.array([region_of_disinterest_vertices], np.int32))

@@ -22,7 +22,7 @@ class AudibleFeedbackConfig:
 class AudibleFeedbackNode(Node):
     def __init__(self):
         super().__init__("audible_feedback_node")
-        self.write_config(AudibleFeedbackConfig())
+        self.config = AudibleFeedbackConfig()
         self.current_playing_thread = None
         self.secondary_tracks = []
         self.main_track = None
@@ -40,7 +40,12 @@ class AudibleFeedbackNode(Node):
 
         self.system_state_monitor = self.create_timer(0.5, self.monitor_system_state)
         self.track_monitor = self.create_timer(0.5, self.monitor_tracks)
-
+    
+    def apply_config(self, config):
+        self.config.volume = config["volume"]
+        self.config.autonomous_transition_filepath = config["autonomous_transition_filepath"]
+        self.config.manual_transition_filepath = config["manual_transition_filepath"]
+        self.config.disabled_transition_filepath = config["disabled_transition_filepath"]
 
     def on_audible_feedback_received(self, msg:AudibleFeedback):
         self.log(f"Received audible feedback message: {msg}", LogLevel.INFO)
@@ -76,7 +81,7 @@ class AudibleFeedbackNode(Node):
             self.log("invalid filename", LogLevel.ERROR)
             return
         
-        playback.volume = self.config.get('volume')
+        playback.volume = self.config.volume
         playback.play()
 
         if main_track:
@@ -132,13 +137,13 @@ class AudibleFeedbackNode(Node):
             playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
 
             try:
-                filename = self.config.get('autonomous_transition_filepath')
+                filename = self.config.autonomous_transition_filepath
             except:
                 self.log("invalid autonomous transition filepath", LogLevel.ERROR)
                 return
             
             playback.load(filename)
-            playback.volume = self.config.get('volume')
+            playback.volume = self.config.volume
             playback.play()
             
             self.secondary_tracks.append(playback)
@@ -149,13 +154,13 @@ class AudibleFeedbackNode(Node):
             playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
 
             try:
-                filename = self.config.get('manual_transition_filepath')
+                filename = self.config.manual_transition_filepath
             except:
                 self.log("invalid manual transition filepath", LogLevel.ERROR)
                 return
             
             playback.load(filename)
-            playback.volume = self.config.get('volume')
+            playback.volume = self.config.volume
             playback.play()
             
             self.secondary_tracks.append(playback)
@@ -165,13 +170,13 @@ class AudibleFeedbackNode(Node):
             playback = PySoundSphere.AudioPlayer("ffplay", debug_allow_multiple_playbacks = False)
 
             try:
-                filename = self.config.get('disabled_transition_filepath')
+                filename = self.config.disabled_transition_filepath
             except:
                 self.log("invalid disabled transition filepath", LogLevel.ERROR)
                 return
             
             playback.load(filename)
-            playback.volume = self.config.get('volume')
+            playback.volume = self.config.volume
             playback.play()
             
             self.secondary_tracks.append(playback)

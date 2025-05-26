@@ -33,7 +33,7 @@ class Manual25Config:
 class Manual25Node(Node):
     def __init__(self):
         super().__init__('autonav_manual')
-        self.write_config(Manual25Config())
+        self.config = Manual25Config()
         # self.log("Manual 25 node __init__", LogLevel.INFO)
 
 
@@ -171,9 +171,9 @@ class Manual25Node(Node):
         if self.system_state != SystemState.MANUAL:
             return
         
-        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), -1.0, 1.0)
-        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), -1.0, 1.0)
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.max_forward_speed, self.config.max_forward_speed, -1.0, 1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.max_sideways_speed, self.config.max_sideways_speed, -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.max_angular_speed, self.config.max_angular_speed, -1.0, 1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity
@@ -187,9 +187,9 @@ class Manual25Node(Node):
         if self.system_state != SystemState.MANUAL:
             return
         
-        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
-        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.max_forward_speed, self.config.max_forward_speed, 1.0, -1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.max_sideways_speed, self.config.max_sideways_speed, -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.max_angular_speed, self.config.max_angular_speed, 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
@@ -199,7 +199,7 @@ class Manual25Node(Node):
 
 
     def on_motor_feedback(self, msg:MotorFeedback):
-        delta_theta = msg.delta_theta * self.config.get("odom_fudge_factor")
+        delta_theta = msg.delta_theta * self.config.odom_fudge_factor
         self.orientation += delta_theta
 
 
@@ -213,18 +213,18 @@ class Manual25Node(Node):
         if self.controller_state == {}:
             return
 
-        if self.delta_t < self.config.get("sound_buffer"):
+        if self.delta_t < self.config.sound_buffer:
             return
 
         if self.controller_state['btn_west'] == 1:
             audible_feedback = AudibleFeedback()
-            audible_feedback.filename = os.path.expanduser(self.config.get("x_button_sound"))
+            audible_feedback.filename = os.path.expanduser(self.config.x_button_sound)
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()
 
         elif self.controller_state['abs_hat0y'] == -1:
             audible_feedback = AudibleFeedback()
-            audible_feedback.filename= os.path.expanduser(self.config.get("main_song_path"))
+            audible_feedback.filename= os.path.expanduser(self.config.main_song_path)
             audible_feedback.main_track = True
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()

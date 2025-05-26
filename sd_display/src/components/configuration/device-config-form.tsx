@@ -16,7 +16,7 @@ interface DeviceConfigFormProps {
 }
 
 export function DeviceConfigForm({ device }: DeviceConfigFormProps) {
-  const { configuration, setConfiguration } = useSocket();
+  const { configuration, api } = useSocket();
 
   const [values, setValues] = useState<Record<string, any>>(() => {
     const initialValues: Record<string, any> = {}
@@ -27,7 +27,19 @@ export function DeviceConfigForm({ device }: DeviceConfigFormProps) {
   })
 
   useEffect(() => {
-    
+    for (const device_key in configuration) {
+      if (device_key !== device.id) {
+        continue;
+      }
+      
+      const properties = configuration[device_key];
+      for (const key in properties) {
+        const value = properties[key];
+        if (device.options.some((option) => option.key === key) || device.groups?.some((group) => group.options.some((option) => option.key === key))) {
+          setValues((prev) => ({ ...prev, [key]: value }))
+        }
+      }
+    }
   }, [configuration]);
 
   const [hasChanges, setHasChanges] = useState(false)
@@ -38,17 +50,28 @@ export function DeviceConfigForm({ device }: DeviceConfigFormProps) {
   }
 
   const handleSave = () => {
-    // Here you would typically send the configuration to your backend
+    api.set_config(device.id, values);
     console.log(`Saving configuration for ${device.name}:`, values)
     setHasChanges(false)
-    // Show success toast or notification
   }
 
   const handleReset = () => {
     const resetValues: Record<string, any> = {}
-    device.options.forEach((option) => {
-      resetValues[option.key] = option.defaultValue
-    })
+
+    for (const device_key in configuration) {
+      if (device_key !== device.id) {
+        continue;
+      }
+      
+      const properties = configuration[device_key];
+      for (const key in properties) {
+        const value = properties[key];
+        if (device.options.some((option) => option.key === key) || device.groups?.some((group) => group.options.some((option) => option.key === key))) {
+          resetValues[key] = value
+        }
+      }
+    }
+
     setValues(resetValues)
     setHasChanges(false)
   }
@@ -230,6 +253,13 @@ export function DeviceConfigForm({ device }: DeviceConfigFormProps) {
               {groupsByCategory[category] && (
                 <div className="space-y-4">{groupsByCategory[category].map(renderOptionGroup)}</div>
               )}
+
+              {Object.entries(groupsByCategory).map(([category, groups]) => (
+                <div key={category} className="space-y-4">
+                  <h3 className="text-lg font-semibold">{category}</h3>
+                  {groups.map(renderOptionGroup)}
+                </div>
+              ))}
             </CardContent>
           </Card>
         ))}

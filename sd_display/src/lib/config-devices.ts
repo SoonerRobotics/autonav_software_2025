@@ -63,27 +63,31 @@ export const configDevices: ConfigDevice[] = [
 						label: "Lower Hue Threshold",
 						type: "number",
 						defaultValue: 0,
+						placeholder: "0-255",
 						min: 0,
 						max: 255,
-						step: 1
+						step: 1,
+						category: "HSV"
 					},
 					{
 						key: "lower_saturation",
 						label: "Lower Saturation Threshold",
+						placeholder: "0-255",
 						type: "number",
 						defaultValue: 0,
 						min: 0,
 						max: 255,
-						step: 1
+						step: 1,
 					},
 					{
 						key: "lower_value",
 						label: "Lower Value Threshold",
+						placeholder: "0-255",
 						type: "number",
 						defaultValue: 0,
 						min: 0,
 						max: 255,
-						step: 1
+						step: 1,
 					}
 				]
 			},
@@ -95,29 +99,35 @@ export const configDevices: ConfigDevice[] = [
 					{
 						key: "upper_hue",
 						label: "Upper Hue Threshold",
+						placeholder: "0-255",
 						type: "number",
 						defaultValue: 0,
 						min: 0,
 						max: 255,
-						step: 1
+						step: 1,
+						category: "HSV"
 					},
 					{
 						key: "upper_saturation",
 						label: "Upper Saturation Threshold",
+						placeholder: "0-255",
 						type: "number",
 						defaultValue: 0,
 						min: 0,
 						max: 255,
-						step: 1
+						step: 1,
+						category: "HSV"
 					},
 					{
 						key: "upper_value",
 						label: "Upper Value Threshold",
+						placeholder: "0-255",
 						type: "number",
 						defaultValue: 0,
 						min: 0,
 						max: 255,
-						step: 1
+						step: 1,
+						category: "HSV"
 					}
 				]
 			},
@@ -133,16 +143,18 @@ export const configDevices: ConfigDevice[] = [
 						defaultValue: 0,
 						min: 0,
 						max: 100,
-						step: 1
+						step: 1,
+						category: "Blurring"
 					},
 					{
-						key: "Blur Iterations",
+						key: "blur_iterations",
 						label: "Blur Iterations",
 						type: "number",
 						defaultValue: 0,
 						min: 0,
 						max: 100,
-						step: 1
+						step: 1,
+						category: "Blurring"
 					},
 				]
 			}

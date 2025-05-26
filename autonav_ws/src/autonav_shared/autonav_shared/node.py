@@ -59,16 +59,22 @@ class Node(RclpyNode):
         Callback for the configuration update topic.
         """
         if msg.device == self.get_name():
-            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
             old_cfg = self.config
+            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
             new_cfg = json.loads(msg.json)
             self.apply_config(new_cfg)
             self.on_config_update(old_cfg, self.config)
         else:
-            # self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
-            pass
+            self.on_other_config_update(msg.device, json.loads(msg.json))
         
         self.other_cfgs[msg.device] = json.loads(msg.json)
+
+    def on_other_config_update(self, device: str, config) -> None:
+        """
+        Called when a configuration update for another device is received.
+        Override this to handle other device configurations.
+        """
+        pass
 
     def get_time_seconds(self) -> int:
         time_nanoseconds = self.get_clock().now().nanoseconds
@@ -220,6 +226,7 @@ class Node(RclpyNode):
         self.device_states[msg.device] = DeviceState(msg.state)
         if (old_state == None or old_state == DeviceState.OFF) and DeviceState(msg.state) == DeviceState.WARMING and msg.device == self.get_name():
             self.init()
+            self.broadcast_config()
 
     def set_device_state(self, state: DeviceState) -> None:
         """
