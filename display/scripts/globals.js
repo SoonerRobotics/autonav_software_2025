@@ -258,7 +258,7 @@ const conbusDevices = {
 };
 
 
-// Topic Listeneres
+// Topic Listeneres todo each of these should be read off some json some how if possible? maybe an xml would be easier? then can sync up with the python side
 const TOPIC_SYSTEM_STATE = "autonav/shared/system";
 const TOPIC_DEVICE_STATE = "autonav/shared/device";
 

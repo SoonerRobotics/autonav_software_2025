@@ -19,42 +19,58 @@ from sensor_msgs.msg import *
 from enum import Enum
 
 
-class Topics(Enum):
+class Topics(Enum):# todo refactor to json file being read in..
     # Topic List
-    BROADCAST = "autonav/shared/autonav_display_broadcast"
-    SYSTEM_STATE = "autonav/shared/system"
-    DEVICE_STATE = "autonav/shared/device"
+    BROADCAST = "/autonav/shared/autonav_display_broadcast"
+    SYSTEM_STATE = "/autonav/shared/system"
+    DEVICE_STATE = "/autonav/shared/device"
+    LOG = "/autonav/shared/log"#todo autogen implement limiter etc
 
     # IMU Data
     IMU = "/autonav/imu"
     AUTONAV_GPS = "/autonav/gps"
-    MOTOR_INPUT = "/autonav/MotorInput"
+    MOTOR_INPUT = "/autonav/motor_input"
     POSITION = "/autonav/position"
-    # CONTROLLER_INP = '/autonav/controller_input'  # todo implement, pretty sure this just doesn't exist may be able to -rm
+    CONTROLLER_INPUT = '/autonav/controller_input'#todo autogen implement limiter etc
 
-    MOTOR_FEEDBACK = "/autonav/MotorFeedback"
-    NUC_STATISTICS = "/autonav/statistic"#todo implement in index
-    ULTRASONICS = "/autonav/ultrasonics"#todo implement in index
-    CONBUS = "/autonav/conbus"
-    SAFETY_LIGHTS = "/autonav/SafetyLights"#todo implement in index
-    PERFORMANCE = "autonav/performance"#todo implement in index
+    # Motor and System Feedback
+    MOTOR_FEEDBACK = "/autonav/motor_feedback"
+    NUC_STATISTICS = "/autonav/statistics"#todo implement in index
+    ULTRASONICS = "/autonav/ultrasonic"#todo implement in index
+    CONBUS_DATA = "/autonav/conbus/data"#todo autogen implement limiter etc
+    CONBUS_INSTRUCTION = "/autonav/conbus/instruction"#todo autogen implement limiter etc
+
+    # Aliases for backward compatibility
+    CONBUS = "/autonav/conbus/data"#todo autogen implement limiter etc
+    SAFETY_LIGHTS = "/autonav/safety_lights"#todo implement in index
+    PERFORMANCE = "/autonav/performance"#todo implement in index
+
+    # PID and Motor Statistics
+    LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics"#todo autogen implement limiter etc
+    ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics"#todo autogen implement limiter etc
+    MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors"#todo autogen implement limiter etc
+    MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors"#todo autogen implement limiter etc
+    CAN_STATS = "/autonav/can_stats"#todo autogen implement limiter etc
+    ZERO_ENCODERS = "/autonav/zero_encoders"#todo autogen implement limiter etc
 
     # Raw camera
-    RAW_LEFT = "autonav/camera/left"
-    RAW_RIGHT = "autonav/camera/right"
-    RAW_FRONT = "autonav/camera/front"
-    RAW_BACK = "autonav/camera/back"
+    RAW_LEFT = "/autonav/camera/left"
+    RAW_RIGHT = "/autonav/camera/right"
+    RAW_FRONT = "/autonav/camera/front"
+    RAW_BACK = "/autonav/camera/back"
 
     # Other Camera Nodes
     COMBINED_IMAGE = "/autonav/vision/combined/filtered"
     FEELERS = "/autonav/feelers/debug"  # todo implement in index
 
-    # Others
-    # CONFIGURATION = "/autonav/shared/config/"  # TODO is this still a topic? (I just gussed the path here..)
+    # Configuration
+    CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"#todo autogen implement limiter etc
     CONFIGURATION_UPDATE = "/autonav/shared/config/updates" #todo implement in index
     CONFIG_PRESTS_LOAD = "/autonav/presets/load"#todo implement in index
     CONFIG_PRESTS_SAVE = "/autonav/presets/save"#todo implement in index
-    PLAYBACK = "autonav/autonav_playback"  # TODO see how to feed this data in
+
+    # Others
+    PLAYBACK = "/autonav/autonav_playback"  # TODO see how to feed this data in
     AUDIBLE_FEEDBACK = '/autonav/audible_feedback'  # todo implement!
 
 
@@ -112,12 +128,12 @@ class BroadcastNode(Node):
         self.limiter.setLimit(Topics.SYSTEM_STATE.value, 1)
         self.limiter.setLimit(Topics.NUC_STATISTICS.value, 1)
         self.limiter.setLimit(Topics.ULTRASONICS.value, 1)
-        self.limiter.setLimit(Topics.CONBUS.value, 1)
+        self.limiter.setLimit(Topics.CONBUS_DATA.value, 1)
         self.limiter.setLimit(Topics.SAFETY_LIGHTS.value, 1)
         self.limiter.setLimit(Topics.PLAYBACK.value, 1)
         self.limiter.setLimit(Topics.AUDIBLE_FEEDBACK.value, 1)
         self.limiter.setLimit(Topics.PERFORMANCE.value, 1)
-        # self.limiter.setLimit(Topics.CONFIGURATION.value, 1)
+        # self.limiter.setLimit(Topics.CONFIGURATION_BROADCAST.value, 1)
 
 
         # Clients todo none of the clients work rn...
@@ -182,7 +198,7 @@ class BroadcastNode(Node):
         )
         # self.controller_input = self.create_subscription( fixme? no controller input exists at this time..
         #     ControllerInput,
-        #     Topics.CONTROLLER_INP,
+        #     Topics.CONTROLLER_INPUT,
         #     self.controllerInputCallback,
         #     20
         # )
@@ -214,7 +230,7 @@ class BroadcastNode(Node):
         )
         self.conbus = self.create_subscription(
             Conbus,
-            Topics.CONBUS.value,
+            Topics.CONBUS_DATA.value,
             self.conbusCallback,
             20
         )
@@ -402,7 +418,7 @@ class BroadcastNode(Node):
         self.push(Topics.POSITION.value, msg)
 
     def controllerInputCallback(self,msg):
-        self.push(Topics.CONTROLLER_INP.value, msg)
+        self.push(Topics.CONTROLLER_INPUT.value, msg)
 
     def motorFeedbackCallback(self, msg: MotorFeedback):
         self.push(Topics.MOTOR_FEEDBACK.value, msg)
@@ -414,7 +430,7 @@ class BroadcastNode(Node):
         self.push(Topics.ULTRASONICS.value, msg)
 
     def conbusCallback(self,msg):
-        self.push(Topics.CONBUS.value, msg)
+        self.push(Topics.CONBUS_DATA.value, msg)
 
     def safteyLightsCallback(self,msg):
         self.push(Topics.SAFETY_LIGHTS.value, msg)

@@ -339,13 +339,13 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             return;
         }
 
-        switch (topic) {
+        switch (topic) {// todo refactor to cater to all the new nodes!!
             //System
             case TOPIC_SYSTEM_STATE: {
                 const {state, mode, mobility} = msg;
 
                 $("#var_system_state").text(
-                    state === 0 ? "Disabled" : state === 1 ? "Autonomous" : state === 2 ? "Manual" : "Shutdown"
+                    state === 0 ? "Disabled" : state === 1 ? "Autonomous" : state === 2 ? "Manual" : state === 3? "SelfDrive" : "Shutdown"
                 );
                 $("#var_system_mode").text(
                     mode === 0 ? "Competition" : mode === 1 ? "Simulation" : "Practice"
