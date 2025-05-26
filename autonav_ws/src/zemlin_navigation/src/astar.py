@@ -90,23 +90,23 @@ class AStarNode(Node):
         if new == SystemState.AUTONOMOUS and self.mobility and len(self.waypoints) == 0:
             self.log(f"Waypoints will activate in {self.config.waypoint_delay} seconds")
             self.waypointTime = time.time() + self.config.waypoint_delay
-            self.push_safety_lights(255, 255, 255, 1, 0)
+            # self.push_safety_lights(255, 255, 255, 1, 0)
             
         if new != SystemState.AUTONOMOUS and self.get_device_state() == DeviceState.OPERATING:
             self.onReset()
-            self.push_safety_lights(255, 255, 255, 0, 0)
+            # self.push_safety_lights(255, 255, 255, 0, 0)
 
     def on_mobility_updated(self, old, new):
         if self.get_system_state() == SystemState.AUTONOMOUS and new and len(self.waypoints) == 0:
             self.log(f"Waypoints will activate in {self.config.waypoint_delay} seconds")
             self.waypointTime = time.time() + self.config.waypoint_delay
-            self.push_safety_lights(255, 255, 255, 1, 0)
+            # self.push_safety_lights(255, 255, 255, 1, 0)
             
         if (self.get_system_state() != SystemState.AUTONOMOUS or not new) and self.get_device_state() == DeviceState.OPERATING:
             self.onReset()
 
-        if old == True and new == False and self.get_system_state() == SystemState.AUTONOMOUS:
-            self.push_safety_lights(255, 255, 255, 0, 0)
+        # if old == True and new == False and self.get_system_state() == SystemState.AUTONOMOUS:
+        #     # self.push_safety_lights(255, 255, 255, 0, 0)
             
     def onPoseReceived(self, msg: Position):
         self.position = msg
@@ -236,8 +236,8 @@ class AStarNode(Node):
         if len(self.waypoints) == 0 and time.time() > self.waypointTime and self.waypointTime != 0:
             self.waypoints = [wp for wp in self.getWaypointsForDirection()]
             self.waypointTime = 0
-            self.push_safety_lights(255, 255, 0, 1, 2)
-            self.push_safety_lights(255, 255, 255, 1, 0)
+            # self.push_safety_lights(255, 255, 0, 1, 2)
+            # self.push_safety_lights(255, 255, 255, 1, 0)
         
         if time.time() < self.waypointTime and len(self.waypoints) == 0:
             time_remaining = self.waypointTime - time.time()
@@ -257,8 +257,8 @@ class AStarNode(Node):
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypoint_pop_distance:
-                self.push_safety_lights(0, 255, 0, 1, 2)
-                self.push_safety_lights(255, 255, 255, 1, 0)
+                # self.push_safety_lights(0, 255, 0, 1, 2)
+                # self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
                 # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = time.time() + 1.5

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Switch } from "@/components/ui/switch"
 import { useSocket } from "@/providers/SocketProvider"
-import { Cog, LayoutDashboard, MoreHorizontal, Settings } from "lucide-react"
+import { Cog, LayoutDashboard, Map, MoreHorizontal, Settings } from "lucide-react"
 import { useEffect, useState } from "react"
 
 interface DashboardSidebarProps {
@@ -62,6 +62,12 @@ export function DashboardSidebar(props: DashboardSidebarProps) {
                         <SidebarMenuButton isActive={props.activeScreen === "config"} onClick={() => props.onActiveScreenChange("config")}>
                             <Cog />
                             <span>Configuration</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton isActive={props.activeScreen === "map"} onClick={() => props.onActiveScreenChange("map")}>
+                            <Map />
+                            <span>Map</span>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>

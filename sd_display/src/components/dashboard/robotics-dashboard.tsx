@@ -6,6 +6,7 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { useEffect, useState } from "react"
 import { ConfigurationPage } from "../configuration/configuration-page"
 import { CameraViewPopup } from "../camera-view-popup"
+import MapPage from "../map/MapPage"
 
 export function RoboticsDashboard() {
     const [screen, setScreen] = useState("dashboard");
@@ -40,6 +41,11 @@ export function RoboticsDashboard() {
                     {
                         screen === "config" && (
                             <ConfigurationPage />
+                        )
+                    }
+                    {
+                        screen === "map" && (
+                            <MapPage />
                         )
                     }
                 </div>

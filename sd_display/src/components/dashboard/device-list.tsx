@@ -8,10 +8,10 @@ const devices = [
     { name: "Filters", node: "zemlin_filters" },
     { name: "Display Backend", node: "autonav_sd_display" },
     { name: "AStar", node: "autonav_nav_astar" },
-    { name: "Controller Interface", node: "controller_input" },
-    { name: "Manual Controller", node: "manual25_node" },
+    { name: "Controller Interface", node: "autonav_controller_input" },
+    { name: "Manual Controller", node: "autonav_manual" },
     { name: "SparkMAX CAN Interface", node: "sparkmax_can_node" },
-    { name: "Twistopher CAN Interface", node: "CAN_node" },
+    { name: "Twistopher CAN Interface", node: "autonav_can" },
     { name: "Audible Feedback", node: "audible_feedback_node" },
     { name: "Camera Node", node: "autonav_camera_front" },
 ]

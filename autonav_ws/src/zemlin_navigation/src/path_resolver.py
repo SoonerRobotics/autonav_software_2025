@@ -32,6 +32,15 @@ class PathResolverNode(Node):
         self.position = Position()
         self.config = PathResolverConfig()
 
+    def apply_config(self, config):
+        self.config.forward_speed = config["forward_speed"]
+        self.config.reverse_speed = config["reverse_speed"]
+        self.config.radius_multiplier = config["radius_multiplier"]
+        self.config.radius_max = config["radius_max"]
+        self.config.radius_start = config["radius_start"]
+        self.config.angular_aggressiveness = config["angular_aggressiveness"]
+        self.config.max_angular_speed = config["max_angular_speed"]
+
     def init(self):
         self.purePursuit = PurePursuit()
         self.backCount = -1

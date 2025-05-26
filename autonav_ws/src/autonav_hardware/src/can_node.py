@@ -12,7 +12,7 @@ from ctypes import Structure, c_uint8
 
 
 CAN_PATH = "/dev/autonav-can-scr"
-CAN_SPEED = 100000
+CAN_SPEED = 100_000
 
 
 arbitration_ids = {
@@ -177,12 +177,16 @@ class CanNode(Node):
         safety_lights_packet.blink_period = msg.blink_period
         data = bytes(safety_lights_packet)
         can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
+
+        self.log(f"Sending safety lights command: {msg}", LogLevel.DEBUG)
         
         try:
             self.can.send(can_msg)
         except AttributeError:
+            self.log("Error writing to CAN", LogLevel.ERROR)
             pass # means the CAN object hasn't been created yet
         except can.CanError:
+            self.log("2 Error writing to CAN", LogLevel.ERROR)
             pass
 
     def on_conbus_received(self, msg:Conbus):

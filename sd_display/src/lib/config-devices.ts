@@ -5,7 +5,7 @@ export interface DropdownOption {
 
 export interface ConfigOptionGroup {
 	key: string
-	label: string
+	label?: string
 	description?: string
 	layout: "row" | "column"
 	options: ConfigOption[]
@@ -220,6 +220,80 @@ export const configDevices: ConfigDevice[] = [
 				label: "Waypoints",
 				type: "waypoints",
 				defaultValue: [],
+			}
+		]
+	},
+	{
+		id: "zemlin_path_resolver",
+		name: "Path Resolver",
+		options: [
+			{
+				key: "forward_speed",
+				label: "Forward Speed",
+				type: "number",
+				defaultValue: 0.5,
+				min: -10,
+				max: 10,
+				step: 0.1,
+			},
+			{
+				key: "reverse_speed",
+				label: "Reverse Speed",
+				type: "number",
+				defaultValue: -0.5,
+				min: -10,
+				max: 10,
+				step: 0.1,
+			},
+			{
+				key: "angular_aggressiveness",
+				label: "Angular Aggressiveness",
+				type: "number",
+				defaultValue: 1.0,
+				min: 0.1,
+				max: 100.0,
+				step: 0.1,	
+			},
+			{
+				key: "max_angular_speed",
+				label: "Max Angular Speed",
+				type: "number",
+				defaultValue: 1.0,
+				min: 0.1,
+				max: 10.0,
+				step: 0.1,
+			}
+		],
+		groups: [
+			{
+				key: "pure_pursuit",
+				layout: "row",
+				options: [
+					{
+						key: "radius_multiplier",
+						label: "Radius Multiplier",
+						type: "number",
+						defaultValue: 1.0,
+						min: 0.1,
+						category: "Pure Pursuit",
+					},
+					{
+						key: "radius_max",
+						label: "Max Radius",
+						type: "number",
+						defaultValue: 1.0,
+						min: 0.1,
+						category: "Pure Pursuit",
+					},
+					{
+						key: "radius_start",
+						label: "Start Radius",
+						type: "number",
+						defaultValue: 0.5,
+						min: 0.1,
+						category: "Pure Pursuit",
+					},
+				]
 			}
 		]
 	}
