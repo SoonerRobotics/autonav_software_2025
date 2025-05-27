@@ -28,7 +28,7 @@ class CombinationNodeConfig:
     def __init__(self):
         self.x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
         self.x_shrink = 240
-        self.y_shrink = 240
+        self.y_shrink = 400
 
 class ImageCombiner(Node):
     def __init__(self):
@@ -43,7 +43,7 @@ class ImageCombiner(Node):
     def init(self):
         self.set_device_state(DeviceState.WARMING)
 
-        self.useBackCamera = True
+        self.useBackCamera = False
         self.useSideCameras = False
 
         self.image_front = None

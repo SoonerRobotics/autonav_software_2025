@@ -48,6 +48,7 @@ struct FeelerNodeConfig {
     int max_length; // pixels
     int number_of_feelers;
     double start_angle; // degrees
+    double end_angle; // degrees
     double waypointPopDist; // meters?
     double ultrasonic_contribution; // weight between 0 and 2 (or higher)
     unsigned long gpsWaitSeconds;
@@ -62,9 +63,10 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 300;
-        config.number_of_feelers = 45;
-        config.start_angle = 0;
+        config.max_length = 200;
+        config.number_of_feelers = 16;
+        config.start_angle = 30;
+        config.end_angle = 180-30;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitSeconds = 5;
@@ -163,14 +165,24 @@ public:
      */
     void buildFeelers() {
         this->feelers = std::vector<Feeler>();
-        for (double angle = this->config.start_angle; angle < 360; angle += (360 / this->config.number_of_feelers)) {
+        for (double angle = this->config.start_angle; angle < config.end_angle; angle += ((config.end_angle - config.start_angle) / this->config.number_of_feelers)) {
             int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
             int y = this->config.max_length * sin(radians(angle));
             
             this->feelers.push_back(Feeler(x, y));
         }
 
-        Feeler forwardsFeeler = Feeler(5, 100); // ~~negative~~ positive (?!) y is upwards in an image
+        //TODO FIXME HACK TEMP TEMP TEMP THIS IS JUST FOR TESTING
+        // some backwards feeler to balance us out a little
+        // this->feelers.push_back(Feeler(5, -350));
+        // this->feelers.push_back(Feeler(2, -350));
+        // this->feelers.push_back(Feeler(1, -350));
+        // this->feelers.push_back(Feeler(0, -350));
+        // this->feelers.push_back(Feeler(-1, -350));
+        // this->feelers.push_back(Feeler(-2, -350));
+        // this->feelers.push_back(Feeler(-5, -350));
+
+        Feeler forwardsFeeler = Feeler(0, 100); // ~~negative~~ positive (?!) y is upwards in an image
 
         // feelers are blue, openCV is in BGR. lerp towards red based on how biased it is
         for (int i = 0; i < this->feelers.size(); i++) {
@@ -436,7 +448,7 @@ public:
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
             //FIXME the clamping should be configurable or something
-            msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 30, -2.0, 2.0); //FIXME configure divider number thingy
+            msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 30, -1.25, 1.25); //FIXME configure divider number thingy
             // msg.sideways_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //FIXME configure divider number thingy
             msg.sideways_velocity = 0.0;
             // msg.angular_velocity = std::clamp(static_cast<double>(this->headingArrow.getX()) / 60, -1.0, 1.0); //TODO figure out when we want to turn
