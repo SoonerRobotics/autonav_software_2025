@@ -6,6 +6,7 @@
 
 #include "autonav_shared/node.hpp"
 #include "feeler.cpp"
+#include "pid.cpp"
 #include "cv_bridge/cv_bridge.hpp"
 #include "autonav_msgs/msg/position.hpp"
 #include "autonav_msgs/msg/motor_input.hpp"
@@ -62,13 +63,13 @@ public:
         // configuration stuff
         auto config = FeelerNodeConfig();
         config.max_length = 300;
-        config.number_of_feelers = 35;
-        config.start_angle = 5;
+        config.number_of_feelers = 45;
+        config.start_angle = 0;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitSeconds = 5;
         config.gpsBiasWeight = 50;
-        config.forwardBiasWeight = 75;
+        config.forwardBiasWeight = 50;
 
         this->_config = config;
         this->config = config;
@@ -127,6 +128,9 @@ public:
 
         lastTime = now();
 
+        // pid controllers
+        this->headingPID = PIDController(.004, 0.0, 0.0);
+
         // subscribers
         positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
         imageSubscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/vision/combined/filtered", 1, std::bind(&FeelerNode::onImageReceived, this, std::placeholders::_1));
@@ -166,7 +170,7 @@ public:
             this->feelers.push_back(Feeler(x, y));
         }
 
-        Feeler forwardsFeeler = Feeler(0, 100); // ~~negative~~ positive (?!) y is upwards in an image
+        Feeler forwardsFeeler = Feeler(5, 100); // ~~negative~~ positive (?!) y is upwards in an image
 
         // feelers are blue, openCV is in BGR. lerp towards red based on how biased it is
         for (int i = 0; i < this->feelers.size(); i++) {
@@ -435,7 +439,8 @@ public:
             msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 30, -2.0, 2.0); //FIXME configure divider number thingy
             // msg.sideways_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //FIXME configure divider number thingy
             msg.sideways_velocity = 0.0;
-            msg.angular_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //TODO figure out when we want to turn
+            // msg.angular_velocity = std::clamp(static_cast<double>(this->headingArrow.getX()) / 60, -1.0, 1.0); //TODO figure out when we want to turn
+            msg.angular_velocity = std::clamp(-this->headingPID.calculate(this->headingArrow.getX()), -1.0, 1.0); //TODO figure out when we want to turn
 
             //TODO safety lights need to change to other colors and stuff for debug information
         } else {
@@ -478,6 +483,9 @@ private:
     std::vector<Feeler> feelers;
     std::vector<Feeler> ultrasonic_feelers;
     Feeler headingArrow = Feeler(0, 0);
+
+    // PID controllers
+    PIDController headingPID = PIDController(0.0, 0.0, 0.0);
 
     // config
     FeelerNodeConfig config;

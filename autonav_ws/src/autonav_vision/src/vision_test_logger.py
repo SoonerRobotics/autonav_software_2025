@@ -111,7 +111,7 @@ class VideoLogger(Node):
 
         self.frame += 1 #TODO FIXME find a way to not have this
 
-        if self.frame > 100:
+        if self.frame > 225:
             self.front_video_writer.release()
             self.left_video_writer.release()
             self.right_video_writer.release()

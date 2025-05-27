@@ -43,8 +43,8 @@ class ImageCombiner(Node):
     def init(self):
         self.set_device_state(DeviceState.WARMING)
 
-        self.oneCamera = False
-        self.oneCamera = True
+        self.useBackCamera = True
+        self.useSideCameras = False
 
         self.image_front = None
         self.image_left = None
@@ -123,10 +123,12 @@ class ImageCombiner(Node):
         debug_image_left = cv2.rotate(debug_image_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
         debug_image_right = cv2.rotate(debug_image_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-        if not self.oneCamera:
+        if self.useBackCamera:
+            debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
+
+        if self.useSideCameras:
             debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
             debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
-            debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
 
         # make the bigImages that will hold everything 
         bigImageFront = np.zeros_like(combined_image)
@@ -165,13 +167,16 @@ class ImageCombiner(Node):
         return combined_image
 
     def try_combine_images(self):
-        # if only one camera, only check one camera
-        if self.oneCamera and self.image_front is not None and self.debug_image_front is not None:
-            pass
-            
-        # this is a horrendous line of code pls don't actually do it this way FIXME
-        else:
-            if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
+        # check to make sure we have all the images
+        if self.image_front is None or self.debug_image_front is None:
+            return
+
+        if self.useBackCamera:
+            if self.image_back is None or self.debug_image_back is None:
+                return
+        
+        if self.useSideCameras:
+            if self.image_left is None or self.debug_image_left is None or self.image_right is None or self.debug_image_right is None:
                 return
         
         # self.log("COMBINING ALL...", LogLevel.ERROR)
@@ -191,19 +196,22 @@ class ImageCombiner(Node):
         # convert all the images 
         # TODO move this to individual callbacks?
         mask_front = bridge.compressed_imgmsg_to_cv2(self.image_front)
-        
-        if self.oneCamera:
-            mask_left = np.zeros_like(mask_front)
-            mask_right = np.zeros_like(mask_front)
-            mask_back = np.zeros_like(mask_front)
 
-            # expects to be 480x640 'cause they're sideways
-            mask_left = cv2.rotate(mask_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            mask_right = cv2.rotate(mask_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        else:
+        # make temporary blank images in case we aren't using those cameras
+        mask_back = np.zeros_like(mask_front)
+        mask_left = np.zeros_like(mask_front)
+        mask_right = np.zeros_like(mask_front)
+
+        # expects to be 480x640 'cause they're sideways
+        mask_left = cv2.rotate(mask_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        mask_right = cv2.rotate(mask_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        
+        if self.useBackCamera:
+            mask_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
+        
+        if self.useSideCameras:
             mask_left = bridge.compressed_imgmsg_to_cv2(self.image_left)
             mask_right = bridge.compressed_imgmsg_to_cv2(self.image_right)
-            mask_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
 
         # make the 4 big images
         bigImageFront = np.zeros_like(combined_image)
