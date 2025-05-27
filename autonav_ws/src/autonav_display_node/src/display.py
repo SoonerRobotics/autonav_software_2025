@@ -18,40 +18,39 @@ from sensor_msgs.msg import *
 
 from enum import Enum
 
-
 class Topics(Enum):# todo refactor to json file being read in..
     # Topic List
     BROADCAST = "/autonav/shared/autonav_display_broadcast"
     SYSTEM_STATE = "/autonav/shared/system"
     DEVICE_STATE = "/autonav/shared/device"
-    LOG = "/autonav/shared/log"#todo autogen implement limiter etc
+    LOG = "/autonav/shared/log"#todo confirm implementation
 
     # IMU Data
     IMU = "/autonav/imu"
     AUTONAV_GPS = "/autonav/gps"
     MOTOR_INPUT = "/autonav/motor_input"
     POSITION = "/autonav/position"
-    CONTROLLER_INPUT = '/autonav/controller_input'#todo autogen implement limiter etc
+    CONTROLLER_INPUT = '/autonav/controller_input'#todo confirm implementation
 
     # Motor and System Feedback
     MOTOR_FEEDBACK = "/autonav/motor_feedback"
     NUC_STATISTICS = "/autonav/statistics"#todo implement in index
     ULTRASONICS = "/autonav/ultrasonic"#todo implement in index
-    CONBUS_DATA = "/autonav/conbus/data"#todo autogen implement limiter etc
-    CONBUS_INSTRUCTION = "/autonav/conbus/instruction"#todo autogen implement limiter etc
+    CONBUS_DATA = "/autonav/conbus/data"#todo confirm implementation
+    CONBUS_INSTRUCTION = "/autonav/conbus/instruction"#todo confirm implementation
 
     # Aliases for backward compatibility
-    CONBUS = "/autonav/conbus/data"#todo autogen implement limiter etc
+    CONBUS = "/autonav/conbus/data"#todo confirm implementation
     SAFETY_LIGHTS = "/autonav/safety_lights"#todo implement in index
     PERFORMANCE = "/autonav/performance"#todo implement in index
 
     # PID and Motor Statistics
-    LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics"#todo autogen implement limiter etc
-    ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics"#todo autogen implement limiter etc
-    MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors"#todo autogen implement limiter etc
-    MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors"#todo autogen implement limiter etc
-    CAN_STATS = "/autonav/can_stats"#todo autogen implement limiter etc
-    ZERO_ENCODERS = "/autonav/zero_encoders"#todo autogen implement limiter etc
+    LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics"#todo confirm implementation
+    ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics"#todo confirm implementation
+    MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors"#todo confirm implementation
+    MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors"#todo confirm implementation
+    CAN_STATS = "/autonav/can_stats"#todo confirm implementation
+    ZERO_ENCODERS = "/autonav/zero_encoders"#todo confirm implementation
 
     # Raw camera
     RAW_LEFT = "/autonav/camera/left"
@@ -64,7 +63,7 @@ class Topics(Enum):# todo refactor to json file being read in..
     FEELERS = "/autonav/feelers/debug"  # todo implement in index
 
     # Configuration
-    CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"#todo autogen implement limiter etc
+    CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"#todo confirm implementation
     CONFIGURATION_UPDATE = "/autonav/shared/config/updates" #todo implement in index
     CONFIG_PRESTS_LOAD = "/autonav/presets/load"#todo implement in index
     CONFIG_PRESTS_SAVE = "/autonav/presets/save"#todo implement in index
@@ -174,7 +173,7 @@ class BroadcastNode(Node):
         #     self.systemStateCallback,
         #     20,
         # )
-        #todo create new subs for new topics
+
         self.device_state_s = self.create_subscription(
             DeviceState,
             Topics.DEVICE_STATE.value,
@@ -220,12 +219,6 @@ class BroadcastNode(Node):
             20
         )
 
-        # self.Motor_statistic = self.create_subscription(
-        #     MotorStatistics,
-        #     Topics.NUC_STATISTICS.value, todo on this part..
-        #     self.statisticCallback,
-        #     20
-        # )
         self.ultrasonic = self.create_subscription(
             Ultrasonic,
             Topics.ULTRASONICS.value,
@@ -401,7 +394,13 @@ class BroadcastNode(Node):
         else:
             self.send_map[unique_id].append(message_json)
 
-    def push_old(self, message, unique_id=None):  # todo document the diff btwn this and normal push
+    def push_old(self, message, unique_id=None):
+        """
+        Sends msgs to client
+        Unique_id used to specify which client
+        No rate limiter used in contrast to normal push
+        Accepts any msg format, normal accepts only ROS2 msgs
+        """
         if not self.send_map:
             return
         if unique_id is None:

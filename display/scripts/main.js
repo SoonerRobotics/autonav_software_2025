@@ -339,8 +339,13 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             return;
         }
 
-        switch (topic) {// todo refactor to cater to all the new nodes!!
+        switch (topic) {
             //System
+            case TOPIC_BROADCAST: {
+                console.log("Broadcast message received:", msg);
+                $("#var_broadcast").text(JSON.stringify(msg));
+                break;
+            }
             case TOPIC_SYSTEM_STATE: {
                 const {state, mode, mobility} = msg;
 
@@ -374,6 +379,23 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                 }
                 break;
             }
+            case TOPIC_LOG: {
+                const {level, message, node} = msg;
+                logs.push({message, node, timestamp: new Date(), level});
+                if (logs.length > 30) logs.shift();
+
+                const logElement = $("#log_body");
+                logElement.empty();
+                for (let i = logs.length - 1; i >= 0; i--) {
+                    const log = logs[i];
+                    const tableEntry = $("<tr></tr>");
+                    tableEntry.append(`<td>${log.timestamp.toTimeString().split(" ")[0]}</td>`);
+                    tableEntry.append(`<td>${log.node}</td>`);
+                    tableEntry.append(`<td data-level="${log.level || 0}">${log.message}</td>`);
+                    logElement.append(tableEntry);
+                }
+                break;
+            }
 
             //IMU
             case TOPIC_IMU: {
@@ -404,13 +426,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                 );
                 break;
             }
-            case TOPIC_MOTOR_FEEDBACK: {
-                const {delta_x, delta_y, delta_theta} = msg;
-                $("#var_motors_feedback").text(
-                    `(${formatToFixed(delta_x, 4)}, ${formatToFixed(delta_y, 4)}, ${formatToFixed(delta_theta, 4)}°)`
-                );
-                break;
-            }
             case TOPIC_POSITION: {
                 const {x, y, theta, latitude, longitude} = msg;
                 $("#var_position_origin").text(
@@ -419,6 +434,135 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                 $("#var_position_global").text(
                     `(${formatToFixed(latitude, 8)}, ${formatToFixed(longitude, 8)})`
                 );
+                break;
+            }
+            case TOPIC_CONTROLLER_INPUT: {
+                const {buttons, axes} = msg;
+                // Display controller input data if UI elements exist
+                if ($("#var_controller_buttons").length) {
+                    $("#var_controller_buttons").text(JSON.stringify(buttons));
+                }
+                if ($("#var_controller_axes").length) {
+                    $("#var_controller_axes").text(JSON.stringify(axes));
+                }
+                break;
+            }
+
+            // Motor and System Feedback
+            case TOPIC_MOTOR_FEEDBACK: {
+                const {delta_x, delta_y, delta_theta} = msg;
+                $("#var_motors_feedback").text(
+                    `(${formatToFixed(delta_x, 4)}, ${formatToFixed(delta_y, 4)}, ${formatToFixed(delta_theta, 4)}°)`
+                );
+                break;
+            }
+            case TOPIC_NUC_STATISTICS: {
+                const {cpu_usage, memory_usage, disk_usage} = msg;
+                if ($("#var_nuc_cpu").length) {
+                    $("#var_nuc_cpu").text(`${formatToFixed(cpu_usage, 2)}%`);
+                }
+                if ($("#var_nuc_memory").length) {
+                    $("#var_nuc_memory").text(`${formatToFixed(memory_usage, 2)}%`);
+                }
+                if ($("#var_nuc_disk").length) {
+                    $("#var_nuc_disk").text(`${formatToFixed(disk_usage, 2)}%`);
+                }
+                break;
+            }
+            case TOPIC_ULTRASONICS: {
+                const {distances} = msg;
+                if ($("#var_ultrasonics").length) {
+                    $("#var_ultrasonics").text(JSON.stringify(distances));
+                }
+                break;
+            }
+            case TOPIC_CONBUS_DATA: {
+                const {id, data} = msg;
+                let response = id >= 1100 && id < 1200 ? createConbusReadResponse(id, data) :
+                    id >= 1300 && id < 1400 ? createConbusWriteResponse(id, data) : null;
+                if (!response || !(response.id in conbusDevices)) break;
+
+                if (!(response.id in conbus)) conbus[response.id] = {};
+                conbus[response.id][response.address] = response.data;
+
+                updateConbusUI(response);
+                break;
+            }
+            case TOPIC_CONBUS_INSTRUCTION: {
+                console.log("Conbus instruction received:", msg);
+                $("#var_conbus_instruction").text(JSON.stringify(msg));
+                break;
+            }
+            case TOPIC_CONBUS: {
+                // Alias for TOPIC_CONBUS_DATA for backward compatibility
+                const {id, data} = msg;
+                let response = id >= 1100 && id < 1200 ? createConbusReadResponse(id, data) :
+                    id >= 1300 && id < 1400 ? createConbusWriteResponse(id, data) : null;
+                if (!response || !(response.id in conbusDevices)) break;
+
+                if (!(response.id in conbus)) conbus[response.id] = {};
+                conbus[response.id][response.address] = response.data;
+
+                updateConbusUI(response);
+                break;
+            }
+            case TOPIC_SAFETY_LIGHTS: {
+                const {state} = msg;
+                if ($("#var_safety_lights").length) {
+                    $("#var_safety_lights").text(state ? "On" : "Off");
+                }
+                break;
+            }
+            case TOPIC_PERFORMANCE: {
+                const {fps, latency} = msg;
+                if ($("#var_performance_fps").length) {
+                    $("#var_performance_fps").text(`${formatToFixed(fps, 2)}`);
+                }
+                if ($("#var_performance_latency").length) {
+                    $("#var_performance_latency").text(`${formatToFixed(latency, 2)} ms`);
+                }
+                break;
+            }
+
+            // PID and Motor Statistics
+            case TOPIC_LINEAR_PID_STATISTICS: {
+                const {error, p_term, i_term, d_term, output} = msg;
+                if ($("#var_linear_pid_error").length) {
+                    $("#var_linear_pid_error").text(formatToFixed(error, 4));
+                }
+                if ($("#var_linear_pid_output").length) {
+                    $("#var_linear_pid_output").text(formatToFixed(output, 4));
+                }
+                break;
+            }
+            case TOPIC_ANGULAR_PID_STATISTICS: {
+                const {error, p_term, i_term, d_term, output} = msg;
+                if ($("#var_angular_pid_error").length) {
+                    $("#var_angular_pid_error").text(formatToFixed(error, 4));
+                }
+                if ($("#var_angular_pid_output").length) {
+                    $("#var_angular_pid_output").text(formatToFixed(output, 4));
+                }
+                break;
+            }
+            case TOPIC_MOTOR_STATISTICS_FRONT: {
+                console.log("Front motor statistics received:", msg);
+                $("#var_motor_statistics_front").text(JSON.stringify(msg));
+                break;
+            }
+            case TOPIC_MOTOR_STATISTICS_BACK: {
+                console.log("Back motor statistics received:", msg);
+                $("#var_motor_statistics_back").text(JSON.stringify(msg));
+                break;
+            }
+            case TOPIC_CAN_STATS: {
+                console.log("CAN statistics received:", msg);
+                $("#var_can_stats").text(JSON.stringify(msg));
+                break;
+            }
+            case TOPIC_ZERO_ENCODERS: {
+                console.log("Zero encoders message received:", msg);
+                $("#var_zero_encoders").text(JSON.stringify(msg));
                 break;
             }
 
@@ -436,7 +580,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                 break;
             }
             case TOPIC_RAW_BACK: {
-                console.log("Back camera data:", msg.data);
                 transferImageToElementByClass("target_raw_camera_back", msg.data);
                 break;
             }
@@ -448,25 +591,33 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                 transferImageToElementByClass("target_feelers", msg.data);
                 break;
             }
-            //Deprecated Stuff to fix
-            case TOPIC_CONBUS: {
-                const {id, data} = msg;
-                let response = id >= 1100 && id < 1200 ? createConbusReadResponse(id, data) :
-                    id >= 1300 && id < 1400 ? createConbusWriteResponse(id, data) : null;
-                if (!response || !(response.id in conbusDevices)) break;
 
-                if (!(response.id in conbus)) conbus[response.id] = {};
-                conbus[response.id][response.address] = response.data;
-
-                updateConbusUI(response);
+            // Configuration
+            case TOPIC_CONFIGURATION_BROADCAST: {
+                $("#var_configuration_broadcast").text(JSON.stringify(msg));
+                break;
+            }
+            case TOPIC_CONFIGURATION_UPDATE: {
+                $("#var_configuration_update").text(JSON.stringify(msg));
+                break;
+            }
+            case TOPIC_CONFIG_PRESTS_LOAD: {
+                $("#var_config_presets_load").text(JSON.stringify(msg));
+                break;
+            }
+            case TOPIC_CONFIG_PRESTS_SAVE: {
+                $("#var_config_presets_save").text(JSON.stringify(msg));
                 break;
             }
             case TOPIC_CONFIGURATION: {
+                // Legacy configuration topic
                 const {device, json} = msg;
                 config[device] = JSON.parse(json);
                 regenerateConfig();
                 break;
             }
+
+            // Others
             case TOPIC_PLAYBACK: {
                 logs.push({message: msg.data, node: msg.node, timestamp: new Date()});
                 if (logs.length > 30) logs.shift();
@@ -481,6 +632,11 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                     tableEntry.append(`<td>${log.message}</td>`);
                     logElement.append(tableEntry);
                 }
+                break;
+            }
+            case TOPIC_AUDIBLE_FEEDBACK: {
+                console.log("Audible feedback received:", msg);
+                $("#var_audible_feedback").text(JSON.stringify(msg));
                 break;
             }
             default:
