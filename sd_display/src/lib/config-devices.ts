@@ -1,5 +1,5 @@
 export interface DropdownOption {
-	value: string
+	value: any
 	label: string
 }
 
@@ -293,6 +293,41 @@ export const configDevices: ConfigDevice[] = [
 						min: 0.1,
 						category: "Pure Pursuit",
 					},
+				]
+			}
+		]
+	},
+	{
+		id: "zemlin_filters",
+		name: "Position Filters",
+		options: [
+			{
+				key: "latitude_length",
+				label: "Latitude Length",
+				type: "number",
+				defaultValue: 111086.2,
+				min: 0,
+				max: 1000000,
+				step: 0.1,
+			},
+			{
+				key: "longitude_length",
+				label: "Longitude Length",
+				type: "number",
+				defaultValue: 91978.2,
+				min: 0,
+				max: 1000000,
+				step: 0.1,	
+			},
+			{
+				key: "filter_type",
+				label: "Filter Type",
+				type: "dropdown",
+				defaultValue: "none",
+				options: [
+					{ value: 0, label: "Dead Reckoning" },
+					{ value: 1, label: "Particle Filter" },
+					{ value: 2, label: "Bearing Filter" },
 				]
 			}
 		]

@@ -8,7 +8,7 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
 import struct
-from ctypes import Structure, c_uint8
+from ctypes import Structure, c_uint8, c_bool
 
 
 CAN_PATH = "/dev/autonav-can-scr"
@@ -29,14 +29,15 @@ arbitration_ids = {
 
 class SafetyLightsPacket(Structure):
     _fields_ = [
-        ("mode", c_uint8),
-        ("brightness", c_uint8),
-        ("red", c_uint8),
-        ("green", c_uint8),
-        ("blue", c_uint8),
-        ("blink_period", c_uint8)
+        ("autonomous", c_bool, 1),
+        ("eco", c_uint8, 1),
+        ("mode", c_uint8, 6),
+        ("brightness", c_uint8, 8),
+        ("red", c_uint8, 8),
+        ("green", c_uint8, 8),
+        ("blue", c_uint8, 8),
+        ("blink_period", c_uint8, 8)
     ]
-
 
 class CanNode(Node):
     def __init__(self):
@@ -169,6 +170,8 @@ class CanNode(Node):
             return
 
         safety_lights_packet = SafetyLightsPacket()
+        safety_lights_packet.autonomous = msg.mode == 1
+        safety_lights_packet.eco = False
         safety_lights_packet.mode = msg.mode
         safety_lights_packet.brightness = msg.brightness
         safety_lights_packet.red = msg.red

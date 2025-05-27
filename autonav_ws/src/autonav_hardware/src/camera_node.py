@@ -73,7 +73,7 @@ class CameraNode(Node):
     
     def publishFrame(self):
         while True:
-            if self.camera is None:
+            if self.camera is None or not self.camera.isOpened():
                 self.camera = cv2.VideoCapture(camera_ids[self.direction])
 
                 # Set their resolution to the same

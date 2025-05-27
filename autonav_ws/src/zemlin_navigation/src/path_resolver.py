@@ -134,6 +134,7 @@ class PathResolverNode(Node):
             else:
                 if self.backCount == -1:
                     self.backCount = 8
+                    # TODO: Push safety lights
                 else:
                     self.status = 0
                     self.backCount -= 1

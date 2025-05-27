@@ -149,10 +149,10 @@ class Manual25Node(Node):
             self.motorPublisher.publish(motor_msg)
 
         if new == SystemState.DISABLED and old != SystemState.DISABLED:
-            self.push_safety_lights(255, 255, 0, 0, 0)
+            self.push_safety_lights(255, 255, 255, 0, 0)
 
         if new == SystemState.MANUAL and old != SystemState.MANUAL:
-            self.push_safety_lights(255, 255, 255, 1, 0)
+            self.push_safety_lights(255, 255, 0, 0, 0)
 
     def change_system_state(self):
         if self.controller_state['btn_east'] == 1.0:

@@ -31,7 +31,7 @@ class ImageTransformerConfig:
         self.lower_value = 0
         self.upper_hue = 255
         self.upper_saturation = 140
-        self.upper_value = 210
+        self.upper_value = 180
         self.blur = 5
         self.blur_iterations = 3
         self.region_of_disinterest_offset = 30
