@@ -13,13 +13,15 @@ RUN pip install sty just_playback evdev PySoundSphere --break-system-packages \
 ############## Base Image setup above
 
 ############# ROS setup below
-ENTRYPOINT [".devcontainer/sourceAndBuild.sh"]
-
-#RUN git clone https://github.com/SoonerRobotics/autonav_software_2025.git #optional if wanting to run by cloning instead else copy all current dir contents to container
-
 COPY . /autonav_software_2025/
 
 WORKDIR /autonav_software_2025
+# prev had issues running the entrypt script so need to change perms for some reason now..
+RUN chmod +x /autonav_software_2025/.devcontainer/sourceAndBuild.sh
+
+ENTRYPOINT ["/autonav_software_2025/.devcontainer/sourceAndBuild.sh"]
+
+#RUN git clone https://github.com/SoonerRobotics/autonav_software_2025.git #optional if wanting to run by cloning instead else copy all current dir contents to container
 
 EXPOSE 8023
 EXPOSE 8080

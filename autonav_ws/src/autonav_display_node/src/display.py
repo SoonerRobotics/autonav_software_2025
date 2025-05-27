@@ -133,8 +133,18 @@ class BroadcastNode(Node):
         self.limiter.setLimit(Topics.PLAYBACK.value, 1)
         self.limiter.setLimit(Topics.AUDIBLE_FEEDBACK.value, 1)
         self.limiter.setLimit(Topics.PERFORMANCE.value, 1)
-        # self.limiter.setLimit(Topics.CONFIGURATION_BROADCAST.value, 1)
-        #todo add limiter for new topics?
+
+        # New topics with limiters
+        self.limiter.setLimit(Topics.LOG.value, 1)
+        self.limiter.setLimit(Topics.CONTROLLER_INPUT.value, 1)
+        self.limiter.setLimit(Topics.CONBUS_INSTRUCTION.value, 1)
+        self.limiter.setLimit(Topics.LINEAR_PID_STATISTICS.value, 1)
+        self.limiter.setLimit(Topics.ANGULAR_PID_STATISTICS.value, 1)
+        self.limiter.setLimit(Topics.MOTOR_STATISTICS_FRONT.value, 1)
+        self.limiter.setLimit(Topics.MOTOR_STATISTICS_BACK.value, 1)
+        self.limiter.setLimit(Topics.CAN_STATS.value, 1)
+        self.limiter.setLimit(Topics.ZERO_ENCODERS.value, 1)
+        self.limiter.setLimit(Topics.CONFIGURATION_BROADCAST.value, 1)
 
         # Clients todo none of the clients work rn...
         # self.system_state_c = self.create_subscription(SystemState, Topics.SYSTEM_STATE, self.systemStateCallback, 20)
@@ -173,7 +183,7 @@ class BroadcastNode(Node):
         )
         # IMU DATA
         self.imu_s = self.create_subscription(
-            IMUData,
+            IMUFeedback,
             Topics.IMU.value,
             self.imuDataCallback,
             20,
@@ -270,6 +280,77 @@ class BroadcastNode(Node):
             Topics.FEELERS.value,
             lambda msg: self.cameraCallback(msg, 'feelers'),
             self.QOS,
+        )
+
+        # New topic subscriptions
+        self.log_s = self.create_subscription(
+            Log,
+            Topics.LOG.value,
+            self.logCallback,
+            20
+        )
+
+        self.controller_input_s = self.create_subscription(
+            ControllerInput,
+            Topics.CONTROLLER_INPUT.value,
+            self.controllerInputCallback,
+            20
+        )
+
+        self.conbus_instruction_s = self.create_subscription(
+            Conbus,
+            Topics.CONBUS_INSTRUCTION.value,
+            self.conbusInstructionCallback,
+            20
+        )
+
+        self.linear_pid_statistics_s = self.create_subscription(
+            LinearPIDStatistics,
+            Topics.LINEAR_PID_STATISTICS.value,
+            self.linearPIDStatisticsCallback,
+            20
+        )
+
+        self.angular_pid_statistics_s = self.create_subscription(
+            AngularPIDStatistics,
+            Topics.ANGULAR_PID_STATISTICS.value,
+            self.angularPIDStatisticsCallback,
+            20
+        )
+
+        self.motor_statistics_front_s = self.create_subscription(
+            MotorStatistics,
+            Topics.MOTOR_STATISTICS_FRONT.value,
+            self.motorStatisticsFrontCallback,
+            20
+        )
+
+        self.motor_statistics_back_s = self.create_subscription(
+            MotorStatistics,
+            Topics.MOTOR_STATISTICS_BACK.value,
+            self.motorStatisticsBackCallback,
+            20
+        )
+
+        self.can_stats_s = self.create_subscription(
+            CanStats,
+            Topics.CAN_STATS.value,
+            self.canStatsCallback,
+            20
+        )
+
+        self.zero_encoders_s = self.create_subscription(
+            ZeroEncoders,
+            Topics.ZERO_ENCODERS.value,
+            self.zeroEncodersCallback,
+            20
+        )
+
+        self.configuration_broadcast_s = self.create_subscription(
+            ConfigurationBroadcast,
+            Topics.CONFIGURATION_BROADCAST.value,
+            self.configurationBroadcastCallback,
+            20
         )
 
         self.loop_thread = threading.Thread(target=self.loopthread)
@@ -402,7 +483,7 @@ class BroadcastNode(Node):
     def gpsFeedbackCallback(self, msg: GPSFeedback):
         self.push(Topics.AUTONAV_GPS.value, msg)
 
-    def imuDataCallback(self, msg: IMUData):
+    def imuDataCallback(self, msg: IMUFeedback):
         self.push(Topics.IMU.value, msg)
 
     def motorInputCallback(self, msg: MotorInput):
@@ -428,6 +509,34 @@ class BroadcastNode(Node):
 
     def safteyLightsCallback(self,msg):
         self.push(Topics.SAFETY_LIGHTS.value, msg)
+
+    # New topic callbacks
+    def logCallback(self, msg: Log):
+        self.push(Topics.LOG.value, msg)
+
+    def conbusInstructionCallback(self, msg: Conbus):
+        self.push(Topics.CONBUS_INSTRUCTION.value, msg)
+
+    def linearPIDStatisticsCallback(self, msg: LinearPIDStatistics):
+        self.push(Topics.LINEAR_PID_STATISTICS.value, msg)
+
+    def angularPIDStatisticsCallback(self, msg: AngularPIDStatistics):
+        self.push(Topics.ANGULAR_PID_STATISTICS.value, msg)
+
+    def motorStatisticsFrontCallback(self, msg: MotorStatistics):
+        self.push(Topics.MOTOR_STATISTICS_FRONT.value, msg)
+
+    def motorStatisticsBackCallback(self, msg: MotorStatistics):
+        self.push(Topics.MOTOR_STATISTICS_BACK.value, msg)
+
+    def canStatsCallback(self, msg: CanStats):
+        self.push(Topics.CAN_STATS.value, msg)
+
+    def zeroEncodersCallback(self, msg: ZeroEncoders):
+        self.push(Topics.ZERO_ENCODERS.value, msg)
+
+    def configurationBroadcastCallback(self, msg: ConfigurationBroadcast):
+        self.push(Topics.CONFIGURATION_BROADCAST.value, msg)
 
     # Cameras
     def cameraCallback(self, msg: CompressedImage, key: str):
