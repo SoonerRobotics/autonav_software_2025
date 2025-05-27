@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Save, RotateCcw } from "lucide-react"
 import type { ConfigDevice, ConfigOption, ConfigOptionGroup } from "@/lib/config-devices"
 import { useSocket } from "@/providers/SocketProvider"
+import WaypointEditor from "./waypoint-editor"
 
 interface DeviceConfigFormProps {
   device: ConfigDevice
@@ -159,6 +160,22 @@ export function DeviceConfigForm({ device }: DeviceConfigFormProps) {
                 ))}
               </SelectContent>
             </Select>
+            {option.description && !isCompact && <p className="text-xs text-muted-foreground">{option.description}</p>}
+          </div>
+        )
+
+      case "waypoints":
+        return (
+          <div key={option.key} className={`space-y-1 ${isCompact ? "space-y-1" : "space-y-2"}`}>
+            <Label htmlFor={option.key} className={isCompact ? "text-xs" : ""}>
+              {option.label}
+            </Label>
+            <WaypointEditor
+              initialWaypoints={(value as any[])?.[0]?.map((wp: any) => ({
+                latitude: wp[0],
+                longitude: wp[1],
+              })) || []}
+            />
             {option.description && !isCompact && <p className="text-xs text-muted-foreground">{option.description}</p>}
           </div>
         )
