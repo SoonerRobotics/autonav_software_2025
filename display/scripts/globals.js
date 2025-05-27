@@ -8,8 +8,7 @@ let preferences = {
     gpsFormat: "DD",
     host: "127.0.0.1",
     port: 8020,
-    theme: "dark",
-    sshPortForwarding: false
+    theme: "dark"
 };
 let config = {};
 let conbus = {};
