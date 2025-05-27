@@ -1,3 +1,5 @@
+# Currently docker file is setup to run test.xml using .devcontainer/sourceAndBuild.sh
+# Was used to test UI/Logging (alternative if installing ROS on windows/mac was an issue)
 FROM osrf/ros:jazzy-desktop-full
 RUN apt-get update && apt-get install -y \
     python3-opencv \
