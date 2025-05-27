@@ -23,7 +23,7 @@ camera_ids = {
     "front":  0,
     # "left" :  2,
     # "right":  4,
-    # "back" :  0
+    "back" :  1
 }
 
 camera_settings = {
@@ -134,7 +134,7 @@ def main():
         # CameraNode("left"),
         CameraNode("front"),
         # CameraNode("right"),
-        # CameraNode("back"),
+        CameraNode("back"),
     ]
     
     for node in nodes:

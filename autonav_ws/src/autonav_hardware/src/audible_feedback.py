@@ -83,6 +83,7 @@ class AudibleFeedbackNode(Node):
         
         playback.volume = self.config.volume
         playback.play()
+        self.log("music")
 
         if main_track:
             self.main_track = playback

@@ -96,6 +96,8 @@ class Node(RclpyNode):
         msg.green = green
         msg.blue = blue
         msg.mode = mode
+        msg.brightness = 255
+        msg.blink_period = 50
         self.safety_light_queue.append((msg, duration))
 
     def safety_light_callback(self) -> None:

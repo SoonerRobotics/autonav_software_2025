@@ -178,7 +178,7 @@ class CanNode(Node):
         data = bytes(safety_lights_packet)
         can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
 
-        self.log(f"Sending safety lights command: {msg}", LogLevel.DEBUG)
+        self.log(f"Sending safety lights command: {safety_lights_packet}", LogLevel.DEBUG)
         
         try:
             self.can.send(can_msg)
