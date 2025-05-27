@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
 
         $("#input_host").val(preferences.host);
         $("#input_port").val(preferences.port);
+        $("#checkbox_ssh_port_forwarding").prop("checked", preferences.sshPortForwarding);
 
         $("html").attr("data-bs-theme", preferences.theme);
     }
@@ -16,7 +17,8 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
         $("#main").show();
         const userID = generateUUID();
         const fallbackHost = 'localhost';
-        const host = development_mode ? fallbackHost : preferences.host;
+        // Use localhost/127.0.0.1 when SSH port forwarding is enabled, regardless of the host in preferences
+        const host = development_mode || preferences.sshPortForwarding ? fallbackHost : preferences.host;
         const port = preferences.port;
         const wsUrl = `ws://${host}:${port}/?id=${userID}`;
 
@@ -696,6 +698,16 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
     $("#checkbox_system_mobility").on("change", function () {
         systemState.mobility = $(this).is(":checked");
         setSystemState();
+    });
+
+    $("#checkbox_ssh_port_forwarding").on("change", function () {
+        preferences.sshPortForwarding = $(this).is(":checked");
+        savePreferences();
+
+        // Reconnect the WebSocket to apply the change
+        if (websocket && websocket.readyState === 1) {
+            websocket.close();
+        }
     });
 
     $("#input_port, #input_host").on("change", function () {
