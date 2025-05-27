@@ -111,10 +111,6 @@ class ImageTransformer(Node):
 
         self.has_logged = False
 
-        if self.dir == "front":
-            self.log("STARTED!", LogLevel.ERROR)
-
-
     # Blur
     def apply_blur(self, img):
         if self.config.disable_blur:

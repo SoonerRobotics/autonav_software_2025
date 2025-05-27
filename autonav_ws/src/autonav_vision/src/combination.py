@@ -43,6 +43,7 @@ class ImageCombiner(Node):
     def init(self):
         self.set_device_state(DeviceState.WARMING)
 
+        self.oneCamera = False
         self.oneCamera = True
 
         self.image_front = None
@@ -115,9 +116,17 @@ class ImageCombiner(Node):
         # convert everything to actual images
         #TODO move this out to the actual subscriber callbacks???
         debug_image_front = bridge.compressed_imgmsg_to_cv2(self.debug_image_front)
-        debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
-        debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
-        debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
+        debug_image_left = np.zeros_like(debug_image_front)
+        debug_image_right = np.zeros_like(debug_image_front)
+        debug_image_back = np.zeros_like(debug_image_front)
+
+        debug_image_left = cv2.rotate(debug_image_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        debug_image_right = cv2.rotate(debug_image_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+        if not self.oneCamera:
+            debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
+            debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
+            debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
 
         # make the bigImages that will hold everything 
         bigImageFront = np.zeros_like(combined_image)
@@ -158,14 +167,8 @@ class ImageCombiner(Node):
     def try_combine_images(self):
         # if only one camera, only check one camera
         if self.oneCamera and self.image_front is not None and self.debug_image_front is not None:
-            # make fakes for all the remaining images
-            self.image_right = np.zeros_like(self.image_front)
-            self.image_left = np.zeros_like(self.image_front)
-            self.image_back = np.zeros_like(self.image_front)
-            self.debug_image_right = np.zeros_like(self.debug_image_front)
-            self.debug_image_left = np.zeros_like(self.debug_image_front)
-            self.debug_image_back = np.zeros_like(self.debug_image_front)
-
+            pass
+            
         # this is a horrendous line of code pls don't actually do it this way FIXME
         else:
             if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
@@ -188,9 +191,19 @@ class ImageCombiner(Node):
         # convert all the images 
         # TODO move this to individual callbacks?
         mask_front = bridge.compressed_imgmsg_to_cv2(self.image_front)
-        mask_left = bridge.compressed_imgmsg_to_cv2(self.image_left)
-        mask_right = bridge.compressed_imgmsg_to_cv2(self.image_right)
-        mask_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
+        
+        if self.oneCamera:
+            mask_left = np.zeros_like(mask_front)
+            mask_right = np.zeros_like(mask_front)
+            mask_back = np.zeros_like(mask_front)
+
+            # expects to be 480x640 'cause they're sideways
+            mask_left = cv2.rotate(mask_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            mask_right = cv2.rotate(mask_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        else:
+            mask_left = bridge.compressed_imgmsg_to_cv2(self.image_left)
+            mask_right = bridge.compressed_imgmsg_to_cv2(self.image_right)
+            mask_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
 
         # make the 4 big images
         bigImageFront = np.zeros_like(combined_image)

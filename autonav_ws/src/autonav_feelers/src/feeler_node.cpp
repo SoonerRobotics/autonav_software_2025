@@ -68,7 +68,7 @@ public:
         config.ultrasonic_contribution = 1;
         config.gpsWaitSeconds = 5;
         config.gpsBiasWeight = 50;
-        config.forwardBiasWeight = 50;
+        config.forwardBiasWeight = 75;
 
         this->_config = config;
         this->config = config;
@@ -432,9 +432,10 @@ public:
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
             //FIXME the clamping should be configurable or something
-            msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 20, -3.0, 3.0); //FIXME configure divider number thingy
-            msg.sideways_velocity = std::clamp(static_cast<double>(this->headingArrow.getX()) / 20, -3.0, 3.0); //FIXME configure divider number thingy
-            msg.angular_velocity = 0.0; //TODO figure out when we want to turn
+            msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 30, -2.0, 2.0); //FIXME configure divider number thingy
+            // msg.sideways_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //FIXME configure divider number thingy
+            msg.sideways_velocity = 0.0;
+            msg.angular_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //TODO figure out when we want to turn
 
             //TODO safety lights need to change to other colors and stuff for debug information
         } else {

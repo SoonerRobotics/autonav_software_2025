@@ -40,10 +40,11 @@ camera_topics = [
     "/autonav/vision/filtered/right",
 
     # Combined Cameras
-    "/autonav/vision/combined/filtered"
+    "/autonav/vision/combined/filtered",
+    "/autonav/vision/combined/debug",
 
     # Feelers Debug
-    "/autonav/feelers/debug"
+    "/autonav/feelers/debug",
 ]
 FPS = 6
 
@@ -213,7 +214,12 @@ class LoggingNode(Node):
         if topic not in self.video_writers:
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             filename = os.path.join(self.BASE_PATH, f"{topic}.avi")
-            self.video_writers[topic] = cv2.VideoWriter(filename, fourcc, FPS, (640, 480))
+            
+            size = (640, 480)
+            if "combined" in topic or "feeler" in topic: # it's a combined one, so it's like 1600x1600 or something TODO FIXME
+                size = (1600, 1600)
+
+            self.video_writers[topic] = cv2.VideoWriter(filename, fourcc, FPS, size)
 
         if self.video_writers[topic] is not None:
             cv_image = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
