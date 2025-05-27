@@ -706,8 +706,8 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
 
                 if (/\D/.test($(this).val())) {//check for non-integer vals
                     $(this).val(8080);
-                    ntf('Port must be an integer, assigned to default 8023', 'error');
-                    console.log("Port must be an integer, assigned to default 8023. Delete following if statement " +
+                    ntf('Port must be an integer, assigned to default 8080', 'error');
+                    console.log("Port must be an integer, assigned to default 8080. Delete following if statement " +
                         "to unforce this: if (/\\D/.test($(this).val())) {//check for non-integer vals");
                 }
                 break;

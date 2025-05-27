@@ -274,11 +274,22 @@ i
                         </div>
 
                         <div class="input-group-prepend">
-                            Host IP:<!--Theres an issue with 127.0.0.0, todo test to fix this eventually-->
-                            <input aria-label="Address" class="form-control" id="input_host" placeholder="127.0.0.1"
+                            Host IP: (Enter the IP address of the machine running display.py)
+                            <input aria-label="Address" class="form-control" id="input_host" placeholder="192.168.1.x"
                                    type="text"
                                    value="127.0.0.1" style="width: 110px;">
                         </div>
+                    </div>
+
+                    <div class="alert alert-info" role="alert">
+                        <h5>Remote Connection Instructions:</h5>
+                        <ol>
+                            <li>Find the IP address of the machine running display.py (use <code>ipconfig</code> on Windows or <code>ifconfig</code> on Linux)</li>
+                            <li>Enter that IP address in the "Host IP" field above</li>
+                            <li>Make sure the port matches the one in display.py (default: 8080)</li>
+                            <li>After changing the values, the page will automatically attempt to reconnect</li>
+                        </ol>
+                        <p>Note: Both machines must be on the same network for this to work.</p>
                     </div>
                 </div>
             </div>
