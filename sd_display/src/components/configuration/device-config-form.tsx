@@ -78,6 +78,7 @@ export function DeviceConfigForm({ device }: DeviceConfigFormProps) {
   }
 
   const renderConfigOption = (option: ConfigOption, isCompact = false) => {
+    console.log(option, values[option.key])
     const value = values[option.key]
     const inputClassName = isCompact ? "h-8" : ""
 
@@ -175,6 +176,10 @@ export function DeviceConfigForm({ device }: DeviceConfigFormProps) {
                 latitude: wp[0],
                 longitude: wp[1],
               })) || []}
+              onSave={(waypoints) => {
+                const formattedWaypoints = waypoints.map((wp) => [wp.latitude, wp.longitude])
+                handleValueChange(option.key, formattedWaypoints)
+              }}
             />
             {option.description && !isCompact && <p className="text-xs text-muted-foreground">{option.description}</p>}
           </div>

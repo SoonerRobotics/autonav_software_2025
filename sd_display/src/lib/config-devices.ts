@@ -323,7 +323,7 @@ export const configDevices: ConfigDevice[] = [
 				key: "filter_type",
 				label: "Filter Type",
 				type: "dropdown",
-				defaultValue: "none",
+				defaultValue: 0,
 				options: [
 					{ value: 0, label: "Dead Reckoning" },
 					{ value: 1, label: "Particle Filter" },
