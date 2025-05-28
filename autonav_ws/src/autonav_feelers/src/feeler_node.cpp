@@ -49,13 +49,14 @@ struct FeelerNodeConfig {
     int number_of_feelers;
     double start_angle; // degrees
     double end_angle; // degrees
+    bool balance_feelers; // TODO FIXME whether to make feelers like, symmetrical
     double waypointPopDist; // meters?
     double ultrasonic_contribution; // weight between 0 and 2 (or higher)
-    unsigned long gpsWaitSeconds;
-    double gpsBiasWeight; // pixels TODO FIXME shouldn't this be like an int? you can't have fractional pixels?
-    double forwardBiasWeight; // pixels
+    unsigned long gpsWaitMilliseconds; // time to wait before using GPS waypoints, in milliseconds
+    int gpsBiasWeight; // pixels
+    int forwardBiasWeight; // pixels
     
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, waypointPopDist, ultrasonic_contribution, gpsWaitSeconds);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, end_angle, balance_feelers, waypointPopDist, ultrasonic_contribution, gpsWaitMilliseconds, gpsBiasWeight, forwardBiasWeight);
 };
 
 class FeelerNode : public AutoNav::Node {
@@ -63,15 +64,16 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 200;
+        config.max_length = 100;
         config.number_of_feelers = 16;
         config.start_angle = 30;
-        config.end_angle = 180-30;
+        config.end_angle = 180 - config.start_angle;
+        config.balance_feelers = true;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
-        config.gpsWaitSeconds = 5;
-        config.gpsBiasWeight = 50;
-        config.forwardBiasWeight = 50;
+        config.gpsWaitMilliseconds = 5000;
+        config.gpsBiasWeight = 75;
+        config.forwardBiasWeight = 55;
 
         this->_config = config;
         this->config = config;
@@ -148,9 +150,12 @@ public:
 
         set_device_state(AutoNav::DeviceState::READY);
 
-        log("FEELERS READY!", AutoNav::Logging::WARN); //FIXME TODO
+        // log("FEELERS READY!", AutoNav::Logging::WARN); //FIXME TODO
         //FIXME this is for temporary debug purposes while we are minus a UI
         this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
+
+        this->hasPlayedGps = false;
+        this->hasPlayedHorn = false;
     }
 
     void on_config_updated(const json &old_cfg, const json &new_cfg) override {
@@ -165,36 +170,32 @@ public:
      */
     void buildFeelers() {
         this->feelers = std::vector<Feeler>();
-        for (double angle = this->config.start_angle; angle < config.end_angle; angle += ((config.end_angle - config.start_angle) / this->config.number_of_feelers)) {
-            int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers, I hope
+        for (double angle = this->config.start_angle; angle < this->config.end_angle; angle += ((this->config.end_angle - this->config.start_angle) / this->config.number_of_feelers)) {
+            int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers
             int y = this->config.max_length * sin(radians(angle));
             
             this->feelers.push_back(Feeler(x, y));
         }
 
-        //TODO FIXME HACK TEMP TEMP TEMP THIS IS JUST FOR TESTING
-        // some backwards feeler to balance us out a little
-        // this->feelers.push_back(Feeler(5, -350));
-        // this->feelers.push_back(Feeler(2, -350));
-        // this->feelers.push_back(Feeler(1, -350));
-        // this->feelers.push_back(Feeler(0, -350));
-        // this->feelers.push_back(Feeler(-1, -350));
-        // this->feelers.push_back(Feeler(-2, -350));
-        // this->feelers.push_back(Feeler(-5, -350));
+        // build some feelers on the other side of the cone/arc formed from start_angle to end_angle
+        if (this->config.balance_feelers) {
+            for (double angle = wrapAngle(this->config.start_angle + 180); angle < wrapAngle(this->config.end_angle + 180); angle += ((this->config.end_angle - this->config.start_angle) / this->config.number_of_feelers)) {
+                int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers
+                int y = this->config.max_length * sin(radians(angle));
+            
+                this->feelers.push_back(Feeler(x, y));
+            }
+        }
 
-        Feeler forwardsFeeler = Feeler(0, 100); // ~~negative~~ positive (?!) y is upwards in an image
-
-        // feelers are blue, openCV is in BGR. lerp towards red based on how biased it is
+        // bias feelers forwards
+        Feeler forwardsFeeler = Feeler(0, 100); // positive (?!) y is upwards in an image
         for (int i = 0; i < this->feelers.size(); i++) {
-            // bias feelers forwards
             this->feelers.at(i).bias(this->config.forwardBiasWeight * (this->feelers.at(i) * forwardsFeeler));
-            cv::Scalar color_ = lerp(BLUE, RED, this->feelers.at(i).getBiasAmount() / (this->config.forwardBiasWeight));
 
             // log("BIAS AMOUNT: " + std::to_string(this->feelers.at(i).getBiasAmount()));
         }
 
-        log("FEELERS BUILT!", AutoNav::Logging::WARN); //FIXME TODO
-        log("NUMBER OF FEELERS: " + std::to_string(this->feelers.size()), AutoNav::Logging::WARN);
+        log("FEELERS BUILT! NUMBER OF FEELERS: " + std::to_string(this->feelers.size()), AutoNav::Logging::INFO);
     }
 
     /**
@@ -264,7 +265,7 @@ public:
         if (this->gpsTime == 0 && this->is_mobility() && this->get_system_state() == AutoNav::SystemState::AUTONOMOUS) {
             this->gpsTime = now(); // then set the timestamp for the start of the run
         // if, however, we have set a timestamp, and it's been long enough that the particle filter should know which direction we're heading
-        } else if (now() - this->gpsTime > this->config.gpsWaitSeconds && this->direction == "") {
+        } else if (now() - this->gpsTime > this->config.gpsWaitMilliseconds && this->direction == "") {
             // then pick a set of waypoints based on which direction we are heading
             double heading_degrees = abs(this->position.theta * 180 / PI);
             if (120 < heading_degrees && heading_degrees < 240) {
@@ -288,12 +289,14 @@ public:
             // log("biasing my robot rn", AutoNav::Logging::INFO);
 
             // make a vector pointing towards the GPS waypoint
-            int latError = (goalPoint.lat - this->position.latitude) * 350000;
-            int lonError = (goalPoint.lon - this->position.longitude) * -350000;
+            int latError = (goalPoint.lat - this->position.latitude) * this->latitudeLength;
+            int lonError = (goalPoint.lon - this->position.longitude) * this->longitudeLength;
+            double angleToWaypoint = std::atan2(latError, lonError); // all in radians, don't worry
 
             // account for rotation of the robot (aka translate the gps error into camera/robot-relative coordinates, where (0, 0) is the center of the camera frame)
-            int gps_x = (lonError * std::cos(this->position.theta)) - (latError * std::sin(this->position.theta));
-            int gps_y = (lonError * std::sin(this->position.theta)) + (latError * std::cos(this->position.theta));
+            double headingError = this->position.theta - angleToWaypoint; //TODO FIXME double check this
+            int gps_x = (lonError * std::cos(headingError)) - (latError * std::sin(headingError));
+            int gps_y = (lonError * std::sin(headingError)) + (latError * std::cos(headingError));
             this->gpsFeeler = Feeler(gps_x, gps_y);
 
             // log("GPS FEELER: " + this->gpsFeeler.to_string(), AutoNav::Logging::INFO);
@@ -481,14 +484,18 @@ public:
 
         //TODO figure out what sounds we actually want to play and when
         bool publishAudible = true;
-        if (distToWaypoint < config.waypointPopDist) {
+        if (distToWaypoint < config.waypointPopDist && this->direction != "" && !this->hasPlayedGps) {
             feedback_msg.filename = "ding.mp3";
-        } else if (msg.forward_velocity < -0.5) { //TODO this is all robot-relative movement, so 'left' and 'right' here refer to the robot's POV, and if we end up moving primarily sideways through ex No-man's land then this could get annoying
-            feedback_msg.filename = "beep_beep.mp3";
-        } else if (msg.sideways_velocity < -1) {
-            feedback_msg.filename = "going_left.mp3";
-        } else if (msg.sideways_velocity > 1) {
-            feedback_msg.filename = "going_right.mp3";
+
+            // green for a little bit
+            safetyLightsMsg.red = 10;
+            safetyLightsMsg.blue = 10;
+            safetyLightsMsg.green = 240;
+
+            this->hasPlayedGps = true;
+        } else if (this->direction != "" && !this->hasPlayedHorn) {
+            feedback_msg.filename = "horn.mp3";
+            this->hasPlayedHorn = true;
         } else {
             publishAudible = false;
         }
@@ -527,6 +534,10 @@ private:
     double distToWaypoint = 0;
     unsigned long int lastTime = 0;
     unsigned long int gpsTime = 0;
+
+    // feedback
+    bool hasPlayedGps = false;
+    bool hasPlayedHorn = false;
 
     // subscribers
     rclcpp::Subscription<autonav_msgs::msg::Position>::SharedPtr positionSubscriber;
