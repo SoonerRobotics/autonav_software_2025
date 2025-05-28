@@ -131,7 +131,7 @@ public:
         lastTime = now();
 
         // pid controllers
-        this->headingPID = PIDController(.004, 0.0, 0.0);
+        this->headingPID = PIDController(.002, 0.0, 0.0);
 
         // subscribers
         positionSubscriber = create_subscription<autonav_msgs::msg::Position>("/autonav/position", 1, std::bind(&FeelerNode::onPositionReceived, this, std::placeholders::_1));
@@ -287,13 +287,21 @@ public:
             
             // log("biasing my robot rn", AutoNav::Logging::INFO);
 
-            // make a vector pointing towards the GPS waypoint TODO FIXME THIS DOES NOT ACCOUNT FOR ROTATION OF THE ROBOT
-            int latError = (goalPoint.lat - this->position.latitude) * 2;
-            int lonError = (goalPoint.lon - this->position.longitude) * 2;
-            this->gpsFeeler = Feeler(lonError, latError);
+            // make a vector pointing towards the GPS waypoint
+            int latError = (goalPoint.lat - this->position.latitude) * 350000;
+            int lonError = (goalPoint.lon - this->position.longitude) * -350000;
 
+            // account for rotation of the robot (aka translate the gps error into camera/robot-relative coordinates, where (0, 0) is the center of the camera frame)
+            int gps_x = (lonError * std::cos(this->position.theta)) - (latError * std::sin(this->position.theta));
+            int gps_y = (lonError * std::sin(this->position.theta)) + (latError * std::cos(this->position.theta));
+            this->gpsFeeler = Feeler(gps_x, gps_y);
+
+            // log("GPS FEELER: " + this->gpsFeeler.to_string(), AutoNav::Logging::INFO);
+            // log("ERROR: (" + std::to_string(lonError) + ", " + std::to_string(latError) + ")", AutoNav::Logging::INFO);
+            // log("Heading: " + std::to_string(this->position.theta));
+            
             // Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
-            Feeler velocityFeeler = Feeler(0, 100); //TODO FIXME DON'T COMMIT THIS PLZ
+            Feeler velocityFeeler = Feeler(0, 0); //TODO FIXME DON'T COMMIT THIS PLZ
 
             // calculate bias for every feeler
             for (int i = 0; i < this->feelers.size(); i++) {
@@ -387,10 +395,10 @@ public:
         // }
 
         // draw feeler towards GPS waypoint
-        this->gpsFeeler.setColor(cv::Scalar(0, 220, 50));
+        this->gpsFeeler.setColor(cv::Scalar(50, 200, 50));
         this->gpsFeeler.draw(this->debug_image_ptr->image);
         
-        log("GPS FEELER: " + this->gpsFeeler.to_string(), AutoNav::Logging::INFO); // FIXME TODO
+        // log("GPS FEELER: " + this->gpsFeeler.to_string(), AutoNav::Logging::INFO); // FIXME TODO
 
         // draw the heading arrow on top of everything else
         this->headingArrow.draw(this->debug_image_ptr->image);

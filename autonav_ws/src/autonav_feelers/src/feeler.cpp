@@ -464,6 +464,10 @@ Feeler Feeler::operator*(int &scalarNum) {
  * @return a number representing the dot product of the two Feelers after both have been normalized.
  */
 double Feeler::operator*(Feeler const &other) {
+    if (other.getX() == 0 && other.getY() == 0) {
+        return 0.0;
+    }
+
     double x_norm = this->x / this->getLength();
     double y_norm = this->y / this->getLength();
 
