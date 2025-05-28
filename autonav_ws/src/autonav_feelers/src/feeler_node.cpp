@@ -287,16 +287,17 @@ public:
             
             // log("biasing my robot rn", AutoNav::Logging::INFO);
 
-            // make a vector pointing towards the GPS waypoint
-            double latError = goalPoint.lat - this->position.latitude;
-            double lonError = goalPoint.lon - this->position.longitude;
-            Feeler gpsFeeler = Feeler(lonError, latError);
+            // make a vector pointing towards the GPS waypoint TODO FIXME THIS DOES NOT ACCOUNT FOR ROTATION OF THE ROBOT
+            int latError = (goalPoint.lat - this->position.latitude) * 2;
+            int lonError = (goalPoint.lon - this->position.longitude) * 2;
+            this->gpsFeeler = Feeler(lonError, latError);
 
-            Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
+            // Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
+            Feeler velocityFeeler = Feeler(0, 100); //TODO FIXME DON'T COMMIT THIS PLZ
 
             // calculate bias for every feeler
             for (int i = 0; i < this->feelers.size(); i++) {
-                double gps_bias = this->config.gpsBiasWeight * (this->feelers.at(i) * gpsFeeler); // dot product (normalized, don't worry)
+                double gps_bias = this->config.gpsBiasWeight * (this->feelers.at(i) * this->gpsFeeler); // dot product (normalized, don't worry)
                 double forward_bias = this->config.forwardBiasWeight * (this->feelers.at(i) * velocityFeeler); // dot product
 
                 if (gps_bias < 0.0) {
@@ -384,6 +385,12 @@ public:
         // for (Feeler feeler : this->ultrasonic_feelers) {
         //     feeler.draw(this->debug_image_ptr->image);
         // }
+
+        // draw feeler towards GPS waypoint
+        this->gpsFeeler.setColor(cv::Scalar(0, 220, 50));
+        this->gpsFeeler.draw(this->debug_image_ptr->image);
+        
+        log("GPS FEELER: " + this->gpsFeeler.to_string(), AutoNav::Logging::INFO); // FIXME TODO
 
         // draw the heading arrow on top of everything else
         this->headingArrow.draw(this->debug_image_ptr->image);
@@ -506,6 +513,7 @@ private:
     cv_bridge::CvImagePtr feeler_img_ptr;
 
     // GPS
+    Feeler gpsFeeler = Feeler(0, 0);
     GPSPoint goalPoint;
     autonav_msgs::msg::Position position;
     double distToWaypoint = 0;
