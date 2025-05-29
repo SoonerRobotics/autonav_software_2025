@@ -7,7 +7,7 @@ let systemState = {
 let preferences = {
     gpsFormat: "DD",
     host: "127.0.0.1",
-    port: 8020,
+    port: 8080,
     theme: "dark"
 };
 let config = {};
@@ -258,33 +258,56 @@ const conbusDevices = {
 };
 
 
-// Topic Listeneres
-const TOPIC_SYSTEM_STATE = "autonav/shared/system";
-const TOPIC_DEVICE_STATE = "autonav/shared/device";
+// Topic List
+const TOPIC_BROADCAST = "/autonav/shared/autonav_display_broadcast";
+const TOPIC_SYSTEM_STATE = "/autonav/shared/system";
+const TOPIC_DEVICE_STATE = "/autonav/shared/device";
+const TOPIC_LOG = "/autonav/shared/log";
 
 // IMU Data
 const TOPIC_IMU = "/autonav/imu";
 const TOPIC_AUTONAV_GPS = "/autonav/gps";
-const TOPIC_MOTOR_INPUT = "/autonav/MotorInput";
+const TOPIC_MOTOR_INPUT = "/autonav/motor_input";
 const TOPIC_POSITION = "/autonav/position";
+const TOPIC_CONTROLLER_INPUT = "/autonav/controller_input";
 
-const TOPIC_MOTOR_FEEDBACK = "/autonav/MotorFeedback";
-const TOPIC_NUCStatistics = '/autonav/statistic';// TOOD implement
-const TOPIC_ULTRASONICS = '/autonav/ultrasonics';// TOOD implement
-const TOPIC_CONBUS = "/autonav/conbus";
-const TOPIC_SAFETY_LIGHTS = '/autonav/safety_lights';// TOOD implement
-const TOPIC_PERFORMANCE = 'autonav/performance';// TOOD implement
+// Motor and System Feedback
+const TOPIC_MOTOR_FEEDBACK = "/autonav/motor_feedback";
+const TOPIC_NUC_STATISTICS = "/autonav/statistics";
+const TOPIC_ULTRASONICS = "/autonav/ultrasonic";
+const TOPIC_CONBUS_DATA = "/autonav/conbus/data";
+const TOPIC_CONBUS_INSTRUCTION = "/autonav/conbus/instruction";
+
+// Aliases for backward compatibility
+const TOPIC_CONBUS = "/autonav/conbus/data";
+const TOPIC_SAFETY_LIGHTS = "/autonav/safety_lights";
+const TOPIC_PERFORMANCE = "/autonav/performance";
+
+// PID and Motor Statistics
+const TOPIC_LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics";
+const TOPIC_ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics";
+const TOPIC_MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors";
+const TOPIC_MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors";
+const TOPIC_CAN_STATS = "/autonav/can_stats";
+const TOPIC_ZERO_ENCODERS = "/autonav/zero_encoders";
 
 // Raw camera
-const TOPIC_RAW_LEFT = 'autonav/camera/left';
-const TOPIC_RAW_RIGHT = 'autonav/camera/right';
-const TOPIC_RAW_FRONT = 'autonav/camera/front';
-const TOPIC_RAW_BACK = 'autonav/camera/back';
+const TOPIC_RAW_LEFT = "/autonav/camera/left";
+const TOPIC_RAW_RIGHT = "/autonav/camera/right";
+const TOPIC_RAW_FRONT = "/autonav/camera/front";
+const TOPIC_RAW_BACK = "/autonav/camera/back";
 
-//Other Camera Nodes
-const TOPIC_COMBINED_IMAGE = '/autonav/vision/combined/filtered'
-const TOPIC_FEELERS = '/autonav/feelers/debug';// todo does this transmit an image? (assuming it does for now
+// Other Camera Nodes
+const TOPIC_COMBINED_IMAGE = "/autonav/vision/combined/filtered";
+const TOPIC_FEELERS = "/autonav/feelers/debug";
+
+// Configuration
+const TOPIC_CONFIGURATION_BROADCAST = "/autonav/shared/config/requests";
+const TOPIC_CONFIGURATION_UPDATE = "/autonav/shared/config/updates";
+const TOPIC_CONFIG_PRESTS_LOAD = "/autonav/presets/load";
+const TOPIC_CONFIG_PRESTS_SAVE = "/autonav/presets/save";
 
 // Others
-const TOPIC_CONFIGURATION = "/scr/configuration";// TODO IS THIS STILL A TOPIC?
-const TOPIC_PLAYBACK = "autonav/autonav_playback"; //TODO feed in new data and test if  this actually gets data in
+const TOPIC_CONFIGURATION = "/scr/configuration"; // Legacy configuration topic
+const TOPIC_PLAYBACK = "/autonav/autonav_playback";
+const TOPIC_AUDIBLE_FEEDBACK = "/autonav/audible_feedback";

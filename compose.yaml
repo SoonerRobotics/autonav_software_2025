@@ -1,5 +1,5 @@
 services:
   app:
-    build: .  # This tells Docker Compose to build using the Dockerfile in the current directory
+    build: .  # Build w/ Dockerfile in cur dir
     ports:
-      - "8080:8080"  # Maps host to container
+      - "8080:8080"  # Maps 8080's host to container
