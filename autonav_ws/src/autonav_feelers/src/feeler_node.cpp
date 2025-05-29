@@ -16,7 +16,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/image_transport.hpp"
 
-#define now() (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())).count();
+#define now() (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())).count()
 
 // these should really be like configurable or something, but...
 const cv::Scalar BLUE = cv::Scalar(200, 0, 0);
@@ -68,7 +68,7 @@ public:
         config.number_of_feelers = 16;
         config.start_angle = 30;
         config.end_angle = 180 - config.start_angle;
-        config.balance_feelers = true;
+        config.balance_feelers = false;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitMilliseconds = 5000;
@@ -265,7 +265,7 @@ public:
         if (this->gpsTime == 0 && this->is_mobility() && this->get_system_state() == AutoNav::SystemState::AUTONOMOUS) {
             this->gpsTime = now(); // then set the timestamp for the start of the run
         // if, however, we have set a timestamp, and it's been long enough that the particle filter should know which direction we're heading
-        } else if (now() - this->gpsTime > this->config.gpsWaitMilliseconds && this->direction == "") {
+        } else if (this->gpsTime != 0 && (now() - this->gpsTime > this->config.gpsWaitMilliseconds) && this->direction == "") {
             // then pick a set of waypoints based on which direction we are heading
             double heading_degrees = abs(this->position.theta * 180 / PI);
             if (120 < heading_degrees && heading_degrees < 240) {
@@ -289,14 +289,14 @@ public:
             // log("biasing my robot rn", AutoNav::Logging::INFO);
 
             // make a vector pointing towards the GPS waypoint
-            int latError = (goalPoint.lat - this->position.latitude) * this->latitudeLength;
-            int lonError = (goalPoint.lon - this->position.longitude) * this->longitudeLength;
+            int latError = (goalPoint.lat - this->position.latitude) * this->latitudeLength * 3;
+            int lonError = (goalPoint.lon - this->position.longitude) * this->longitudeLength * 3;
             double angleToWaypoint = std::atan2(latError, lonError); // all in radians, don't worry
 
             // account for rotation of the robot (aka translate the gps error into camera/robot-relative coordinates, where (0, 0) is the center of the camera frame)
             double headingError = this->position.theta - angleToWaypoint; //TODO FIXME double check this
             int gps_x = (lonError * std::cos(headingError)) - (latError * std::sin(headingError));
-            int gps_y = (lonError * std::sin(headingError)) + (latError * std::cos(headingError));
+            int gps_y = -(lonError * std::sin(headingError)) + (latError * std::cos(headingError));
             this->gpsFeeler = Feeler(gps_x, gps_y);
 
             // log("GPS FEELER: " + this->gpsFeeler.to_string(), AutoNav::Logging::INFO);
@@ -304,7 +304,7 @@ public:
             // log("Heading: " + std::to_string(this->position.theta));
             
             // Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
-            Feeler velocityFeeler = Feeler(0, 0); //TODO FIXME DON'T COMMIT THIS PLZ
+            Feeler velocityFeeler = Feeler(0, 100);
 
             // calculate bias for every feeler
             for (int i = 0; i < this->feelers.size(); i++) {
