@@ -7,6 +7,8 @@ import sty
 import time
 import inspect
 import json
+import os
+import signal
 
 
 class Node(RclpyNode):
@@ -59,16 +61,22 @@ class Node(RclpyNode):
         Callback for the configuration update topic.
         """
         if msg.device == self.get_name():
-            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
             old_cfg = self.config
+            # self.log(f"Received update on our own configuration", LogLevel.DEBUG)
             new_cfg = json.loads(msg.json)
             self.apply_config(new_cfg)
             self.on_config_update(old_cfg, self.config)
         else:
-            # self.log(f"Received updated on {msg.device}'s configuration", LogLevel.DEBUG)
-            pass
+            self.on_other_config_update(msg.device, json.loads(msg.json))
         
         self.other_cfgs[msg.device] = json.loads(msg.json)
+
+    def on_other_config_update(self, device: str, config) -> None:
+        """
+        Called when a configuration update for another device is received.
+        Override this to handle other device configurations.
+        """
+        pass
 
     def get_time_seconds(self) -> int:
         time_nanoseconds = self.get_clock().now().nanoseconds
@@ -90,6 +98,8 @@ class Node(RclpyNode):
         msg.green = green
         msg.blue = blue
         msg.mode = mode
+        msg.brightness = 255
+        msg.blink_period = 50
         self.safety_light_queue.append((msg, duration))
 
     def safety_light_callback(self) -> None:
@@ -102,7 +112,7 @@ class Node(RclpyNode):
         if time.time() < self.safety_light_next:
             return
         
-        self.log(f"Publishing safety light {self.safety_light_queue[0][0].red}, {self.safety_light_queue[0][0].green}, {self.safety_light_queue[0][0].blue}", LogLevel.DEBUG)
+        # self.log(f"Publishing safety light {self.safety_light_queue[0][0].red}, {self.safety_light_queue[0][0].green}, {self.safety_light_queue[0][0].blue}", LogLevel.DEBUG)
         msg, dur = self.safety_light_queue.pop(0)
         self.safety_light_next = time.time() + dur
         self.safety_lights_pub.publish(msg)
@@ -194,6 +204,10 @@ class Node(RclpyNode):
         self.system_state = SystemState(msg.state)
         self.mobility = msg.mobility
 
+        if self.system_state == SystemState.SHUTDOWN:
+            os.kill(os.getpid(), signal.SIGKILL)
+            return
+
         if old_state != self.system_state:
             self.on_system_state_updated(old_state, self.system_state)
 
@@ -220,6 +234,7 @@ class Node(RclpyNode):
         self.device_states[msg.device] = DeviceState(msg.state)
         if (old_state == None or old_state == DeviceState.OFF) and DeviceState(msg.state) == DeviceState.WARMING and msg.device == self.get_name():
             self.init()
+            self.broadcast_config()
 
     def set_device_state(self, state: DeviceState) -> None:
         """

@@ -31,7 +31,7 @@ class MinimalAudibleFeedbackPublisher(Node):
             msg.stop_all = True
 
         else:
-            msg.filename = os.path.expanduser("~/Documents/metal-pipe.wav")
+            msg.filename = os.path.expanduser("~/Documents/vine-boom.mp3")
 
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: "%s"' % msg.filename)
