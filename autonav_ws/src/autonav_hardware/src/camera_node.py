@@ -23,7 +23,7 @@ camera_ids = {
     "front":  0,
     # "left" :  2,
     # "right":  4,
-    # "back" :  0
+    # "back" :  1
 }
 
 camera_settings = {
@@ -35,9 +35,9 @@ camera_settings = {
 # Class to hold our configuration information in
 class CameraConfig:
     def __init__(self):
-        self.WIDTH = 640
-        self.HEIGHT = 480
-        self.frameRate = 6
+        self.width = 640
+        self.height = 480
+        self.frame_rate = 10
 
 
 # ROS node to grab frames from a camera and publish them to /autonav/camera for the vision pipeline to take
@@ -45,10 +45,9 @@ class CameraNode(Node):
     def __init__(self, direction):
         # direction is a string referring to which side the camera is viewing/facing
         super().__init__("autonav_camera_" + direction)
-
+        self.config = CameraConfig()
         self.direction = direction
         # self.qos_profile = rclpy.qos.qos_profile_sensor_data #TODO make this more customized, should work for now
-        self.config = CameraConfig()
 
     def init(self):
         # make the camera
@@ -66,18 +65,24 @@ class CameraNode(Node):
 
         self.log("Camera " + self.direction + " initialized!")
         self.set_device_state(DeviceState.READY)
+
+    def apply_config(self, config):
+        self.config.width = config["width"]
+        self.config.height = config["height"]
+        self.config.frame_rate = config["frame_rate"]
     
     def publishFrame(self):
         while True:
-            if self.camera is None:
+            if self.camera is None or not self.camera.isOpened():
                 self.camera = cv2.VideoCapture(camera_ids[self.direction])
 
                 # Set their resolution to the same
                 # set their frame rate to the same
-                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.WIDTH)
-                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.HEIGHT)
-                self.camera.set(cv2.CAP_PROP_FPS, self.config.frameRate)
-                self.camera.set(cv2.CAP_PROP_BITRATE, 5)
+                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
+                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
+                # self.camera.set(cv2.CAP_PROP_FPS, self.config.frame_rate)
+                # self.camera.set(cv2.CAP_PROP_BITRATE, 5)
+                # self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
                 
                 # other things to lower the bandwidth used
                 self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
@@ -90,7 +95,7 @@ class CameraNode(Node):
 
             # check if we should publish
             if time.time() > self.next_pub_time:
-                self.next_pub_time = time.time() + 1 / self.config.frameRate
+                self.next_pub_time = time.time() + 1 / self.config.frame_rate
 
                 # get the frame
                 ret, frame = self.camera.read()
@@ -104,6 +109,7 @@ class CameraNode(Node):
                 if camera_settings[self.direction]["flip"]:
                     # flip the frame vertically
                     frame = cv2.flip(frame, 0)
+                    frame = cv2.flip(frame, 1)
 
                 # convert the frame to a CompressedImage
                 msg = CompressedImage()

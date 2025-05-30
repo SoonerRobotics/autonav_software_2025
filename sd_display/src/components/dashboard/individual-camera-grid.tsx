@@ -3,11 +3,11 @@ import { useSocket } from "@/providers/SocketProvider"
 export function IndividualCameraGrid() {
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 max-h-full">
+            <div className="grid grid-cols-1 gap-4 max-h-full">
                 <CameraFeed name="Front Camera" path="camera_front" />
-                <CameraFeed name="Left Camera" path="camera_left" />
-                <CameraFeed name="Right Camera" path="camera_right" />
-                <CameraFeed name="Rear Camera" path="camera_back" />
+                {/* <CameraFeed name="Left Camera" path="camera_left" /> */}
+                <CameraFeed name="Filtered" path="filtered" />
+                <CameraFeed name="Expanded" path="expanded" />
             </div>
         </div>
     )

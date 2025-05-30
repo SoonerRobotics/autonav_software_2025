@@ -9,8 +9,6 @@ class Notification {
         } else {
             this.timeout = 3000;
         }
-
-
         this.bind();
     }
 

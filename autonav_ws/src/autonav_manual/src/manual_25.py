@@ -23,7 +23,7 @@ class Manual25Config:
     def __init__(self):
         self.max_forward_speed = -3
         self.max_sideways_speed = -3
-        self.max_angular_speed = -np.pi / 3
+        self.max_angular_speed = -np.pi
         self.odom_fudge_factor = 1
         self.sound_buffer = 0.5 # seconds
         self.main_song_path = '~/autonav_software_2025/music/vivalavida.wav'
@@ -33,10 +33,12 @@ class Manual25Config:
 class Manual25Node(Node):
     def __init__(self):
         super().__init__('autonav_manual')
-        self.write_config(Manual25Config())
+        self.config = Manual25Config()
+        # self.log("Manual 25 node __init__", LogLevel.INFO)
 
 
     def init(self):
+        self.log("Manual 25 node init", LogLevel.INFO)
         self.mode = ControllerMode.LOCAL
         self.orientation = 0
         self.last_time = 0
@@ -47,6 +49,8 @@ class Manual25Node(Node):
         # self.max_angular_speed = np.pi/4
 
         self.controller_state = {}
+
+        
 
         self.audio_manager = threading.Thread(target=self.manage_audio)
         self.audio_manager.daemon = True
@@ -88,6 +92,14 @@ class Manual25Node(Node):
 
         self.controllerSubscriber  # prevent unused variable warning
 
+    def apply_config(self, config):
+        self.config.max_forward_speed = config["max_forward_speed"]
+        self.config.max_sideways_speed = config["max_sideways_speed"]
+        self.config.max_angular_speed = config["max_angular_speed"]
+        self.config.odom_fudge_factor = config["odom_fudge_factor"]
+        self.config.sound_buffer = config["sound_buffer"]
+        self.config.main_song_path = config["main_song_path"]
+        self.config.x_button_sound = config["x_button_sound"]
 
     def input_callback(self, msg):
         self.new_time = time.time()
@@ -136,6 +148,12 @@ class Manual25Node(Node):
             motor_msg = MotorInput()
             self.motorPublisher.publish(motor_msg)
 
+        if new == SystemState.DISABLED and old != SystemState.DISABLED:
+            self.push_safety_lights(255, 255, 255, 0, 0)
+
+        if new == SystemState.MANUAL and old != SystemState.MANUAL:
+            self.push_safety_lights(255, 255, 0, 0, 0)
+
     def change_system_state(self):
         if self.controller_state['btn_east'] == 1.0:
             self.set_system_state(SystemState.SHUTDOWN)
@@ -161,9 +179,9 @@ class Manual25Node(Node):
         if self.system_state != SystemState.MANUAL:
             return
         
-        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), -1.0, 1.0)
-        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), -1.0, 1.0)
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.max_forward_speed, self.config.max_forward_speed, -1.0, 1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.max_sideways_speed, self.config.max_sideways_speed, -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.max_angular_speed, self.config.max_angular_speed, -1.0, 1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity
@@ -177,9 +195,9 @@ class Manual25Node(Node):
         if self.system_state != SystemState.MANUAL:
             return
         
-        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.get("max_forward_speed"), self.config.get("max_forward_speed"), 1.0, -1.0)
-        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.get("max_sideways_speed"), self.config.get("max_sideways_speed"), -1.0, 1.0)
-        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.get("max_angular_speed"), self.config.get("max_angular_speed"), 1.0, -1.0)
+        forward_velocity = self.normalize(self.controller_state["abs_y"], -self.config.max_forward_speed, self.config.max_forward_speed, 1.0, -1.0)
+        sideways_velocity = self.normalize(self.controller_state["abs_x"], -self.config.max_sideways_speed, self.config.max_sideways_speed, -1.0, 1.0)
+        angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.max_angular_speed, self.config.max_angular_speed, 1.0, -1.0)
 
         motor_msg = MotorInput()
         motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
@@ -189,7 +207,7 @@ class Manual25Node(Node):
 
 
     def on_motor_feedback(self, msg:MotorFeedback):
-        delta_theta = msg.delta_theta * self.config.get("odom_fudge_factor")
+        delta_theta = msg.delta_theta * self.config.odom_fudge_factor
         self.orientation += delta_theta
 
 
@@ -203,18 +221,18 @@ class Manual25Node(Node):
         if self.controller_state == {}:
             return
 
-        if self.delta_t < self.config.get("sound_buffer"):
+        if self.delta_t < self.config.sound_buffer:
             return
 
         if self.controller_state['btn_west'] == 1:
             audible_feedback = AudibleFeedback()
-            audible_feedback.filename = os.path.expanduser(self.config.get("x_button_sound"))
+            audible_feedback.filename = os.path.expanduser(self.config.x_button_sound)
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()
 
         elif self.controller_state['abs_hat0y'] == -1:
             audible_feedback = AudibleFeedback()
-            audible_feedback.filename= os.path.expanduser(self.config.get("main_song_path"))
+            audible_feedback.filename= os.path.expanduser(self.config.main_song_path)
             audible_feedback.main_track = True
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()
@@ -233,6 +251,7 @@ class Manual25Node(Node):
 
 
     def manage_audio(self):
+        self.log("Audio manager started", LogLevel.INFO)
         while rclpy.ok():
             if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
                 continue

@@ -1,1 +1,0 @@
-docker compose up --build --force-recreate --no-cache && docker compose rm -fsv

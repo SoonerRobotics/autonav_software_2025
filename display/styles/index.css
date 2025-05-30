@@ -199,6 +199,12 @@ img[data-type="small"] {
     height: 320px !important;
 }
 
+img[data-type="fullwidth"] {
+    width: 100% !important;
+    height: auto !important;
+    margin-bottom: 1rem;
+}
+
 #logging {
     margin: 1rem;
 }

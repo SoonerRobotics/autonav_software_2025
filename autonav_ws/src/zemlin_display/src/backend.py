@@ -119,17 +119,14 @@ class DisplayBackend(Node):
             Position, "/autonav/position", self.position_callback, 10
         )
         self.pathing_debug_sub = self.create_subscription(
-            PathingDebug, "/autonav/pathing_debug", self.on_pathing_debug, 10
+            PathingDebug, "/autonav/debug/astar", self.on_pathing_debug, 10
         )
-        # self.device_state_sub = self.create_subscription(
-        #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
-        # )
+        self.device_state_sub = self.create_subscription(
+            DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
+        )
         self.absolute_encoder_sub = self.create_subscription(
             SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.absolute_encoder_callback, 10
         )        
-        # self.config_web_sub = self.create_subscription(
-        #     ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10
-        # )
 
         # Publishers
         self.load_preset_pub = self.create_publisher(
@@ -139,6 +136,10 @@ class DisplayBackend(Node):
             String, "/autonav/presets/save", 10
         )
 
+    def on_other_config_update(self, device: str, config) -> None:
+        self.emit("configs", {
+            "configs": self.other_cfgs
+        })
 
     def camera_callback_front(self, msg: CompressedImage):
         self.camera_last_frame_front = msg
@@ -164,11 +165,6 @@ class DisplayBackend(Node):
             "msg": msg
         }
         self.socketio.emit("message", json.dumps(packet))
-
-    def on_web_config_updated(self, msg: ConfigurationUpdate):
-        self.emit("configs", {
-            "configs": msg.configs
-        })
 
     def _device_state_callback(self, msg: DeviceState):
         self.emit("device_state", {
@@ -397,6 +393,19 @@ class DisplayBackend(Node):
             else:
                 self.log("No preset ID provided", LogLevel.ERROR)
 
+        @socketio.on("set_config")
+        def handle_set_config(device, config):
+            """Handle setting a configuration for a device."""
+            if device and config:
+                self.log(f"Setting config for {device}: {config}", LogLevel.INFO)
+                self._broadcast_config(device, config)
+                self.other_cfgs[device] = config
+                self.emit("configs", {
+                    "configs": self.other_cfgs
+                })
+            else:
+                self.log("No device or config provided", LogLevel.ERROR)
+
         @socketio.on("set_system_state")
         def handle_set_system_state(state):
             """Handle setting the system state."""
@@ -435,10 +444,7 @@ class DisplayBackend(Node):
 
         @socketio.on("connect")
         def handle_connect():
-            """Handle a new client connection."""
-            self.log("Client connected", LogLevel.INFO)
-            
-            # Send the current system state
+            """Handle a new client connection."""            
             system_state = {
                 "state": self.get_system_state(),
                 "mobility": self.is_mobility()

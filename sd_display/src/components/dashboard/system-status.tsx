@@ -87,11 +87,11 @@ export function SystemStatus() {
                         </div>
                         <div className="bg-muted p-2 rounded-md">
                             <div className="text-xs text-muted-foreground">Latitude</div>
-                            <div>{positionData.latitude.toFixed(4)}°</div>
+                            <div>{positionData.latitude.toFixed(7)}°</div>
                         </div>
                         <div className="bg-muted p-2 rounded-md w-full">
                             <div className="text-xs text-muted-foreground">Longitude</div>
-                            <div>{positionData.longitude.toFixed(4)}°</div>
+                            <div>{positionData.longitude.toFixed(7)}°</div>
                         </div>
                     </div>
                 </div>
@@ -101,11 +101,11 @@ export function SystemStatus() {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="bg-muted p-2 rounded-md">
                             <div className="text-xs text-muted-foreground">Latitude</div>
-                            <div>{gpsData.latitude.toFixed(4)}°</div>
+                            <div>{gpsData.latitude.toFixed(7)}°</div>
                         </div>
                         <div className="bg-muted p-2 rounded-md">
                             <div className="text-xs text-muted-foreground">Longitude</div>
-                            <div>{gpsData.longitude.toFixed(4)}°</div>
+                            <div>{gpsData.longitude.toFixed(7)}°</div>
                         </div>
                         <div className="bg-muted p-2 rounded-md">
                             <div className="text-xs text-muted-foreground">Satellites</div>
