@@ -25,8 +25,8 @@ CV_BRIDGE = cv_bridge.CvBridge()
 class AStarConfig:
     def __init__(self):
         self.latitude_length = 111086.2
-        self.longitude_length = 91978.2
-        self.waypoint_pop_distance = 1.4
+        self.longitude_length = 81978.2
+        self.waypoint_pop_distance = 2.4
         self.waypoint_delay = 5
         self.robot_y = 66
         self.use_only_waypoints = False
@@ -34,10 +34,10 @@ class AStarConfig:
             # [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)],
 
             # E-Quad path
-            [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)],
+            # [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)],
 
             # IGVC Qualification Points
-            # [(42.66796, -83.218433), (42.668086, -83.218446), (42.668212, -83.218459)]
+            [(42.66796, -83.218433), (42.668086, -83.218446), (42.668212, -83.218459)]
 
             # IGVC Real Waypoints
             # [(42.6682623, -83.2193709), (42.6681206, -83.2193606), (42.6680766, -83.2193592), (42.6679277, -83.2193276), (42.6679216, -83.2189126), (42.668130236144883, -83.21889785301433)]
@@ -268,8 +268,8 @@ class AStarNode(Node):
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypoint_pop_distance:
-                # self.push_safety_lights(0, 255, 0, 1, 2)
-                # self.push_safety_lights(255, 255, 255, 1, 0)
+                self.push_safety_lights(0, 255, 0, 1, 2)
+                self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
                 # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = time.time() + 1.5
@@ -297,6 +297,7 @@ class AStarNode(Node):
                 if len(self.waypoints) > 0:
                     heading_err_to_gps = abs(self.getAngleDifference(self.position.theta + math.atan2(40 - x, 80 - y), heading_to_gps)) * 180 / math.pi
                     cost -= max(heading_err_to_gps, 10)
+                    # cost -= max(heading_err_to_gps, 30)
 
                 if cost > best_pos_cost:
                     best_pos_cost = cost

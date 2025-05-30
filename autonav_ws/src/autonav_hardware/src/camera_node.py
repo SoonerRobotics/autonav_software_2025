@@ -80,8 +80,9 @@ class CameraNode(Node):
                 # set their frame rate to the same
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.width)
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
-                self.camera.set(cv2.CAP_PROP_FPS, self.config.frame_rate)
-                self.camera.set(cv2.CAP_PROP_BITRATE, 5)
+                # self.camera.set(cv2.CAP_PROP_FPS, self.config.frame_rate)
+                # self.camera.set(cv2.CAP_PROP_BITRATE, 5)
+                # self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
                 
                 # other things to lower the bandwidth used
                 self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))

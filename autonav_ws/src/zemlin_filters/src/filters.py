@@ -19,9 +19,9 @@ class FilterType(IntEnum):
 
 class FiltersConfig:
     def __init__(self):
-        self.filter_type = FilterType.DEAD_RECKONING
-        self.latitude_length = 110944.2
-        self.longitude_length = 91065.46
+        self.filter_type = FilterType.BEARING_FILTER
+        self.latitude_length = 111086.2
+        self.longitude_length = 81978.2
 
 class FiltersNode(Node):
     def __init__(self):
