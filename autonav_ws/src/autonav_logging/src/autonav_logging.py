@@ -45,21 +45,8 @@ camera_topics = [
     # Feelers Debug
     "/autonav/feelers/debug"
 ]
+FPS = 6
 
-FPS = 8
-
-class LogConfig:
-    def __init__(self):
-        self.record_imu = True
-        self.record_gps = True
-        self.record_motor = True
-        self.record_position = True
-        self.record_nuc = True
-        self.record_ultrasonic = True
-        self.record_conbus = True
-        self.record_safetylights = True
-        self.record_performance = True
-        self.record_pf_debug = True
 
 class LoggingNode(Node):
     """
@@ -76,7 +63,6 @@ class LoggingNode(Node):
         self.QOS = 20
         self.started_logging_at = time.time()
         self.home_dir = os.path.expanduser("~")
-        self.config = LogConfig()
         
         # Timer for periodically writing to the file
         self.file_timer = self.create_timer(5, self.write_file)
@@ -101,17 +87,6 @@ class LoggingNode(Node):
         self.performance_subscriber = self.create_subscription(Performance, '/autonav/performance', self.performance_feedback, self.QOS)
         self.particle_subscriber = self.create_subscription(ParticleFilterDebug, '/autonav/particle_debug', self.particle_feedback, self.QOS)
         self.log_sub = self.create_subscription(Log, "/autonav/shared/log", self.log_callback, self.QOS)
-
-    def apply_config(self, config):
-        self.config.record_imu = config["record_imu"]
-        self.config.record_gps = config["record_gps"]
-        self.config.record_motor = config["record_motor"]
-        self.config.record_position = config["record_position"]
-        self.config.record_nuc = config["record_nuc"]
-        self.config.record_ultrasonic = config["record_ultrasonic"]
-        self.config.record_conbus = config["record_conbus"]
-        self.config.record_safetylights = config["record_safetylights"]
-        self.config.record_performance = config["record_performance"]
     
     def create_entry(self):
         self.log("Create_entry", LogLevel.INFO)
@@ -133,7 +108,8 @@ class LoggingNode(Node):
         self.started_logging_at = time.time()
         event = {
             "system_state": self.system_state.value,
-            "mobility": self.mobility
+            "mobility": self.mobility,
+            "videos": []
         }
         self.append_event("metadata", event)
     
@@ -149,16 +125,23 @@ class LoggingNode(Node):
         if self.file is None:
             return
         
-        self.get_logger().info("Closing Entry")
+        self.log("Closing Entry")
         self.write_file()
         self.file.close()
         self.file = None
 
         # Close the video files and write the video list
+        videos = []
         for topic, writer in self.video_writers.items():
             if writer is not None:
+                filename = os.path.join(self.BASE_PATH, f"{topic}.avi")
+                videos.append(filename)
                 writer.release()
                 self.video_writers[topic] = None
+                
+        # Update metadata videos list
+        metadata_event = self.events[0]
+        metadata_event["event"]["videos"] = videos
 
         # Sleep for a sec
         time.sleep(1)
@@ -168,8 +151,8 @@ class LoggingNode(Node):
 
         # Zip the entire log folder
         zip_file = os.path.join(self.home_dir, ".autonav", "logs", f"{stateFrmt}_{self.started_recording_at}.zip")
-        subprocess.run(["zip", "-r", zip_file, self.BASE_PATH])
-        self.get_logger().info(f"Zipped logs to {zip_file}")
+        subprocess.run(["zip", "-r", zip_file, "."], cwd=self.BASE_PATH)
+        self.log(f"Zipped logs to {zip_file}")
 
 
     def on_system_state_updated(self, old, new):
@@ -191,7 +174,7 @@ class LoggingNode(Node):
 
     def write_file(self):
         if self.file == None:
-            self.log("File is None, not writing", LogLevel.ERROR)
+            # self.log("File is None, not writing", LogLevel.ERROR)
             return
         
         events_cpy = []
@@ -246,9 +229,6 @@ class LoggingNode(Node):
         })
         
     def imu_feedback(self, msg):
-        if not self.config.record_imu:
-            return
-        
         self.append_event("imu", {
             "yaw": msg.yaw,
             "pitch": msg.pitch,
@@ -256,9 +236,6 @@ class LoggingNode(Node):
         })
     
     def gps_feedback(self, msg):
-        if not self.config.record_gps:
-            return
-        
         self.append_event("gps", {
             "latitude": msg.latitude,
             "longitude": msg.longitude,
@@ -268,9 +245,6 @@ class LoggingNode(Node):
         })
     
     def mfeedback_feedback(self, msg):
-        if not self.config.record_motor:
-            return
-        
         self.append_event("motor_feedback", {
             "delta_x": msg.delta_x,
             "delta_y": msg.delta_y,
@@ -278,9 +252,6 @@ class LoggingNode(Node):
         })
         
     def minput_feedback(self, msg):
-        if not self.config.record_motor:
-            return
-        
         self.append_event("motor_input", {
             "forward_velocity": msg.forward_velocity,
             "sideways_velocity": msg.sideways_velocity,
@@ -288,9 +259,6 @@ class LoggingNode(Node):
         })
     
     def position_feedback(self, msg: Position):
-        if not self.config.record_position:
-            return
-        
         self.append_event("position", {
             "x": msg.x,
             "y": msg.y,
@@ -300,9 +268,6 @@ class LoggingNode(Node):
         })
         
     def nuc_feedback(self, msg):
-        if not self.config.record_nuc:
-            return
-        
         self.append_event("nuc", {
             "timestamp": msg.timestamp,
             "cpu_percentage": msg.cpu_percentage,
@@ -312,24 +277,15 @@ class LoggingNode(Node):
         })
     
     def ultrasonic_feedback(self, msg):
-        if not self.config.record_ultrasonic:
-            return
-        
         self.append_event("ultrasonic", {
             "id": msg.id,
             "distance": msg.distance,
         })
         
     def conbus_feedback(self, msg):
-        if not self.config.record_conbus:
-            return
-        
         self.append_event("conbus", msg)
     
     def safetylight_feedback(self, msg):
-        if not self.config.record_safetylights:
-            return
-        
         self.append_event("safetylight", {
             "mode": msg.mode,
             "brightness": msg.brightness,
@@ -340,9 +296,6 @@ class LoggingNode(Node):
         })
     
     def performance_feedback(self, msg):
-        if not self.config.record_performance:
-            return
-        
         self.append_event("performance", {
             "name": msg.name,
             "elapsed": msg.elapsed,
@@ -362,9 +315,6 @@ class LoggingNode(Node):
         })
 
     def particle_feedback(self, msg):
-        if not self.config.record_pf_debug:
-            return
-        
         self.append_event("pf_debug", {
             "x": msg.x,
             "y": msg.y,

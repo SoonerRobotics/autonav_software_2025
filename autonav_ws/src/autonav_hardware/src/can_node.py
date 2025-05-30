@@ -8,11 +8,11 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
 import struct
-from ctypes import Structure, c_uint8
+from ctypes import Structure, c_uint8, c_bool
 
 
 CAN_PATH = "/dev/autonav-can-scr"
-CAN_SPEED = 100000
+CAN_SPEED = 100_000
 
 
 arbitration_ids = {
@@ -29,18 +29,19 @@ arbitration_ids = {
 
 class SafetyLightsPacket(Structure):
     _fields_ = [
-        ("mode", c_uint8),
-        ("brightness", c_uint8),
-        ("red", c_uint8),
-        ("green", c_uint8),
-        ("blue", c_uint8),
-        ("blink_period", c_uint8)
+        ("autonomous", c_bool, 1),
+        ("eco", c_uint8, 1),
+        ("mode", c_uint8, 6),
+        ("brightness", c_uint8, 8),
+        ("red", c_uint8, 8),
+        ("green", c_uint8, 8),
+        ("blue", c_uint8, 8),
+        ("blink_period", c_uint8, 8)
     ]
-
 
 class CanNode(Node):
     def __init__(self):
-        super().__init__("CAN_node")
+        super().__init__("autonav_can")
         self.can_stats_record = CanStats()
         self.can = None
 
@@ -98,24 +99,26 @@ class CanNode(Node):
             if self.can is not None:
                 return
 
+            self.log("CAN device found at " + CAN_PATH, LogLevel.INFO)
             self.can = can.ThreadSafeBus(
-                bustype="slcan", channel=CAN_PATH, bitrate=100000)
+                bustype="slcan", channel=CAN_PATH, bitrate=CAN_SPEED)
             self.set_device_state(DeviceState.OPERATING)
         except:
+            self.log("CAN device not found at " + CAN_PATH, LogLevel.ERROR)
             if self.can is not None:
                 self.can = None
 
-            if self.get_device_state() != DeviceState.WARMING:
-                self.set_device_state(DeviceState.WARMING)
+            if self.get_device_state() != DeviceState.READY:
+                self.set_device_state(DeviceState.READY)
 
 
     def can_thread_worker(self):
         while rclpy.ok():
-            if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
+            if self.get_device_state() != DeviceState.OPERATING:
                 continue
             if self.can is not None:
                 try:
-                    msg = self.can.recv(timeout=0.01)
+                    msg = self.can.recv()
                     if msg is not None:
                         self.onCanMessageReceived(msg)
                 except Exception as e:
@@ -125,6 +128,8 @@ class CanNode(Node):
     def onCanMessageReceived(self, msg):
         self.can_stats_record.rx = self.can_stats_record.rx + 1
         arbitration_id = msg.arbitration_id
+
+        self.log(f"Received CAN message with id: {arbitration_id}", LogLevel.DEBUG)
 
         if arbitration_id == arbitration_ids["EStop"]:
             self.set_mobility(False)
@@ -165,6 +170,8 @@ class CanNode(Node):
             return
 
         safety_lights_packet = SafetyLightsPacket()
+        safety_lights_packet.autonomous = msg.mode == 1
+        safety_lights_packet.eco = False
         safety_lights_packet.mode = msg.mode
         safety_lights_packet.brightness = msg.brightness
         safety_lights_packet.red = msg.red
@@ -173,12 +180,16 @@ class CanNode(Node):
         safety_lights_packet.blink_period = msg.blink_period
         data = bytes(safety_lights_packet)
         can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
+
+        self.log(f"Sending safety lights command: {safety_lights_packet}", LogLevel.DEBUG)
         
         try:
             self.can.send(can_msg)
         except AttributeError:
+            self.log("Error writing to CAN", LogLevel.ERROR)
             pass # means the CAN object hasn't been created yet
         except can.CanError:
+            self.log("2 Error writing to CAN", LogLevel.ERROR)
             pass
 
     def on_conbus_received(self, msg:Conbus):

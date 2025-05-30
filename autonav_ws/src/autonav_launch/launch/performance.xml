@@ -1,3 +1,0 @@
-<launch>
-    <node pkg="autonav_performance_node" exec="performance.py" output="screen" emulate_tty="true"/>
-</launch>
