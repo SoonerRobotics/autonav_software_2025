@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from autonav_msgs.msg import Position, PathingDebug, SafetyLights
+from autonav_msgs.msg import Position, PathingDebug, SafetyLights, AudibleFeedback
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 from geometry_msgs.msg import PoseStamped, Point
@@ -15,6 +15,7 @@ import cv2
 import cv_bridge
 import time
 import threading
+import os
 
 
 GRID_SIZE = 0.1
@@ -30,6 +31,8 @@ class AStarConfig:
         self.waypoint_delay = 18.5
         self.robot_y = 66
         self.use_only_waypoints = False
+        self.waypoint_sound = "~/autonav_software_2025/music/mine_xp.mp3"
+        self.waypoints_started_sound = "~/autonav_software_2025/music/windows-xp-startup.mp3"
         self.waypoints = [
             # [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)],
 
@@ -40,7 +43,7 @@ class AStarConfig:
             [(42.668086, -83.218446)]
 
             # Single IGVC Waypoint
-            # [(42.5918464,-83.1750144)]            
+            # [(42.6679277, -83.2193276)]
 
             # IGVC Real Waypoints
             # [(42.6682623, -83.2193709), (42.6681206, -83.2193606), (42.6680766, -83.2193592), (42.6679277, -83.2193276), (42.6679216, -83.2189126), (42.668130236144883, -83.21889785301433)]
@@ -60,12 +63,14 @@ class AStarNode(Node):
         self.config.robot_y = config["robot_y"]
         self.config.use_only_waypoints = config["use_only_waypoints"]
         self.config.waypoints = config["waypoints"]
+        self.config.waypoint_sound = config["waypoint_sound"]
 
     def init(self):
         self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.onConfigSpaceReceived, 20)
         self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.onPoseReceived, 20)
         self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/debug/astar", 20)
         self.pathPublisher = self.create_publisher(Path, "/autonav/path", 20)
+        self.bigSoundPublisher = self.create_publisher(AudibleFeedback, "/autonav/audible_feedback", 20)
         self.safetyLightsPublisher = self.create_publisher(SafetyLights, "/autonav/SafetyLights", 20)
         self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 20)
         self.nextDebugImage = None
@@ -141,6 +146,20 @@ class AStarNode(Node):
                 self.nextDebugImage = path
 
             time.sleep(0.1)
+
+    def playWaypointSound(self):
+        audio = AudibleFeedback()
+        audio.filename = os.path.expanduser(self.config.waypoint_sound)
+
+        self.bigSoundPublisher.publish(audio)
+
+    
+    def playStartedWaypointingSound(self):
+        audio = AudibleFeedback()
+        audio.filename = os.path.expanduser(self.config.waypoints_started_sound)
+
+        self.bigSoundPublisher.publish(audio)
+    
 
     def createDebug(self):
         while True and rclpy.ok():
@@ -252,6 +271,7 @@ class AStarNode(Node):
             self.waypointTime = 0
             self.push_safety_lights(255, 255, 0, 1, 2)
             self.push_safety_lights(255, 255, 255, 1, 0)
+            self.play_started_waypointing_sound()
         
         if time.time() < self.waypointTime and len(self.waypoints) == 0:
             time_remaining = self.waypointTime - time.time()
@@ -278,6 +298,7 @@ class AStarNode(Node):
                 self.push_safety_lights(255, 255, 255, 1, 0)
                 # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = time.time() + 1.5
+                self.play_waypoint_sound()
 
             pathingDebug = PathingDebug()
             pathingDebug.desired_heading = heading_to_gps
@@ -338,6 +359,7 @@ class AStarNode(Node):
         point.y = new_y
         pose.pose.position = point
         return pose
+
 
 def main():
     rclpy.init()

@@ -35,3 +35,6 @@ autonav_ws/data
 
 # ignore video logs
 data/*.mp4
+
+# ignore sound assets
+music/*
