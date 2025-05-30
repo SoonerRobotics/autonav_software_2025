@@ -42,12 +42,12 @@ class ImageTransformerConfig:
         self.dest_bottom_right = (400, 480)
 
         # Region of disinterest
-        # Order: top-left, top-right, bottom-right, bottom-left
+        # Order: bottom-left, 
         self.blank_robot = [
-            [0, IMAGE_HEIGHT-10],
-            [IMAGE_WIDTH, IMAGE_HEIGHT-10],
-            [0, IMAGE_HEIGHT],
-            [IMAGE_WIDTH, IMAGE_HEIGHT]
+            [40, IMAGE_HEIGHT-80],
+            [IMAGE_WIDTH-1, IMAGE_HEIGHT-80],
+            [IMAGE_WIDTH-1, IMAGE_HEIGHT-1],
+            [0, IMAGE_HEIGHT-1]
         ]
 
         # Disabling
@@ -111,10 +111,6 @@ class ImageTransformer(Node):
 
         self.has_logged = False
 
-        if self.dir == "front":
-            self.log("STARTED!", LogLevel.ERROR)
-
-
     # Blur
     def apply_blur(self, img):
         if self.config.disable_blur:
@@ -142,10 +138,13 @@ class ImageTransformer(Node):
         if self.config.disable_region_of_disinterest:
             return img
 
-        mask = np.ones_like(img) * 255
-        cv2.fillPoly(mask, [np.array(self.config.blank_robot)], 0)
+        # mask = np.ones_like(img) * 255
+        # cv2.fillPoly(mask, [np.array(self.config.blank_robot)], (0, 0, 0))
         
-        return cv2.bitwise_and(img, mask)
+        # return cv2.bitwise_and(img, mask)
+
+        # return cv2.rectangle(img, (0, IMAGE_HEIGHT-80), (IMAGE_WIDTH, IMAGE_HEIGHT), (0, 0, 0))
+        return cv2.rectangle(img, (0, IMAGE_HEIGHT-150), (IMAGE_WIDTH, IMAGE_HEIGHT), (0, 0, 0), cv2.FILLED)
 
     def apply_perspective_transform(self, img, debug=False):
         if self.config.disable_perspective_transform:
@@ -171,7 +170,7 @@ class ImageTransformer(Node):
             # alpha channel (0, 0, 0, 1) is important for combining images later
             flattened = cv2.warpPerspective(img, matrix, (640, 480), borderValue=(0, 0, 0, 1))
         else:
-            flattened = cv2.warpPerspective(img, matrix, (640, 480))
+            flattened = cv2.warpPerspective(img, matrix, (640, 480), borderValue=(0, 0, 0))
 
         return flattened
 
@@ -228,15 +227,20 @@ class ImageTransformer(Node):
 def main():
     rclpy.init()
     
-    nodes = []
+    # nodes = []
 
-    for direction in ["left", "right", "front", "back"]:
-        nodes.append(ImageTransformer(direction))
+    # for direction in ["left", "right", "front", "back"]:
+    #     nodes.append(ImageTransformer(direction))
 
     executor = rclpy.executors.MultiThreadedExecutor()
     
-    for node in nodes:
-        executor.add_node(node)
+    # for node in nodes:
+        # executor.add_node(node)
+    
+    executor.add_node(ImageTransformer("left"))
+    executor.add_node(ImageTransformer("right"))
+    executor.add_node(ImageTransformer("front"))
+    executor.add_node(ImageTransformer("back"))
 
     executor.spin()
     rclpy.shutdown()
