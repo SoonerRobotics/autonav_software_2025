@@ -64,7 +64,7 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 100;
+        config.max_length = 150;
         config.number_of_feelers = 16;
         config.start_angle = 30;
         config.end_angle = 180 - config.start_angle;
@@ -72,8 +72,8 @@ public:
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitMilliseconds = 5000;
-        config.gpsBiasWeight = 75;
-        config.forwardBiasWeight = 55;
+        config.gpsBiasWeight = 50;
+        config.forwardBiasWeight = 25;
 
         this->_config = config;
         this->config = config;
@@ -289,14 +289,14 @@ public:
             // log("biasing my robot rn", AutoNav::Logging::INFO);
 
             // make a vector pointing towards the GPS waypoint
-            int latError = (goalPoint.lat - this->position.latitude) * this->latitudeLength * 3;
-            int lonError = (goalPoint.lon - this->position.longitude) * this->longitudeLength * 3;
+            int latError = (goalPoint.lat - this->position.latitude) * this->latitudeLength * 5;
+            int lonError = (goalPoint.lon - this->position.longitude) * this->longitudeLength * 5;
             double angleToWaypoint = std::atan2(latError, lonError); // all in radians, don't worry
 
             // account for rotation of the robot (aka translate the gps error into camera/robot-relative coordinates, where (0, 0) is the center of the camera frame)
-            double headingError = this->position.theta - angleToWaypoint; //TODO FIXME double check this
+            double headingError = (angleToWaypoint - this->position.theta); //TODO FIXME double check this
             int gps_x = (lonError * std::cos(headingError)) - (latError * std::sin(headingError));
-            int gps_y = -(lonError * std::sin(headingError)) + (latError * std::cos(headingError));
+            int gps_y = (lonError * std::sin(headingError)) + (latError * std::cos(headingError));
             this->gpsFeeler = Feeler(gps_x, gps_y);
 
             // log("GPS FEELER: " + this->gpsFeeler.to_string(), AutoNav::Logging::INFO);
