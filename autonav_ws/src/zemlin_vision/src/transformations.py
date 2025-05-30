@@ -30,7 +30,7 @@ class ImageTransformerConfig:
         self.lower_saturation = 0
         self.lower_value = 0
         self.upper_hue = 255
-        self.upper_saturation = 255
+        self.upper_saturation = 180
         self.upper_value = 210
         self.blur = 5
         self.blur_iterations = 3
@@ -115,7 +115,7 @@ class ImageTransformer(Node):
         mask1 = cv2.inRange(img, lower, upper)
 
         lower = (150, 45, 40)
-        upper = (220, 90, 255)
+        upper = (220, 240, 255)
         mask2 = cv2.inRange(img, lower, upper)
         mask = cv2.add(mask1, mask2)
         mask = 255 - mask

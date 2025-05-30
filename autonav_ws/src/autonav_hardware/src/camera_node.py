@@ -23,7 +23,7 @@ camera_ids = {
     "front":  0,
     # "left" :  2,
     # "right":  4,
-    "back" :  1
+    # "back" :  1
 }
 
 camera_settings = {
@@ -37,7 +37,7 @@ class CameraConfig:
     def __init__(self):
         self.width = 640
         self.height = 480
-        self.frame_rate = 6
+        self.frame_rate = 10
 
 
 # ROS node to grab frames from a camera and publish them to /autonav/camera for the vision pipeline to take
@@ -135,7 +135,7 @@ def main():
         # CameraNode("left"),
         CameraNode("front"),
         # CameraNode("right"),
-        CameraNode("back"),
+        # CameraNode("back"),
     ]
     
     for node in nodes:

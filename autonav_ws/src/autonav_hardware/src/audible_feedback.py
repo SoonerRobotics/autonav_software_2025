@@ -28,6 +28,8 @@ class AudibleFeedbackNode(Node):
         self.main_track = None
         self.old_system_state = self.system_state
 
+    def init(self):
+        self.set_device_state(DeviceState.OPERATING)
         self.log("Audible feedback node started", LogLevel.INFO)
 
         # 
@@ -66,9 +68,10 @@ class AudibleFeedbackNode(Node):
         else:
             filename = str(msg.filename)
             main_track = msg.main_track
-
-            self.play_sound(filename, main_track)
-
+            try:
+                self.play_sound(filename, main_track)
+            except  exception:
+                return
 
     def play_sound(self, filename, main_track: bool):
         if main_track and self.main_track is not None:
@@ -82,8 +85,12 @@ class AudibleFeedbackNode(Node):
             return
         
         playback.volume = self.config.volume
-        playback.play()
-        self.log("music")
+        
+        try:
+            playback.play()
+            self.log("music")
+        except:
+            return
 
         if main_track:
             self.main_track = playback

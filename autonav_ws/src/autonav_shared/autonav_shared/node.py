@@ -7,6 +7,8 @@ import sty
 import time
 import inspect
 import json
+import os
+import signal
 
 
 class Node(RclpyNode):
@@ -96,8 +98,8 @@ class Node(RclpyNode):
         msg.green = green
         msg.blue = blue
         msg.mode = mode
-        msg.brightness = 200
-        msg.blink_period = 100
+        msg.brightness = 255
+        msg.blink_period = 50
         self.safety_light_queue.append((msg, duration))
 
     def safety_light_callback(self) -> None:
@@ -110,7 +112,7 @@ class Node(RclpyNode):
         if time.time() < self.safety_light_next:
             return
         
-        self.log(f"Publishing safety light {self.safety_light_queue[0][0].red}, {self.safety_light_queue[0][0].green}, {self.safety_light_queue[0][0].blue}", LogLevel.DEBUG)
+        # self.log(f"Publishing safety light {self.safety_light_queue[0][0].red}, {self.safety_light_queue[0][0].green}, {self.safety_light_queue[0][0].blue}", LogLevel.DEBUG)
         msg, dur = self.safety_light_queue.pop(0)
         self.safety_light_next = time.time() + dur
         self.safety_lights_pub.publish(msg)
@@ -201,6 +203,10 @@ class Node(RclpyNode):
 
         self.system_state = SystemState(msg.state)
         self.mobility = msg.mobility
+
+        if self.system_state == SystemState.SHUTDOWN:
+            os.kill(os.getpid(), signal.SIGKILL)
+            return
 
         if old_state != self.system_state:
             self.on_system_state_updated(old_state, self.system_state)
