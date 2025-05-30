@@ -8,8 +8,6 @@ from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 from std_msgs.msg import String
 from autonav_msgs.msg import ControllerInput
-import threading
-
 
 JOY_MIN = 0
 JOY_MAX = 65535
@@ -60,9 +58,7 @@ class ControllerInputNode(Node):
             "wildcard": 0.0
         }
 
-        self.debugThread = threading.Thread(target=self.get_inputs_loop)
-        self.debugThread.daemon = True
-        self.debugThread.start()
+        self.get_inputs_loop()
 
 
     def get_controller(self):
@@ -92,7 +88,7 @@ class ControllerInputNode(Node):
 
     def get_inputs_loop(self):
         last_callback_time_s = time.time()
-        while rclpy.ok():
+        while True:
             last_callback_time_s = self.clock_routine(last_callback_time_s)
 
             try: # handle a disconnection

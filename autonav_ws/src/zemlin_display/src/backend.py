@@ -2,7 +2,7 @@
 
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
-from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, ConfigurationUpdate, Position, PathingDebug
+from autonav_msgs.msg import MotorFeedback, GPSFeedback, MotorInput, DeviceState as DeviceStateMsg, SystemState as SystemStateMsg, SwerveAbsoluteFeedback, ConfigurationUpdate, Position
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 import rclpy
@@ -99,34 +99,34 @@ class DisplayBackend(Node):
         self.camera_sub_right = self.create_subscription(
             CompressedImage, "/autonav/camera/right", self.camera_callback_right, 10
         )
-        self.filtered_sub = self.create_subscription(
-            CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
+        self.filered_sub = self.create_subscription(
+            CompressedImage, "/autonav/vision/combined/filtered", self.filtered_callback, 10
         )
-        self.expanded_sub = self.create_subscription(
-            CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
-        )
+        # self.expanded_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
+        # )
 
         self.motor_feedback_sub = self.create_subscription(
             MotorFeedback, "/autonav/motor_feedback", self.motor_feedback_callback, 10
         )
-        self.gps_feedback_sub = self.create_subscription(
-            GPSFeedback, "/autonav/gps", self.gps_feedback, 10
-        )
+        # self.gps_feedback_sub = self.create_subscription(
+        #     GPSFeedback, "/autonav/gps", self.gps_feedback, 10
+        # )
         self.motor_input_sub = self.create_subscription(
             MotorInput, "/autonav/motor_input", self.motor_input_callback, 10
         )
         self.position_sub = self.create_subscription(
             Position, "/autonav/position", self.position_callback, 10
         )
-        self.pathing_debug_sub = self.create_subscription(
-            PathingDebug, "/autonav/debug/astar", self.on_pathing_debug, 10
-        )
-        self.device_state_sub = self.create_subscription(
-            DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
-        )
+        # self.device_state_sub = self.create_subscription(
+        #     DeviceStateMsg, "/autonav/device_state", self._device_state_callback, 10
+        # )
         self.absolute_encoder_sub = self.create_subscription(
             SwerveAbsoluteFeedback, "/autonav/swerve/absolute", self.absolute_encoder_callback, 10
         )        
+        # self.config_web_sub = self.create_subscription(
+        #     ConfigurationUpdate, "/autonav/shared/config/updates", self.on_web_config_updated, 10
+        # )
 
         # Publishers
         self.load_preset_pub = self.create_publisher(
@@ -136,10 +136,6 @@ class DisplayBackend(Node):
             String, "/autonav/presets/save", 10
         )
 
-    def on_other_config_update(self, device: str, config) -> None:
-        self.emit("configs", {
-            "configs": self.other_cfgs
-        })
 
     def camera_callback_front(self, msg: CompressedImage):
         self.camera_last_frame_front = msg
@@ -165,6 +161,11 @@ class DisplayBackend(Node):
             "msg": msg
         }
         self.socketio.emit("message", json.dumps(packet))
+
+    def on_web_config_updated(self, msg: ConfigurationUpdate):
+        self.emit("configs", {
+            "configs": msg.configs
+        })
 
     def _device_state_callback(self, msg: DeviceState):
         self.emit("device_state", {
@@ -212,9 +213,7 @@ class DisplayBackend(Node):
         self.emit("position", {
             "x": msg.x,
             "y": msg.y,
-            "theta": msg.theta,
-            "latitude": msg.latitude,
-            "longitude": msg.longitude
+            "theta": msg.theta
         })
 
     def motor_input_callback(self, msg: MotorInput):
@@ -238,20 +237,6 @@ class DisplayBackend(Node):
             "gps_fix": msg.gps_fix,
             # "is_locked": msg.is_locked,
             "num_satellites": msg.num_satellites
-        })
-
-    def on_pathing_debug(self, msg: PathingDebug):
-        waypoints = []
-        for i in range(0, len(msg.waypoints), 2):
-            waypoints.append((msg.waypoints[i], msg.waypoints[i + 1]))
-        
-        self.emit("pathing_debug", {
-            "desired_latitude": msg.desired_latitude,
-            "desired_longitude": msg.desired_longitude,
-            "desired_heading": msg.desired_heading,
-            "distance_to_destination": msg.distance_to_destination,
-            "time_until_use_waypoints": msg.time_until_use_waypoints,
-            "waypoints": waypoints,
         })
 
     def init_flask_server(self):
@@ -393,19 +378,6 @@ class DisplayBackend(Node):
             else:
                 self.log("No preset ID provided", LogLevel.ERROR)
 
-        @socketio.on("set_config")
-        def handle_set_config(device, config):
-            """Handle setting a configuration for a device."""
-            if device and config:
-                self.log(f"Setting config for {device}: {config}", LogLevel.INFO)
-                self._broadcast_config(device, config)
-                self.other_cfgs[device] = config
-                self.emit("configs", {
-                    "configs": self.other_cfgs
-                })
-            else:
-                self.log("No device or config provided", LogLevel.ERROR)
-
         @socketio.on("set_system_state")
         def handle_set_system_state(state):
             """Handle setting the system state."""
@@ -444,7 +416,10 @@ class DisplayBackend(Node):
 
         @socketio.on("connect")
         def handle_connect():
-            """Handle a new client connection."""            
+            """Handle a new client connection."""
+            self.log("Client connected", LogLevel.INFO)
+            
+            # Send the current system state
             system_state = {
                 "state": self.get_system_state(),
                 "mobility": self.is_mobility()

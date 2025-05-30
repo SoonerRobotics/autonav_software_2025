@@ -115,18 +115,16 @@ class CanSparkMax:
             self.setPeriodicFrameTime(2, 50) # Set Periodic Status 2 to 50ms intervals
             self.setPeriodicFrameTime(3, 50) # Set Periodic Status 2 to 50ms intervals
             # self.setPeriodicFrameTime(4, 5000) # Set Periodic Status 4 to 50ms intervals
-            self.getParameter(0) # gets the can id of the device
+            # self.getParameter(0) # gets the can id of the device
             self.has_set_status = True
             self.set_time = 0
         
         if breakdown.api_class == 6 and breakdown.api_index == 34:
             # this should be the current motor position:
             # take the first 4 bytes
-            # self.node.log("received data length: " + str(len(msg.data)))
             try:
                 first_four = msg.data[0:4]
                 position = dataToFloat(first_four)
-                # self.node.log(f"position callback: {position} for {self.id} and class {breakdown.api_class} and index {breakdown.api_index}")
                 self.drive_position_ = position
                 # print(f"position callback: {position} for {self.id}")
             except Exception as e:

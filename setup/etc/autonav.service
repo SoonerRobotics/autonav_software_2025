@@ -4,12 +4,10 @@ Description=Autonav 2025 Service
 [Service]
 Type=simple
 User=scr
-Group=audio
 Restart=always
 RestartSec=5s
 Environment="DISPLAY=:0"
 Environment="XAUTHORITY=/home/scr/.Xauthority"
-Environment="PULSE_RUNTIME_PATH=/run/user/1000/pulse/"
 ExecStart=/bin/bash /usr/bin/autonav_service.sh
 
 [Install]

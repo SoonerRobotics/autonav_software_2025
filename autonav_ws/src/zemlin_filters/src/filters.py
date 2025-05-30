@@ -3,7 +3,6 @@
 from autonav_msgs.msg import MotorFeedback, GPSFeedback, Position, ParticleFilterDebug
 from particlefilter import ParticleFilter
 from deadrekt import DeadReckoningFilter
-from bearing import BearingFilter
 from autonav_msgs.msg import Position
 from autonav_shared.node import Node
 from autonav_shared.types import DeviceState, SystemState
@@ -14,14 +13,13 @@ import math
 
 class FilterType(IntEnum):
     DEAD_RECKONING = 0,
-    PARTICLE_FILTER = 1,
-    BEARING_FILTER = 2
+    PARTICLE_FILTER = 1
 
 class FiltersConfig:
     def __init__(self):
-        self.filter_type = FilterType.BEARING_FILTER
-        self.latitude_length = 111086.2
-        self.longitude_length = 81978.2
+        self.filter_type = FilterType.PARTICLE_FILTER
+        self.latitude_length = 110944.2
+        self.longitude_length = 91065.46
 
 class FiltersNode(Node):
     def __init__(self):
@@ -32,7 +30,6 @@ class FiltersNode(Node):
         self.firstGps = None
 
         self.pf = ParticleFilter(self.config.latitude_length, self.config.longitude_length)
-        self.bf = BearingFilter(self.config.latitude_length, self.config.longitude_length)
         self.reckoning = DeadReckoningFilter()
         
         self.reset()
@@ -56,14 +53,10 @@ class FiltersNode(Node):
 
     def reset(self):
         self.reckoning.reset()
-        self.bf.reset()
         self.pf.init_particles()
 
     def on_system_state_updated(self, old, new):
         if old != SystemState.AUTONOMOUS and new == SystemState.AUTONOMOUS:
-            self.reset()
-            
-        if old != SystemState.MANUAL and new == SystemState.MANUAL:
             self.reset()
 
     def on_mobility_updated(self, old, new):
@@ -80,19 +73,6 @@ class FiltersNode(Node):
         # Technically we should not run both and we should only run the one that is active
         self.pf.gps(msg)
         self.reckoning.gps(msg)
-        
-        if self.config.filter_type == FilterType.BEARING_FILTER:
-            x, y, theta = self.bf.gps(msg)
-            if theta == None:
-                return
-            
-            position = Position()
-            position.x = x
-            position.y = y
-            position.theta = (2 * math.pi) - theta
-            position.latitude = msg.latitude
-            position.longitude = msg.longitude
-            self.positionPublisher.publish(position)
 
     def on_publish_debug(self):
         if self.config.filter_type == FilterType.PARTICLE_FILTER:
@@ -104,10 +84,8 @@ class FiltersNode(Node):
         averages = None
         if self.config.filter_type == FilterType.DEAD_RECKONING:
             averages = self.reckoning.feedback(msg)
-        elif self.config.filter_type == FilterType.PARTICLE_FILTER:
+        else:    
             averages = self.pf.feedback(msg)
-        else:
-            return
             
         if averages is None:
             return
@@ -116,8 +94,6 @@ class FiltersNode(Node):
         position.x = averages[0]
         position.y = averages[1]
         position.theta = averages[2]
-
-        # self.log(f"Position: {position.x}, {position.y}, {position.theta}")
         
         if self.firstGps is not None:
             gps_x = self.firstGps.latitude + position.x / self.config.latitude_length

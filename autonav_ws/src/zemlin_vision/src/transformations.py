@@ -10,7 +10,8 @@ from geometry_msgs.msg import Pose
 from cv_bridge import CvBridge
 
 from autonav_shared.node import Node
-from autonav_shared.types import LogLevel, DeviceState, SystemState
+from autonav_shared.types import DeviceState
+
 
 g_bridge = CvBridge()
 g_mapData = MapMetaData()
@@ -24,32 +25,27 @@ g_mapData.origin.position.y = -10.0
 MAP_RES = 80
 
 
-class ImageTransformerConfig:
+class TransformationsConfig:
     def __init__(self):
         self.lower_hue = 0
         self.lower_saturation = 0
         self.lower_value = 0
         self.upper_hue = 255
-        self.upper_saturation = 180
+        self.upper_saturation = 95
         self.upper_value = 210
+        self.flatten_param = 0.3
         self.blur = 5
         self.blur_iterations = 3
-        self.region_of_disinterest_offset = 30
+        self.region_of_disinterest_offset = 45
 
 
 class ImageTransformer(Node):
     def __init__(self):
-        super().__init__("autonav_vision_transformer")
-        self.config = ImageTransformerConfig()
+        super().__init__("zemlin_vision_transformations")
 
-    def init(self):
-        self.cameraSubscriber = self.create_subscription(CompressedImage, "/autonav/camera/front", self.onImageReceived, 1)
-        self.rawMapPublisher = self.create_publisher(OccupancyGrid, "/autonav/cfg_space/raw", 1)
-        self.filteredImagePublisher = self.create_publisher(CompressedImage, "/autonav/cfg_space/raw/image", 1)
-        self.set_device_state(DeviceState.OPERATING)
+        self.config = TransformationsConfig()
 
     def apply_config(self, config):
-        self.log("Applying new configuration to ImageTransformer")
         self.config.lower_hue = config["lower_hue"]
         self.config.lower_saturation = config["lower_saturation"]
         self.config.lower_value = config["lower_value"]
@@ -59,46 +55,54 @@ class ImageTransformer(Node):
         self.config.blur = config["blur"]
         self.config.blur_iterations = config["blur_iterations"]
         self.config.region_of_disinterest_offset = config["region_of_disinterest_offset"]
+        self.config.flatten_param = config["flatten_param"]
 
-    def getBlur(self):
+    def init(self):
+        self.camera_sub = self.create_subscription(CompressedImage, "/autonav/camera/front", self.on_image_received, 1)
+        self.raw_map_pub = self.create_publisher(OccupancyGrid, "/autonav/cfg_space/raw", 1)
+        self.filtered_pub = self.create_publisher(CompressedImage, "/autonav/cfg_space/raw/image", 1)
+
+        self.set_device_state(DeviceState.OPERATING)
+
+    def get_blur(self):
         blur = self.config.blur
         blur = max(1, blur)
         return (blur, blur)
 
-    def regionOfDisinterest(self, img, vertices):
+    def region_of_interest(self, img, vertices):
         mask = np.ones_like(img) * 255
         cv2.fillPoly(mask, vertices, 0)
         masked_image = cv2.bitwise_and(img, mask)
         return masked_image
 
-    def flattenImage(self, img):
-        top_left = (int)(img.shape[1] * 0.26), (int)(img.shape[0])
-        top_right = (int)(img.shape[1] - img.shape[1] * 0.26), (int)(img.shape[0])
+    def flatten(self, img):
+        top_left = (int)(img.shape[1] * self.config.flatten_param), (int)(img.shape[0])
+        top_right = (int)(img.shape[1] - img.shape[1] * self.config.flatten_param), (int)(img.shape[0])
         bottom_left = 0, 0
         bottom_right = (int)(img.shape[1]), 0
 
         src_pts = np.float32([[top_left], [top_right], [bottom_left], [bottom_right]])
-        dest_pts = np.float32([ [0, 480], [640, 480] ,[0, 0], [640, 0]])
+        dest_pts = np.float32([[0, 400], [640, 400], [200, 0], [440, 0]])
 
         matrix = cv2.getPerspectiveTransform(dest_pts, src_pts)
         output = cv2.warpPerspective(img, matrix, (640, 480))
         return output
 
-    def publishOccupancyMap(self, img):
+    def publish_map(self, img):
         datamap = cv2.resize(img, dsize=(MAP_RES, MAP_RES), interpolation=cv2.INTER_LINEAR) / 2
         flat = list(datamap.flatten().astype(int))
         msg = OccupancyGrid(info=g_mapData, data=flat)
-        self.rawMapPublisher.publish(msg)
+        self.raw_map_pub.publish(msg)
 
-    def onImageReceived(self, image: CompressedImage):
-        self.perf_start("Image Transformation")
-
+    def on_image_received(self, image: CompressedImage):
+        self.perf_start("transformations")
+        
         # Decompressify
         cv_image = g_bridge.compressed_imgmsg_to_cv2(image)
 
         # Blur it up
         for _ in range(self.config.blur_iterations):
-            cv_image = cv2.blur(cv_image, self.getBlur())
+            cv_image = cv2.blur(cv_image, self.get_blur())
 
         # Apply filter and return a mask
         img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
@@ -112,44 +116,45 @@ class ImageTransformer(Node):
             self.config.upper_saturation,
             self.config.upper_value
         )
-        mask1 = cv2.inRange(img, lower, upper)
-
-        lower = (150, 45, 40)
-        upper = (220, 240, 255)
-        mask2 = cv2.inRange(img, lower, upper)
-        mask = cv2.add(mask1, mask2)
+        mask = cv2.inRange(img, lower, upper)
         mask = 255 - mask
 
         # Apply region of disinterest and flattening
         height = img.shape[0]
         width = img.shape[1]
-        region_of_disinterest_vertices=[
+        # region_of_disinterest_vertices=[
+        #     (0, height),
+        #     (width / 2, height / 2 + self.config.region_of_disinterest_offset),
+        #     (width, height)
+        # ]
+        # mask = self.region_of_interest(mask, np.array([region_of_disinterest_vertices], np.int32))
+        # mask[mask < 250] = 0
+        
+        # Cut off a 50 by 50 px square from the bottom center
+        vertices = [
             (0, height),
-            ((width / 2) - 200, height / 2 + self.config.region_of_disinterest_offset),
-            ((width / 2) + 200, height / 2 + self.config.region_of_disinterest_offset),
+            (width / 2 - 50, height / 2 + self.config.region_of_disinterest_offset),
+            (width / 2 + 50, height / 2 + self.config.region_of_disinterest_offset),
             (width, height)
         ]
-        mask = self.regionOfDisinterest(mask, np.array([region_of_disinterest_vertices], np.int32))
-        mask[mask < 250] = 0
+        mask = self.region_of_interest(mask, np.array([vertices], np.int32))
 
-        mask = self.flattenImage(mask)
+        mask = self.flatten(mask)
 
+        # Actually generate the map
+        self.publish_map(mask)
+        
         preview_image = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-        cv2.polylines(preview_image, np.array([region_of_disinterest_vertices], np.int32), True, (0, 255, 0), 2)
         preview_msg = g_bridge.cv2_to_compressed_imgmsg(preview_image)
         preview_msg.header = image.header
         preview_msg.format = "jpeg"
-        self.filteredImagePublisher.publish(preview_msg)
+        self.filtered_pub.publish(preview_msg)
 
-        # Actually generate the map
-        self.publishOccupancyMap(mask)
-
-        self.perf_stop("Image Transformation")
-
+        self.perf_stop("transformations")
 
 def main():
     rclpy.init()
-    rclpy.spin(ImageTransformer())
+    Node.run_node(ImageTransformer())
     rclpy.shutdown()
 
 

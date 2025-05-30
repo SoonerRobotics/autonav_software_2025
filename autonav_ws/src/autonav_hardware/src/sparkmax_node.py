@@ -71,9 +71,6 @@ class SparkMAXNode(Node):
     #TODO: is there a better way to do this? maybe have a timer in each object itself? 
     # I feel like this should be more abstracted away, at least from this file
     def send_heartbeat(self):
-        if self.get_system_state() == SystemState.DISABLED:
-            return
-
         for idx, motor in enumerate(self.motors):
             motor.sendHeartbeat()
 

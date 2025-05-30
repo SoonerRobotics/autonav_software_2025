@@ -1,42 +1,25 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useSocket } from "@/providers/SocketProvider"
-
-const devices = [
-    { name: "Vision Transformer", node: "autonav_vision_transformer" },
-    { name: "Vision Expandifier", node: "autonav_vision_expandifier" },
-    { name: "Filters", node: "zemlin_filters" },
-    { name: "Display Backend", node: "autonav_sd_display" },
-    { name: "AStar", node: "autonav_nav_astar" },
-    { name: "Controller Interface", node: "autonav_controller_input" },
-    { name: "Manual Controller", node: "autonav_manual" },
-    { name: "SparkMAX CAN Interface", node: "sparkmax_can_node" },
-    { name: "Twistopher CAN Interface", node: "autonav_can" },
-    { name: "Audible Feedback", node: "audible_feedback_node" },
-    { name: "Camera Node", node: "autonav_camera_front" },
-]
-
-const stateMap = {
-    0: {
-        label: "Off",
-        color: "#131313",
-    },
-    1: {
-        label: "Warming",
-        color: "#f59e0b",
-    },
-    2: {
-        label: "Ready",
-        color: "#22c55e",
-    },
-    3: {
-        label: "Operating",
-        color: "#2563eb",
-    },
-}
 
 export function DeviceList() {
-    const { deviceStates } = useSocket();
+    // Mock device data
+    const devices = [
+        { name: "Vision Combiner", node: "autonav_vision_combiner", status: 0 },
+        { name: "Vision Transformer (Front)", node: "autonav_vision_transformer_front", status: 0 },
+        { name: "Vision Transformer (Back)", node: "autonav_vision_transformer_back", status: 0 },
+        { name: "Vision Transformer (Left)", node: "autonav_vision_transformer_left", status: 0 },
+        { name: "Vision Transformer (Right)", node: "autonav_vision_transformer_right", status: 0 },
+        { name: "Controller Interface", node: "controller_input", status: 0 },
+        { name: "Manual Controller", node: "manual25_node", status: 0 },
+        { name: "SparkMAX CAN Interface", node: "sparkmax_can_node", status: 0 },
+        { name: "Twistopher CAN Interface", node: "CAN_node", status: 0 },
+        { name: "Audible Feedback", node: "audible_feedback_node", status: 0 },
+        { name: "Camera Node (Front)", node: "autonav_camera_front", status: 0 },
+        { name: "Camera Node (Back)", node: "autonav_camera_back", status: 0 },
+        { name: "Camera Node (Left)", node: "autonav_camera_left", status: 0 },
+        { name: "Camera Node (Right)", node: "autonav_camera_right", status: 0 },
+        { name: "Feelers", node: "autonav_camera_right", status: 0 },
+    ]
 
     return (
         <Card>
@@ -44,23 +27,19 @@ export function DeviceList() {
                 <CardTitle>Nodes</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="space-y-2 overflow-auto">
-                    {devices.map((device, index) => {
-                        const state = deviceStates[device.node] || 0; // Default to 0 if not found
-                        const name = device.name || device.node;
-                        return (<div key={index} className="flex items-start justify-between py-1 border-b last:border-0">
-                            <span className="text-sm">{name}</span>
+                <div className="space-y-2 max-h-96 overflow-auto">
+                    {devices.map((device, index) => (
+                        <div key={index} className="flex items-start justify-between py-1 border-b last:border-0">
+                            <span className="text-sm">{device.name}</span>
                             <Badge
-                                variant="default"
-                                style={{
-                                    backgroundColor: (stateMap as any)[state]?.color || "#e5e7eb",
-                                    color: "#ffffff"
-                                }}
+                                variant={
+                                    device.status === 0 ? "outline" : device.status === 1 ? "secondary" : "destructive"
+                                }
                             >
-                                {(stateMap as any)[state]?.label || "Unknown"}
+                                {device.status == 0 ? "Off" : device.status == 1 ? "Warming" : device.status == 2 ? "Ready" : device.status == 3 ? "Operating" : "Unknown"}
                             </Badge>
-                        </div>);
-                    })}
+                        </div>
+                    ))}
                 </div>
             </CardContent>
         </Card>

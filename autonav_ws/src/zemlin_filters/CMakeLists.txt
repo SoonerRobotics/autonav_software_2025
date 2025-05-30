@@ -15,7 +15,6 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python executables
 install(PROGRAMS
 	src/filters.py
-	src/bearing.py
 	src/deadrekt.py
 	src/particlefilter.py
 	DESTINATION lib/${PROJECT_NAME}

@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 
-from autonav_msgs.msg import Position, PathingDebug, SafetyLights
+from autonav_msgs.msg import Position, PathingDebug
 from autonav_shared.node import Node
-from autonav_shared.types import LogLevel, DeviceState, SystemState
+from autonav_shared.types import DeviceState, SystemState
 from geometry_msgs.msg import PoseStamped, Point
+from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid, Path
 import rclpy
 import math
 import copy
 from heapq import heappush, heappop
-from sensor_msgs.msg import CompressedImage
 import numpy as np
 import cv2
 import cv_bridge
 import time
-import threading
 
 
 GRID_SIZE = 0.1
@@ -22,70 +21,55 @@ VERTICAL_CAMERA_DIST = 2.75
 HORIZONTAL_CAMERA_DIST = 3
 CV_BRIDGE = cv_bridge.CvBridge()
 
+simulation_waypoints = [
+    # [(35.19510000, -97.43895000), (35.19491000, -97.43896000), (35.1948357, -97.43896), (35.19467540, -97.43895)],  # NORTH
+    # [(35.19467540, -97.43895), (35.1948357, -97.43896), (35.19491000, -97.43896000), (35.19510000, -97.43895000)],  # SOUTH
+    # [(35.194725, -97.43858), (35.1947823, -97.4387), (35.1948547, -97.43876), (35.1949272, -97.43867), (35.1950035, -97.43881)], # PRACTICE
+    # [(35.19506, -97.43824), (35.19491, -97.43824), (35.19484, -97.43824), (35.19472, -97.43823)],
+    # [(35.1946925701, -97.43824015821), (35.1948395, -97.4382399732), (35.19490722283, -97.4382322135), (35.195061777, -97.4382329409)]
+    [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)]
+]
+
+
 class AStarConfig:
     def __init__(self):
-        self.latitude_length = 111086.2
-        self.longitude_length = 81978.2
-        self.waypoint_pop_distance = 2.0
-        self.waypoint_delay = 18.5
-        self.robot_y = 66
+        self.waypoint_pop_distance = 3
+        self.waypoint_direction = 0
         self.use_only_waypoints = False
-        self.waypoints = [
-            # [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)],
+        self.waypoint_delay = 20.5
+        self.latitude_length = 110944.2
+        self.longitude_length = 91065.46
 
-            # E-Quad path
-            # [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)],
-
-            # IGVC Qualification Points
-            [(42.668086, -83.218446)]
-
-            # Single IGVC Waypoint
-            # [(42.5918464,-83.1750144)]            
-
-            # IGVC Real Waypoints
-            # [(42.6682623, -83.2193709), (42.6681206, -83.2193606), (42.6680766, -83.2193592), (42.6679277, -83.2193276), (42.6679216, -83.2189126), (42.668130236144883, -83.21889785301433)]
-        ]
 
 class AStarNode(Node):
     def __init__(self):
-        super().__init__("autonav_nav_astar")
+        super().__init__("zemlin_astar")
         self.config = AStarConfig()
-        self.onReset()
-
-    def apply_config(self, config):
-        self.config.latitude_length = config["latitude_length"]
-        self.config.longitude_length = config["longitude_length"]
-        self.config.waypoint_pop_distance = config["waypoint_pop_distance"]
-        self.config.waypoint_delay = config["waypoint_delay"]
-        self.config.robot_y = config["robot_y"]
-        self.config.use_only_waypoints = config["use_only_waypoints"]
-        self.config.waypoints = config["waypoints"]
+        self.on_reset()
 
     def init(self):
-        self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.onConfigSpaceReceived, 20)
-        self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.onPoseReceived, 20)
-        self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/debug/astar", 20)
-        self.pathPublisher = self.create_publisher(Path, "/autonav/path", 20)
-        self.safetyLightsPublisher = self.create_publisher(SafetyLights, "/autonav/SafetyLights", 20)
-        self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 20)
-        self.nextDebugImage = None
-        self.mapThread = threading.Thread(target=self.createPath)
-        self.mapThread.daemon = True
-        self.mapThread.start()
-        # self.debugThread = threading.Thread(target=self.createDebug)
-        # self.debugThread.daemon = True
-        # self.debugThread.start()
-
+        self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.cfg_space_received, 10)
+        self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.on_position_received, 10)
+        self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 10)
+        self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/pathing_debug", 10)
+        self.pathPublisher = self.create_publisher(Path, "/autonav/path", 10)
+        self.mapTimer = self.create_timer(0.1, self.create_path)
         self.resetWhen = -1.0
 
-        self.set_device_state(DeviceState.OPERATING)
+    def apply_config(self, config):
+        self.config.waypoint_pop_distance = config["waypoint_pop_distance"]
+        self.config.waypoint_direction = config["waypoint_direction"]
+        self.config.use_only_waypoints = config["use_only_waypoints"]
+        self.config.waypoint_delay = config["waypoint_delay"]
+        self.config.latitude_length = config["latitude_length"]
+        self.config.longitude_length = config["longitude_length"]
 
-    def getAngleDifference(self, to_angle, from_angle):
+    def angle_diff(self, to_angle, from_angle):
         delta = to_angle - from_angle
         delta = (delta + math.pi) % (2 * math.pi) - math.pi
         return delta
         
-    def onReset(self):
+    def on_reset(self):
         self.lastPath = None
         self.position = None
         self.configSpace = None
@@ -94,92 +78,76 @@ class AStarNode(Node):
         self.waypoints = []
         self.waypointTime = 0.0
 
-    def getWaypointsForDirection(self):
-        return self.config.waypoints[0]
+    def get_waypoints(self):
+        return simulation_waypoints[0]
 
     def on_system_state_updated(self, old, new):
-        if new == SystemState.AUTONOMOUS and self.mobility and len(self.waypoints) == 0:
-            self.log(f"Waypoints will activate in {self.config.waypoint_delay} seconds")
-            self.waypointTime = time.time() + self.config.waypoint_delay
+        if new == SystemState.AUTONOMOUS and self.is_mobility() and len(self.waypoints) == 0:
             self.push_safety_lights(255, 255, 255, 1, 0)
-
-        if new == SystemState.AUTONOMOUS and not self.mobility:
-            self.push_safety_lights(255, 0, 130, 0, 0)
-            
-        if new != SystemState.AUTONOMOUS and self.get_device_state() == DeviceState.OPERATING:
-            self.onReset()
-            # self.push_safety_lights(255, 255, 255, 0, 0) - Handled in manual node
-
-    def on_mobility_updated(self, old, new):
-        if self.get_system_state() == SystemState.AUTONOMOUS and new and len(self.waypoints) == 0:
-            self.log(f"Waypoints will activate in {self.config.waypoint_delay} seconds")
-            self.waypointTime = time.time() + self.config.waypoint_delay
-            self.push_safety_lights(255, 255, 255, 1, 0)
-            
-        if (self.get_system_state() != SystemState.AUTONOMOUS or not new) and self.get_device_state() == DeviceState.OPERATING:
-            self.onReset()
-
-        if old == True and new == False and self.get_system_state() == SystemState.AUTONOMOUS:
+            self.waypointTime = self.get_time_seconds() + self.config.waypoint_delay
+        
+        if new != SystemState.AUTONOMOUS and self.device_states.get(self.get_name()) == DeviceState.OPERATING:
             self.push_safety_lights(255, 255, 255, 0, 0)
+            self.on_reset()
             
-    def onPoseReceived(self, msg: Position):
+    def on_mobility_updated(self, old, new):
+        if new == True and old == False and self.system_state == SystemState.AUTONOMOUS:
+            self.push_safety_lights(255, 255, 255, 1, 0)
+            self.waypointTime = self.get_time_seconds() + self.config.waypoint_delay
+            
+        if new == False and old == True:
+            self.push_safety_lights(255, 255, 255, 0, 0)
+            self.on_reset()
+            
+    def on_position_received(self, msg: Position):
         self.position = msg
         
-    def createPath(self):
-        while True and rclpy.ok():
-            if self.position is None or self.costMap is None:
-                time.sleep(0.1)
-                continue
+    def create_path(self):
+        if self.position is None or self.costMap is None:
+            return
+        
+        self.perf_start("create_path")
+
+        robot_pos = (40, 68)
+        path = self.find_path_to_point(robot_pos, self.bestPosition, self.costMap, 80, 80)
+        if path is not None:
+            global_path = Path()
+            global_path.poses = [self.pathToGlobalPose(pp[0], pp[1]) for pp in path]
+            self.lastPath = path
+            self.pathPublisher.publish(global_path)
+
+            # # Draw the cost map onto a debug iamge
+            cvimg = np.zeros((80, 80), dtype=np.uint8)
+            for i in range(80):
+                for j in range(80):
+                    val = self.costMap[i * 80 + j] * 255
+                    cvimg[i, j] = min(255, max(0, val))
+            cvimg = cv2.cvtColor(cvimg, cv2.COLOR_GRAY2RGB)
+
+            for pp in path:
+                cv2.circle(cvimg, (pp[0], pp[1]), 1, (0, 255, 0), 1)
+
+            cv2.circle(cvimg, (self.bestPosition[0], self.bestPosition[1]), 1, (255, 0, 0), 1)
             
-            robot_pos = (40, self.config.robot_y)
-            path = self.findPathToPoint(robot_pos, self.bestPosition, self.costMap, 80, 80)
-            if path is not None:
-                global_path = Path()
-                global_path.poses = [self.pathToGlobalPose(pp[0], pp[1]) for pp in path]
-                self.lastPath = path
-                self.pathPublisher.publish(global_path)
-                self.nextDebugImage = path
+            cvimg = cv2.resize(cvimg, (800, 800), interpolation=cv2.INTER_NEAREST)
+            self.pathDebugImagePublisher.publish(CV_BRIDGE.cv2_to_compressed_imgmsg(cvimg))
 
-            time.sleep(0.1)
-
-    def createDebug(self):
-        while True and rclpy.ok():
-            path = self.nextDebugImage
-            if self.nextDebugImage is not None and self.costMap is not None:
-                # Draw the cost map onto a debug iamge
-                cvimg = np.zeros((80, 80), dtype=np.uint8)
-                for i in range(80):
-                    for j in range(80):
-                        cvimg[i, j] = self.costMap[ i * 80 + j ] * 255
-                cvimg = cv2.cvtColor(cvimg, cv2.COLOR_GRAY2RGB)
-
-                for pp in path:
-                    cv2.circle(cvimg, (pp[0], pp[1]), 1, (0, 255, 0), 1)
-
-                cv2.circle(cvimg, (self.bestPosition[0], self.bestPosition[1]), 1, (255, 0, 0), 1)
-                
-                cvimg = cv2.resize(cvimg, (800, 800), interpolation=cv2.INTER_NEAREST)
-                self.pathDebugImagePublisher.publish(CV_BRIDGE.cv2_to_compressed_imgmsg(cvimg))
-                self.nextDebugImage = None
-            time.sleep(0.05)
-
-    def reconstructPath(self, path, current):
+        self.perf_stop("create_path")
+            
+    def reconstruct(self, path, current):
         total_path = [current]
 
         while current in path:
             current = path[current]
             total_path.append(current)
 
-        self.perf_stop("A*")
         return total_path[::-1]
         
-    def findPathToPoint(self, start, goal, map, width, height):
+    def find_path_to_point(self, start, goal, map, width, height):
         looked_at = np.zeros((80, 80))
         open_set = [start]
         path = {}
         search_dirs = []
-
-        self.perf_start("A*")
 
         for x in range(-1, 2):
             for y in range(-1, 2):
@@ -212,7 +180,7 @@ class AStarNode(Node):
             looked_at[current[0],current[1]] = 1
 
             if current == goal:
-                return self.reconstructPath(path, current)
+                return self.reconstruct(path, current)
 
             open_set.remove(current)
             for delta_x, delta_y, dist in search_dirs:
@@ -230,38 +198,37 @@ class AStarNode(Node):
                         open_set.append(neighbor)
                         heappush(next_current, (fScore[neighbor], neighbor))
                     
-    def onConfigSpaceReceived(self, msg: OccupancyGrid):
-        if self.position is None:
+    def cfg_space_received(self, msg: OccupancyGrid):        
+        if self.position is None or self.system_state != SystemState.AUTONOMOUS:
             return
-
-        self.perf_start("Smellification")
+        
+        self.perf_start("astar_pathfinding")
 
         grid_data = msg.data
-        temp_best_pos = (40, self.config.robot_y)
+        temp_best_pos = (40, 68)
         best_pos_cost = -1000
 
         frontier = set()
-        frontier.add((40, self.config.robot_y))
+        frontier.add((40, 68))
         explored = set()
 
-        if self.config.use_only_waypoints == True:
+        if self.config.use_only_waypoints:
             grid_data = [0] * len(msg.data)
             
-        if len(self.waypoints) == 0 and time.time() > self.waypointTime and self.waypointTime != 0:
-            self.waypoints = [wp for wp in self.getWaypointsForDirection()]
-            self.waypointTime = 0
+        if len(self.waypoints) == 0 and self.get_time_seconds() > self.waypointTime and self.waypointTime != 0:
             self.push_safety_lights(255, 255, 0, 1, 2)
             self.push_safety_lights(255, 255, 255, 1, 0)
-        
-        if time.time() < self.waypointTime and len(self.waypoints) == 0:
-            time_remaining = self.waypointTime - time.time()
+            self.waypoints = [wp for wp in self.get_waypoints()]
+            self.waypointTime = 0
+
+        if self.get_time_seconds() < self.waypointTime and len(self.waypoints) == 0:
+            time_remaining = self.waypointTime - self.get_time_seconds()
             pathingDebug = PathingDebug()
             pathingDebug.waypoints = []
             pathingDebug.time_until_use_waypoints = time_remaining
             self.debugPublisher.publish(pathingDebug)
 
-        if time.time() > self.resetWhen and self.resetWhen != -1 and self.mobility:
-            # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#FFFFFF"))
+        if self.get_time_seconds() > self.resetWhen and self.resetWhen != -1 and self.is_mobility():
             self.resetWhen = -1
 
         if len(self.waypoints) > 0:
@@ -274,10 +241,7 @@ class AStarNode(Node):
                 self.push_safety_lights(0, 255, 0, 1, 2)
                 self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
-                self.push_safety_lights(255, 0, 255, 1, 2)
-                self.push_safety_lights(255, 255, 255, 1, 0)
-                # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
-                self.resetWhen = time.time() + 1.5
+                self.resetWhen = self.get_time_seconds() + 1.5
 
             pathingDebug = PathingDebug()
             pathingDebug.desired_heading = heading_to_gps
@@ -300,9 +264,8 @@ class AStarNode(Node):
                 cost = (80 - y) * 1.3 + depth * 2.2
 
                 if len(self.waypoints) > 0:
-                    heading_err_to_gps = abs(self.getAngleDifference(self.position.theta + math.atan2(40 - x, 80 - y), heading_to_gps)) * 180 / math.pi
+                    heading_err_to_gps = abs(self.angle_diff(self.position.theta + math.atan2(40 - x, 80 - y), heading_to_gps)) * 180 / math.pi
                     cost -= max(heading_err_to_gps, 10)
-                    # cost -= max(heading_err_to_gps, 30)
 
                 if cost > best_pos_cost:
                     best_pos_cost = cost
@@ -324,7 +287,8 @@ class AStarNode(Node):
 
         self.costMap = grid_data
         self.bestPosition = temp_best_pos
-        self.perf_stop("Smellification")
+
+        self.perf_stop("astar_pathfinding")
         
     def pathToGlobalPose(self, pp0, pp1):
         x = (80 - pp1) * VERTICAL_CAMERA_DIST / 80
@@ -341,7 +305,7 @@ class AStarNode(Node):
 
 def main():
     rclpy.init()
-    rclpy.spin(AStarNode())
+    Node.run_node(AStarNode())
     rclpy.shutdown()
 
 
