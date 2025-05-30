@@ -64,7 +64,7 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 150;
+        config.max_length = 125;
         config.number_of_feelers = 16;
         config.start_angle = 30;
         config.end_angle = 180 - config.start_angle;
@@ -458,6 +458,7 @@ public:
         safetyLightsMsg.blue = 0;
         safetyLightsMsg.green = 0;
         safetyLightsMsg.mode = 1; // if we passed the system state check at the beginning of the function and reach this line of code then we're in auto
+        safetyLightsMsg.blink_period = 200;
 
         // if we are allowed to move (earlier check means we are already in auto and operating, so don't have to recheck those)
         if (this->is_mobility()) {
