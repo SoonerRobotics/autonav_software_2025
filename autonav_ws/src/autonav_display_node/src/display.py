@@ -1,5 +1,4 @@
 #!/usr/bin/env -S python3
-# TODO DO NOT COMMIT THIS FILE!! IT SHOULD BE REVERTED ONCE YOU GET WS WORKING
 import asyncio
 import json
 import threading
@@ -23,34 +22,34 @@ class Topics(Enum):# todo refactor to json file being read in..
     BROADCAST = "/autonav/shared/autonav_display_broadcast"
     SYSTEM_STATE = "/autonav/shared/system"
     DEVICE_STATE = "/autonav/shared/device"
-    LOG = "/autonav/shared/log"#todo confirm implementation
+    LOG = "/autonav/shared/log"
 
     # IMU Data
     IMU = "/autonav/imu"
     AUTONAV_GPS = "/autonav/gps"
     MOTOR_INPUT = "/autonav/motor_input"
     POSITION = "/autonav/position"
-    CONTROLLER_INPUT = '/autonav/controller_input'#todo confirm implementation
+    CONTROLLER_INPUT = '/autonav/controller_input'
 
     # Motor and System Feedback
     MOTOR_FEEDBACK = "/autonav/motor_feedback"
-    NUC_STATISTICS = "/autonav/statistics"#todo implement in index
-    ULTRASONICS = "/autonav/ultrasonic"#todo implement in index
-    CONBUS_DATA = "/autonav/conbus/data"#todo confirm implementation
-    CONBUS_INSTRUCTION = "/autonav/conbus/instruction"#todo confirm implementation
+    NUC_STATISTICS = "/autonav/statistics"
+    ULTRASONICS = "/autonav/ultrasonic"
+    CONBUS_DATA = "/autonav/conbus/data"
+    CONBUS_INSTRUCTION = "/autonav/conbus/instruction"
 
     # Aliases for backward compatibility
-    CONBUS = "/autonav/conbus/data"#todo confirm implementation
-    SAFETY_LIGHTS = "/autonav/safety_lights"#todo implement in index
-    PERFORMANCE = "/autonav/performance"#todo implement in index
+    CONBUS = "/autonav/conbus/data"
+    SAFETY_LIGHTS = "/autonav/safety_lights"
+    PERFORMANCE = "/autonav/performance"
 
     # PID and Motor Statistics
-    LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics"#todo confirm implementation
-    ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics"#todo confirm implementation
-    MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors"#todo confirm implementation
-    MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors"#todo confirm implementation
-    CAN_STATS = "/autonav/can_stats"#todo confirm implementation
-    ZERO_ENCODERS = "/autonav/zero_encoders"#todo confirm implementation
+    LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics"
+    ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics"
+    MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors"
+    MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors"
+    CAN_STATS = "/autonav/can_stats"
+    ZERO_ENCODERS = "/autonav/zero_encoders"
 
     # Raw camera
     RAW_LEFT = "/autonav/camera/left"
@@ -60,17 +59,17 @@ class Topics(Enum):# todo refactor to json file being read in..
 
     # Other Camera Nodes
     COMBINED_IMAGE = "/autonav/vision/combined/filtered"
-    FEELERS = "/autonav/feelers/debug"  # todo implement in index
+    FEELERS = "/autonav/feelers/debug"  
 
     # Configuration
-    CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"#todo confirm implementation
-    CONFIGURATION_UPDATE = "/autonav/shared/config/updates" #todo implement in index
-    CONFIG_PRESTS_LOAD = "/autonav/presets/load"#todo implement in index
-    CONFIG_PRESTS_SAVE = "/autonav/presets/save"#todo implement in index
+    CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"
+    CONFIGURATION_UPDATE = "/autonav/shared/config/updates" 
+    CONFIG_PRESTS_LOAD = "/autonav/presets/load"
+    CONFIG_PRESTS_SAVE = "/autonav/presets/save"
 
     # Others
-    PLAYBACK = "/autonav/autonav_playback"  # TODO see how to feed this data in
-    AUDIBLE_FEEDBACK = '/autonav/audible_feedback'  # todo implement!
+    PLAYBACK = "/autonav/autonav_playback"  # 
+    AUDIBLE_FEEDBACK = '/autonav/audible_feedback'  
 
 
 async_loop = asyncio.new_event_loop()
