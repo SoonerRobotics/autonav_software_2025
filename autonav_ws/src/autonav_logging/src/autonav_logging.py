@@ -159,10 +159,20 @@ class LoggingNode(Node):
 
 
     def on_system_state_updated(self, old, new):
-        if self.file == None and (new == SystemStateEnum.MANUAL or new == SystemStateEnum.AUTONOMOUS):
+        if self.file == None and (new == SystemStateEnum.AUTONOMOUS or new == SystemStateEnum.MANUAL):
             self.create_entry()
-        elif new != SystemStateEnum.MANUAL and new != SystemStateEnum.AUTONOMOUS and self.file != None:
-            self.close_entry(old)       
+            return
+
+        if self.file != None and (old == SystemStateEnum.AUTONOMOUS or old == SystemStateEnum.MANUAL) and (new != SystemStateEnum.AUTONOMOUS and new != SystemStateEnum.MANUAL):
+            self.close_entry(new.value)
+            return
+        
+        # if the system state was autonomous or manual, and the new state is still autonomous or manual, close the old file and create a new oen
+        if self.file != None and (old == SystemStateEnum.AUTONOMOUS or old == SystemStateEnum.MANUAL) and (new == SystemStateEnum.AUTONOMOUS or new == SystemStateEnum.MANUAL):
+            self.close_entry(old.value)
+            self.create_entry()
+            return
+
     
     def append_event(self, event_type: str, event):
         if self.file == None:

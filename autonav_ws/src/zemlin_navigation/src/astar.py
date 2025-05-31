@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from autonav_msgs.msg import Position, PathingDebug, SafetyLights, AudibleFeedback
+from autonav_msgs.msg import Position, PathingDebug, SafetyLights, AudibleFeedback, WaypointReached
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 from geometry_msgs.msg import PoseStamped, Point
@@ -43,7 +43,10 @@ class AStarConfig:
             # [(42.668086, -83.218446)]
 
             # Single IGVC Waypoint
-            [(42.6679277, -83.2193276)]
+            # [(42.6679277, -83.2193276)]
+
+            # The REAL (TM) QUAL POINT
+            [(42.6683230, -83.2183619)]
 
             # IGVC Real Waypoints
             # [(42.6682623, -83.2193709), (42.6681206, -83.2193606), (42.6680766, -83.2193592), (42.6679277, -83.2193276), (42.6679216, -83.2189126), (42.668130236144883, -83.21889785301433)]
@@ -53,6 +56,7 @@ class AStarNode(Node):
     def __init__(self):
         super().__init__("autonav_nav_astar")
         self.config = AStarConfig()
+        self.reached_first_waypoint = False
         self.onReset()
 
     def apply_config(self, config):
@@ -70,6 +74,7 @@ class AStarNode(Node):
         self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.onPoseReceived, 20)
         self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/debug/astar", 20)
         self.pathPublisher = self.create_publisher(Path, "/autonav/path", 20)
+        self.waypointReachedPublisher = self.create_publisher(WaypointReached, "/autonav/waypoint_reached", 20)
         self.bigSoundPublisher = self.create_publisher(AudibleFeedback, "/autonav/audible_feedback", 20)
         self.safetyLightsPublisher = self.create_publisher(SafetyLights, "/autonav/SafetyLights", 20)
         self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 20)
@@ -87,6 +92,7 @@ class AStarNode(Node):
         self.lastPath = None
         self.position = None
         self.configSpace = None
+        self.reached_first_waypoint = False
         self.costMap = None
         self.bestPosition = (0, 0)
         self.waypoints = []
@@ -280,14 +286,21 @@ class AStarNode(Node):
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypoint_pop_distance:
-                self.push_safety_lights(0, 255, 0, 1, 2)
+                if self.reached_first_waypoint:
+                    self.push_safety_lights(0, 255, 0, 1, 2)
+                else:
+                    self.push_safety_lights(0, 0, 255, 1, 2)
+                    self.reached_first_waypoint = True
                 self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
-                self.push_safety_lights(255, 0, 255, 1, 2)
-                self.push_safety_lights(255, 255, 255, 1, 0)
                 # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = time.time() + 1.5
-                self.playWaypointSound()
+                self.waypointReachedPublisher.publish(WaypointReached(
+                    latitude=next_waypoint[0],
+                    longitude=next_waypoint[1],
+                    tag="peepeepoopoo"
+                ))
+                # self.playWaypointSound()
 
             pathingDebug = PathingDebug()
             pathingDebug.desired_heading = heading_to_gps
