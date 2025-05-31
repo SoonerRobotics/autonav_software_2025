@@ -15,7 +15,7 @@ class AudibleFeedbackConfig:
     def __init__(self):
         self.volume = 20.0
         self.on_start_sound = os.path.expanduser('~/autonav_software_2025/music/mine_xp.mp3')
-        self.autonomous_transition_filepath = os.path.expanduser('~/autonav_software_2025/music/imposter.mp3')
+        self.autonomous_transition_filepath = os.path.expanduser('~/autonav_software_2025/music/imposter2.mp3')
         self.manual_transition_filepath = os.path.expanduser('~/autonav_software_2025/music/manual_mode.mp3')
         self.disabled_transition_filepath = os.path.expanduser('~/autonav_software_2025/music/robot_disabled.mp3')
 

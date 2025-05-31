@@ -152,10 +152,36 @@ public:
 
         // log("FEELERS READY!", AutoNav::Logging::WARN); //FIXME TODO
         //FIXME this is for temporary debug purposes while we are minus a UI
-        this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
+        // this->set_system_state(AutoNav::SystemState::AUTONOMOUS, true);
 
         this->hasPlayedGps = false;
         this->hasPlayedHorn = false;
+        // this->old_state = AutoNav::DeviceState::READY;
+    }
+
+    void on_system_state_updated(const AutoNav::SystemState old, const AutoNav::SystemState new_state) {
+        autonav_msgs::msg::SafetyLights msg;
+
+        if (old == AutoNav::SystemState::AUTONOMOUS && new_state != AutoNav::SystemState::AUTONOMOUS) {
+            // rainbow
+            msg.mode = 3;
+            this->safetyLightsPublisher->publish(msg);
+        } else if (new_state == AutoNav::SystemState::AUTONOMOUS) {
+            msg.blink_period = 30;
+            msg.red = 250;
+            msg.blue = 250;
+            msg.green = 250;
+            msg.mode = 2; // auto
+            this->safetyLightsPublisher->publish(msg);            
+        } else if (new_state == AutoNav::SystemState::MANUAL) {
+            msg.red = 200;
+            msg.green = 200;
+            msg.blue = 0;
+            msg.mode = 1;
+            this->safetyLightsPublisher->publish(msg);
+        }
+
+        // this->old_state = new_state;
     }
 
     void on_config_updated(const json &old_cfg, const json &new_cfg) override {
@@ -486,7 +512,7 @@ public:
         //TODO figure out what sounds we actually want to play and when
         bool publishAudible = true;
         if (distToWaypoint < config.waypointPopDist && this->direction != "" && !this->hasPlayedGps) {
-            feedback_msg.filename = "ding.mp3";
+            feedback_msg.filename = "~/autonav_software_2025/music/mine_xp.mp3";
 
             // green for a little bit
             safetyLightsMsg.red = 10;
@@ -495,7 +521,7 @@ public:
 
             this->hasPlayedGps = true;
         } else if (this->direction != "" && !this->hasPlayedHorn) {
-            feedback_msg.filename = "horn.mp3";
+            feedback_msg.filename = "~/autonav_software_2025/music/windows-xp-startup.mp3";
             this->hasPlayedHorn = true;
         } else {
             publishAudible = false;
