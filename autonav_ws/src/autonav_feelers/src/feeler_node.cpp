@@ -71,7 +71,7 @@ public:
         config.balance_feelers = false;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
-        config.gpsWaitMilliseconds = 5000;
+        config.gpsWaitMilliseconds = 5000*20;
         config.gpsBiasWeight = 50;
         config.forwardBiasWeight = 25;
 
@@ -157,10 +157,17 @@ public:
         this->hasPlayedGps = false;
         this->hasPlayedHorn = false;
         // this->old_state = AutoNav::DeviceState::READY;
+
+        this->on_system_state_updated(AutoNav::SystemState::SHUTDOWN, AutoNav::SystemState::DISABLED);
     }
 
-    void on_system_state_updated(const AutoNav::SystemState old, const AutoNav::SystemState new_state) {
+    void on_system_state_updated(const AutoNav::SystemState old, const AutoNav::SystemState new_state) override {
         autonav_msgs::msg::SafetyLights msg;
+        msg.brightness = 200;
+        msg.blink_period = 0;
+        msg.mode = 1;
+
+        // this->log("Safety lights: " + std::to_string(msg.brightness) + ", " + std::to_string(msg.blink_period) + ", " + std::to_string(msg.mode), AutoNav::Logging::INFO);
 
         if (old == AutoNav::SystemState::AUTONOMOUS && new_state != AutoNav::SystemState::AUTONOMOUS) {
             // rainbow
@@ -468,7 +475,7 @@ public:
      */
     void publishOutputMessages() {
         // if we aren't in autonomous
-        if (this->get_system_state() != AutoNav::SystemState::AUTONOMOUS && this->get_device_state() != AutoNav::DeviceState::OPERATING) {
+        if ((this->get_system_state() != AutoNav::SystemState::AUTONOMOUS) || (this->get_device_state() != AutoNav::DeviceState::OPERATING)) {
             return; // return because we don't need to do anything (so as to avoid conflicting with manual control if that's running)
         }
 
@@ -480,11 +487,12 @@ public:
         autonav_msgs::msg::AudibleFeedback feedback_msg;
 
         // default in auto should be red
-        safetyLightsMsg.red = 255;
-        safetyLightsMsg.blue = 0;
-        safetyLightsMsg.green = 0;
+        safetyLightsMsg.red = 250;
+        safetyLightsMsg.blue = 250;
+        safetyLightsMsg.green = 250;
+        safetyLightsMsg.brightness = 200;
         safetyLightsMsg.mode = 1; // if we passed the system state check at the beginning of the function and reach this line of code then we're in auto
-        safetyLightsMsg.blink_period = 200;
+        safetyLightsMsg.blink_period = 20;
 
         // if we are allowed to move (earlier check means we are already in auto and operating, so don't have to recheck those)
         if (this->is_mobility()) {
