@@ -55,6 +55,7 @@ struct FeelerNodeConfig {
     unsigned long gpsWaitMilliseconds; // time to wait before using GPS waypoints, in milliseconds
     int gpsBiasWeight; // pixels
     int forwardBiasWeight; // pixels
+    int backwardsBiasWeight;
     
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, end_angle, balance_feelers, waypointPopDist, ultrasonic_contribution, gpsWaitMilliseconds, gpsBiasWeight, forwardBiasWeight);
 };
@@ -64,16 +65,17 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 200;
+        config.max_length = 150;
         config.number_of_feelers = 16;
-        config.start_angle = 30;
+        config.start_angle = 25;
         config.end_angle = 180 - config.start_angle;
-        config.balance_feelers = false;
+        config.balance_feelers = true;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitMilliseconds = 5000*20;
-        config.gpsBiasWeight = 50;
-        config.forwardBiasWeight = 25;
+        config.gpsBiasWeight = 60;
+        config.forwardBiasWeight = 150;
+        config.backwardsBiasWeight = 20;
 
         this->_config = config;
         this->config = config;
@@ -215,18 +217,26 @@ public:
             for (double angle = wrapAngle(this->config.start_angle + 180); angle < wrapAngle(this->config.end_angle + 180); angle += ((this->config.end_angle - this->config.start_angle) / this->config.number_of_feelers)) {
                 int x = this->config.max_length * cos(radians(angle)); //int should truncate these to nice whole numbers
                 int y = this->config.max_length * sin(radians(angle));
-            
+                
                 this->feelers.push_back(Feeler(x, y));
             }
         }
-
+        
         // bias feelers forwards
-        Feeler forwardsFeeler = Feeler(0, 100); // positive (?!) y is upwards in an image
+        Feeler forwardsFeeler = Feeler(10, 100); // positive (?!) y is upwards in an image
         for (int i = 0; i < this->feelers.size(); i++) {
             this->feelers.at(i).bias(this->config.forwardBiasWeight * (this->feelers.at(i) * forwardsFeeler));
-
+            
             // log("BIAS AMOUNT: " + std::to_string(this->feelers.at(i).getBiasAmount()));
         }
+        
+        // bias backwards feelers backwards TODO FIXME this doesn't work
+        // Feeler backwardsFeeler = Feeler(10, -50);
+        // for (int i = 0; i < this->feelers.size(); i++) {
+        //     this->feelers.at(i).bias(this->config.backwardsBiasWeight * (this->feelers.at(i) * backwardsFeeler));
+
+        //     // log("BIAS AMOUNT: " + std::to_string(this->feelers.at(i).getBiasAmount()));
+        // }
 
         log("FEELERS BUILT! NUMBER OF FEELERS: " + std::to_string(this->feelers.size()), AutoNav::Logging::INFO);
     }
@@ -501,11 +511,12 @@ public:
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
             //FIXME the clamping should be configurable or something
-            msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 30, -1.25, 1.25); //FIXME configure divider number thingy
+            msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()), -2.0, 2.0); //FIXME configure divider number thingy
+            // msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 30, -1.25, 1.25); //FIXME configure divider number thingy
             // msg.sideways_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //FIXME configure divider number thingy
             msg.sideways_velocity = 0.0;
             // msg.angular_velocity = std::clamp(static_cast<double>(this->headingArrow.getX()) / 60, -1.0, 1.0); //TODO figure out when we want to turn
-            msg.angular_velocity = std::clamp(this->headingPID.calculate(this->headingArrow.getX()), -1.0, 1.0); //TODO figure out when we want to turn
+            msg.angular_velocity = std::clamp(this->headingPID.calculate(this->headingArrow.getX()), -1.25, 1.25); //TODO figure out when we want to turn
 
             //TODO safety lights need to change to other colors and stuff for debug information
         } else {
