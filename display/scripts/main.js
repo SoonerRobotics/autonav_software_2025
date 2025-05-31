@@ -77,6 +77,12 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                     onTopicData(topic, obj);
                 }
 
+                if (op === "get_log_files_callback" || op === "get_log_file_content_callback") {
+                    if (typeof handleWebSocketMessage === "function") {
+                        handleWebSocketMessage(obj);
+                    }
+                }
+
                 if (op === "get_presets_callback") {
 
                     const serverPresets = obj.presets || [];

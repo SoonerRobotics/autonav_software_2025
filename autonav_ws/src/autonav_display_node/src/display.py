@@ -3,6 +3,8 @@ import asyncio
 import json
 import threading
 import time
+import os
+import glob
 
 import cv2
 import cv_bridge
@@ -465,6 +467,23 @@ class BroadcastNode(Node):
                     "mobility": self.mobility
                 }
             }), uid)
+        elif obj.get("op") == "get_log_files":
+
+            log_files = self.get_log_files()
+            self.push_old(json.dumps({
+                "op": "get_log_files_callback",
+                "log_files": log_files
+            }), uid)
+        elif obj.get("op") == "get_log_file_content":
+
+            log_file_path = obj.get("log_file_path")
+            if log_file_path:
+                content = self.get_log_file_content(log_file_path)
+                self.push_old(json.dumps({
+                    "op": "get_log_file_content_callback",
+                    "log_file_path": log_file_path,
+                    "content": content
+                }), uid)
         elif obj.get("op") == "get_configuration":
             device = obj.get("device")
             if device:
@@ -593,6 +612,86 @@ class BroadcastNode(Node):
     def cameraCallback(self, msg: CompressedImage, key: str):
         topic = getattr(Topics, f"RAW_{key.upper()}" if key in ['left', 'right', 'front', 'back'] else f"FEELERS").value
         self.push_image(topic, msg)
+
+    def get_log_files(self):
+        log_files = []
+        home_dir = os.path.expanduser("~")
+        log_base_dir = os.path.join(home_dir, ".autonav", "logs")
+
+
+        if not os.path.exists(log_base_dir):
+            return log_files
+
+
+        for mode in ["manual", "autonomous"]:
+            mode_dir = os.path.join(log_base_dir, mode)
+            if os.path.exists(mode_dir):
+
+                timestamp_dirs = glob.glob(os.path.join(mode_dir, "*"))
+                for timestamp_dir in timestamp_dirs:
+                    if os.path.isdir(timestamp_dir):
+
+                        timestamp = os.path.basename(timestamp_dir)
+
+
+                        log_file = os.path.join(timestamp_dir, "output.suslog")
+                        if os.path.exists(log_file):
+                            log_files.append({
+                                "mode": mode,
+                                "timestamp": timestamp,
+                                "path": log_file,
+                                "size": os.path.getsize(log_file)
+                            })
+
+
+        zip_files = glob.glob(os.path.join(log_base_dir, "*.zip"))
+        for zip_file in zip_files:
+            filename = os.path.basename(zip_file)
+
+            parts = filename.split("_", 1)
+            if len(parts) == 2:
+                mode = parts[0]
+                timestamp = parts[1].replace(".zip", "")
+                log_files.append({
+                    "mode": mode,
+                    "timestamp": timestamp,
+                    "path": zip_file,
+                    "size": os.path.getsize(zip_file),
+                    "is_zip": True
+                })
+
+
+        log_files.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return log_files
+
+    def get_log_file_content(self, log_file_path):
+        """
+        Get the content of a log file
+        Returns the content as a string or an error message
+        """
+        try:
+            if not os.path.exists(log_file_path):
+                return {"error": "File not found"}
+
+
+            if log_file_path.endswith(".zip"):
+                return {"error": "Zip files cannot be viewed directly"}
+
+
+            with open(log_file_path, "r") as f:
+                content = f.read()
+
+
+            try:
+                parsed_content = json.loads(content)
+                return {"content": parsed_content}
+            except json.JSONDecodeError:
+
+                return {"content": content, "is_plain_text": True}
+
+        except Exception as e:
+            return {"error": str(e)}
 
     def init(self):
         self.set_device_state(AutonavDeviceState.OPERATING)

@@ -27,11 +27,10 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" data-page-id="vision">Vision</a>
-                <!--
-                <li class="nav-item">
-                    <a class="nav-link" data-page-id="logging">Logging</a>
-                </li>
-                -->
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-page-id="logging">Logging</a>
+            </li>
             <li class="nav-item">
                 <a class="nav-link" data-page-id="configuration">Configuration</a>
             </li>
@@ -577,21 +576,39 @@
         </div>
     </div>
     <div class="page" id="logging">
-        <button class="btn btn-primary" id="clear_log" type="button">
-            Clear
-        </button>
-        <table class="table">
-            <thead>
-            <tr>
-                <th scope="col">Timestamp</th>
-                <th scope="col">Node</th>
-                <th scope="col">Message</th>
-            </tr>
-            </thead>
-            <tbody id="log_body">
-
-            </tbody>
-        </table>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Log Files</h5>
+                        <button class="btn btn-primary btn-sm" id="refresh_log_files" type="button">
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group" id="log_files_list">
+                            <!-- Log files will be listed here -->
+                            <div class="text-center">
+                                <p>Loading log files...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title" id="log_file_title">Log File Content</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="log_file_content">
+                            <!-- Log file content will be displayed here -->
+                            <p class="text-center">Select a log file to view its content</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="page" id="performance">
         <div class="divider">
@@ -651,6 +668,7 @@
 <script src="scripts/main.js"></script>
 <script src="scripts/pageNavigator.js"></script>
 <script src="scripts/connectingNotification.js"></script>
+<script src="scripts/logging.js"></script>
 </body>
 
 </html>
