@@ -1,4 +1,5 @@
 #include "autonav_shared/node.hpp"
+#include <unistd.h>
 
 namespace AutoNav
 {
@@ -152,6 +153,11 @@ namespace AutoNav
         if (has_mobility != old_mobility)
         {
             on_mobility_updated(old_mobility, has_mobility);
+        }
+
+        if (system_state == SystemState::SHUTDOWN)
+        {
+            kill(getpid(), SIGKILL);
         }
     }
 
