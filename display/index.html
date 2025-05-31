@@ -27,11 +27,10 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" data-page-id="vision">Vision</a>
-                <!--
-                <li class="nav-item">
-                    <a class="nav-link" data-page-id="logging">Logging</a>
-                </li>
-                -->
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-page-id="logging">Logging</a>
+            </li>
             <li class="nav-item">
                 <a class="nav-link" data-page-id="configuration">Configuration</a>
             </li>
@@ -151,16 +150,34 @@
             <div class="section" id="images">
                 <!-- TODO Can I make this auto width/height? So it will resize when I take out other parts? -->
                 <div class="roww">
-                    <img class="target_raw_camera_right" data-type="regular">
-                    <img class="target_raw_camera_left" data-type="regular">
+                    <div class="text-center">
+                        <h6>Right Camera</h6>
+                        <img class="target_raw_camera_right" data-type="regular">
+                    </div>
+                    <div class="text-center">
+                        <h6>Left Camera</h6>
+                        <img class="target_raw_camera_left" data-type="regular">
+                    </div>
                 </div>
                 <div class="roww">
-                    <img class="target_raw_camera_front" data-type="small">
-                    <img class="target_raw_camera_back" data-type="small">
+                    <div class="text-center">
+                        <h6>Front Camera</h6>
+                        <img class="target_raw_camera_front" data-type="small">
+                    </div>
+                    <div class="text-center">
+                        <h6>Back Camera</h6>
+                        <img class="target_raw_camera_back" data-type="small">
+                    </div>
                 </div>
                 <div class="roww">
-                    <img class="target_combined" data-type="small">
-                    <img class="target_feelers" data-type="small">
+                    <div class="text-center">
+                        <h6>Combined View</h6>
+                        <img class="target_combined" data-type="small">
+                    </div>
+                    <div class="text-center">
+                        <h6>Feelers</h6>
+                        <img class="target_feelers" data-type="small">
+                    </div>
                 </div>
             </div>
         </div>
@@ -282,10 +299,6 @@
                 </div>
             </div>
 
-
-            <!-- Dev mode button was going to add but no real need to
-            <button class="btn btn-secondary" id="toggle_dev_mode" type="button" style="border: 1px solid rgba(255,255,255,0); padding: 10px; background: transparent">Toggle Development Mode</button>        </div>
-            -->
             <div class="d-flex justify-content-center mb-3">
                 <div class="flex-column">
                     <h2 style="text-align: center">Presets</h2>
@@ -312,11 +325,223 @@
                                 Load Preset
                             </button>
                             <ul aria-labelledby="dropdown_preset" class="dropdown-menu" id="dropdown_elements">
-                                <li><a class="dropdown-item" data-value="alpha">Alpha</a></li>
-                                <li><a class="dropdown-item" data-value="beta">Beta</a></li>
-                                <li><a class="dropdown-item" data-value="charlie">Charlie</a></li>
-                                <li><a class="dropdown-item" data-value="delta">Delta</a></li>
+                                <!-- Preset items will be dynamically populated by JavaScript -->
                             </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device Configuration Section -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="mb-3">Device Configuration</h3>
+            </div>
+        </div>
+
+        <div class="row" data-type="columns">
+            <!-- Vision Transformer Column -->
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Vision Transformer</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="region_of_disinterest_offset">Region of Disinterest Offset</label>
+                            <input type="number" class="form-control" id="region_of_disinterest_offset" min="0" max="100" step="1">
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6>Lower Thresholds</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group mb-2">
+                                    <label for="lower_hue">Lower Hue Threshold</label>
+                                    <input type="number" class="form-control" id="lower_hue" min="0" max="255" step="1" placeholder="0-255">
+                                </div>
+                                <div class="form-group mb-2">
+                                    <label for="lower_saturation">Lower Saturation Threshold</label>
+                                    <input type="number" class="form-control" id="lower_saturation" min="0" max="255" step="1" placeholder="0-255">
+                                </div>
+                                <div class="form-group mb-2">
+                                    <label for="lower_value">Lower Value Threshold</label>
+                                    <input type="number" class="form-control" id="lower_value" min="0" max="255" step="1" placeholder="0-255">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6>Upper Thresholds</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group mb-2">
+                                    <label for="upper_hue">Upper Hue Threshold</label>
+                                    <input type="number" class="form-control" id="upper_hue" min="0" max="255" step="1" placeholder="0-255">
+                                </div>
+                                <div class="form-group mb-2">
+                                    <label for="upper_saturation">Upper Saturation Threshold</label>
+                                    <input type="number" class="form-control" id="upper_saturation" min="0" max="255" step="1" placeholder="0-255">
+                                </div>
+                                <div class="form-group mb-2">
+                                    <label for="upper_value">Upper Value Threshold</label>
+                                    <input type="number" class="form-control" id="upper_value" min="0" max="255" step="1" placeholder="0-255">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6>Blurring</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group mb-2">
+                                    <label for="blur">Blur Radius</label>
+                                    <input type="number" class="form-control" id="blur" min="0" max="100" step="1">
+                                </div>
+                                <div class="form-group mb-2">
+                                    <label for="blur_iterations">Blur Iterations</label>
+                                    <input type="number" class="form-control" id="blur_iterations" min="0" max="100" step="1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-secondary" id="reset_vision_transformer">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- A* Navigation Column -->
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">A* Navigation</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="latitude_length">Latitude Length</label>
+                            <input type="number" class="form-control" id="latitude_length" min="0" max="1000000" step="0.1" value="111086.2">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="longitude_length">Longitude Length</label>
+                            <input type="number" class="form-control" id="longitude_length" min="0" max="1000000" step="0.1" value="91978.2">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="waypoint_pop_distance">Waypoint Pop Distance</label>
+                            <input type="number" class="form-control" id="waypoint_pop_distance" min="0" max="1000" step="0.1" value="1.0">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="waypoint_delay">Waypoint Delay</label>
+                            <input type="number" class="form-control" id="waypoint_delay" min="0" max="1000" step="0.1" value="10">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="robot_y">Robot Y Offset</label>
+                            <input type="number" class="form-control" id="robot_y" min="-1000" max="1000" step="1" value="70">
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="use_only_waypoints">
+                            <label class="form-check-label" for="use_only_waypoints">Use Only Waypoints</label>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-secondary" id="reset_astar_navigation">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Path Resolver Column -->
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Path Resolver</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="forward_speed">Forward Speed</label>
+                            <input type="number" class="form-control" id="forward_speed" min="-10" max="10" step="0.1" value="0.5">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="reverse_speed">Reverse Speed</label>
+                            <input type="number" class="form-control" id="reverse_speed" min="-10" max="10" step="0.1" value="-0.5">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="angular_aggressiveness">Angular Aggressiveness</label>
+                            <input type="number" class="form-control" id="angular_aggressiveness" min="0.1" max="100.0" step="0.1" value="1.0">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="max_angular_speed">Max Angular Speed</label>
+                            <input type="number" class="form-control" id="max_angular_speed" min="0.1" max="10.0" step="0.1" value="1.0">
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6>Pure Pursuit</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group mb-2">
+                                    <label for="radius_multiplier">Radius Multiplier</label>
+                                    <input type="number" class="form-control" id="radius_multiplier" min="0.1" value="1.0">
+                                </div>
+                                <div class="form-group mb-2">
+                                    <label for="radius_max">Max Radius</label>
+                                    <input type="number" class="form-control" id="radius_max" min="0.1" value="1.0">
+                                </div>
+                                <div class="form-group mb-2">
+                                    <label for="radius_start">Start Radius</label>
+                                    <input type="number" class="form-control" id="radius_start" min="0.1" value="0.5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-secondary" id="reset_path_resolver">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Position Filters Column -->
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Position Filters</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="filter_latitude_length">Latitude Length</label>
+                            <input type="number" class="form-control" id="filter_latitude_length" min="0" max="1000000" step="0.1" value="111086.2">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="filter_longitude_length">Longitude Length</label>
+                            <input type="number" class="form-control" id="filter_longitude_length" min="0" max="1000000" step="0.1" value="91978.2">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="filter_type">Filter Type</label>
+                            <select class="form-select" id="filter_type">
+                                <option value="0">Dead Reckoning</option>
+                                <option value="1">Particle Filter</option>
+                                <option value="2">Bearing Filter</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-secondary" id="reset_position_filters">Reset</button>
                         </div>
                     </div>
                 </div>
@@ -351,21 +576,39 @@
         </div>
     </div>
     <div class="page" id="logging">
-        <button class="btn btn-primary" id="clear_log" type="button">
-            Clear
-        </button>
-        <table class="table">
-            <thead>
-            <tr>
-                <th scope="col">Timestamp</th>
-                <th scope="col">Node</th>
-                <th scope="col">Message</th>
-            </tr>
-            </thead>
-            <tbody id="log_body">
-
-            </tbody>
-        </table>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Log Files</h5>
+                        <button class="btn btn-primary btn-sm" id="refresh_log_files" type="button">
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group" id="log_files_list">
+                            <!-- Log files will be listed here -->
+                            <div class="text-center">
+                                <p>Loading log files...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title" id="log_file_title">Log File Content</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="log_file_content">
+                            <!-- Log file content will be displayed here -->
+                            <p class="text-center">Select a log file to view its content</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="page" id="performance">
         <div class="divider">
@@ -383,12 +626,30 @@
             <h3>Camera Feeds</h3>
         </div>
         <div class="section">
-            <img class="target_raw_camera_left" data-type="fullwidth">
-            <img class="target_raw_camera_right" data-type="fullwidth">
-            <img class="target_raw_camera_front" data-type="fullwidth">
-            <img class="target_raw_camera_back" data-type="fullwidth">
-            <img class="target_combined" data-type="fullwidth">
-            <img class="target_feelers" data-type="fullwidth">
+            <div class="mb-3">
+                <h5 class="text-center">Left Camera</h5>
+                <img class="target_raw_camera_left" data-type="fullwidth">
+            </div>
+            <div class="mb-3">
+                <h5 class="text-center">Right Camera</h5>
+                <img class="target_raw_camera_right" data-type="fullwidth">
+            </div>
+            <div class="mb-3">
+                <h5 class="text-center">Front Camera</h5>
+                <img class="target_raw_camera_front" data-type="fullwidth">
+            </div>
+            <div class="mb-3">
+                <h5 class="text-center">Back Camera</h5>
+                <img class="target_raw_camera_back" data-type="fullwidth">
+            </div>
+            <div class="mb-3">
+                <h5 class="text-center">Combined View</h5>
+                <img class="target_combined" data-type="fullwidth">
+            </div>
+            <div class="mb-3">
+                <h5 class="text-center">Feelers</h5>
+                <img class="target_feelers" data-type="fullwidth">
+            </div>
         </div>
     </div>
 </main>
@@ -407,6 +668,7 @@
 <script src="scripts/main.js"></script>
 <script src="scripts/pageNavigator.js"></script>
 <script src="scripts/connectingNotification.js"></script>
+<script src="scripts/logging.js"></script>
 </body>
 
 </html>

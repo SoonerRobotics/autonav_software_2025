@@ -2,8 +2,13 @@ $(document).ready(function () {
     $('.page').hide();
     $('.page:first').show();
 
-    // When any a tag with a class of nav-link is clicked, get the corresponding div of page with data-page-id attribute and show it
+
     $('.nav-link').on('click', function () {
+        // Bootstrap tab? skip
+        if ($(this).attr('data-bs-toggle')) {
+            return;
+        }
+
         const activeNav = $('.nav-link.active'); //grabs all elements with .nav-link.active classes
         //console.log(activeNav.attr('data-page-id')); //prints out the page id came from
         activeNav.removeClass('active');//Disable current tab
