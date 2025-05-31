@@ -132,8 +132,8 @@ private:
 
 	nav_msgs::msg::MapMetaData map;
 	
-	float maxRange = 0.55;
-	float noGoPercent = 0.65;
+	float maxRange = 0.6;
+	float noGoPercent = 0.7;
 	int robotY = 68;
 	int noGoRange = 0;
 	std::vector<Circle> circles;

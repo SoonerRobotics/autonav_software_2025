@@ -106,7 +106,7 @@ class SparkMAXNode(Node):
             msg.forward_velocity,
             msg.sideways_velocity,
             msg.angular_velocity
-        ), 0.1)
+        ), 0.01)
 
         # publish feedback
         feedback_msg = MotorFeedback()

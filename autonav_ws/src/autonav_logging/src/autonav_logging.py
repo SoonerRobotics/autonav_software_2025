@@ -46,7 +46,7 @@ camera_topics = [
     # Feelers Debug
     "/autonav/feelers/debug",
 ]
-FPS = 10
+FPS = 8
 
 
 class LoggingNode(Node):

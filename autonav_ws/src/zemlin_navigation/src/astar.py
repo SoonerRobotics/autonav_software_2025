@@ -28,7 +28,7 @@ class AStarConfig:
         self.latitude_length = 111086.2
         self.longitude_length = 81978.2
         self.waypoint_pop_distance = 2.0
-        self.waypoint_delay = 60
+        self.waypoint_delay = 50
         self.robot_y = 66
         self.use_only_waypoints = False
         self.waypoint_sound = "~/autonav_software_2025/music/mine_xp.mp3"
@@ -40,10 +40,10 @@ class AStarConfig:
             # [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)],
 
             # IGVC Qualification Points
-            [(42.668086, -83.218446)]
+            # [(42.668086, -83.218446)]
 
             # Single IGVC Waypoint
-            # [(42.6679277, -83.2193276)]
+            [(42.6679277, -83.2193276)]
 
             # IGVC Real Waypoints
             # [(42.6682623, -83.2193709), (42.6681206, -83.2193606), (42.6680766, -83.2193592), (42.6679277, -83.2193276), (42.6679216, -83.2189126), (42.668130236144883, -83.21889785301433)]
@@ -74,15 +74,8 @@ class AStarNode(Node):
         self.safetyLightsPublisher = self.create_publisher(SafetyLights, "/autonav/SafetyLights", 20)
         self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 20)
         self.nextDebugImage = None
-        self.mapThread = threading.Thread(target=self.createPath)
-        self.mapThread.daemon = True
-        self.mapThread.start()
-        # self.debugThread = threading.Thread(target=self.createDebug)
-        # self.debugThread.daemon = True
-        # self.debugThread.start()
-
+        self.tick_timer = self.create_timer(0.05, self.createPath)
         self.resetWhen = -1.0
-
         self.set_device_state(DeviceState.OPERATING)
 
     def getAngleDifference(self, to_angle, from_angle):
@@ -131,21 +124,17 @@ class AStarNode(Node):
         self.position = msg
         
     def createPath(self):
-        while True and rclpy.ok():
-            if self.position is None or self.costMap is None:
-                time.sleep(0.1)
-                continue
-            
-            robot_pos = (40, self.config.robot_y)
-            path = self.findPathToPoint(robot_pos, self.bestPosition, self.costMap, 80, 80)
-            if path is not None:
-                global_path = Path()
-                global_path.poses = [self.pathToGlobalPose(pp[0], pp[1]) for pp in path]
-                self.lastPath = path
-                self.pathPublisher.publish(global_path)
-                self.nextDebugImage = path
-
-            time.sleep(0.1)
+        if self.position is None or self.costMap is None:
+            return
+        
+        robot_pos = (40, self.config.robot_y)
+        path = self.findPathToPoint(robot_pos, self.bestPosition, self.costMap, 80, 80)
+        if path is not None:
+            global_path = Path()
+            global_path.poses = [self.pathToGlobalPose(pp[0], pp[1]) for pp in path]
+            self.lastPath = path
+            self.pathPublisher.publish(global_path)
+            self.nextDebugImage = path
 
     def playWaypointSound(self):
         audio = AudibleFeedback()
@@ -345,7 +334,7 @@ class AStarNode(Node):
 
         self.costMap = grid_data
         self.bestPosition = temp_best_pos
-        self.perf_stop("Smellification")
+        self.perf_stop("Smellification", True)
         
     def pathToGlobalPose(self, pp0, pp1):
         x = (80 - pp1) * VERTICAL_CAMERA_DIST / 80

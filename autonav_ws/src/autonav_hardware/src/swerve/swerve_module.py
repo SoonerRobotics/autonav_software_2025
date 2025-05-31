@@ -90,7 +90,7 @@ class SUSwerveDriveModule:
             self.angle_motor_.setPosition(desired_angle / (3.14159265358979323846264338327950 * 2) * (-1 if self.config.is_angle_motor_reversed else 1))
 
         # cosine correction
-        # desired_drive_speed *= cos(desired_angle - self.angle_motor_.getAngle())
+        desired_drive_speed *= cos(desired_angle - self.angle_motor_.getAngle())
 
         # use the onboard PIDF controllers of the sparkMAXes to do everything for us
         # self.drive_motor_.setVelocity(desired_drive_speed * self.config.drive_motor_conversion_factor_ * 60 * (-1 if self.config.is_drive_motor_reversed else 1)) # * 60 because drive_motor_ expects RPM but desired_speed is in m/s

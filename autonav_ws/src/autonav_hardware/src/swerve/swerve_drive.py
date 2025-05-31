@@ -2,6 +2,9 @@ import numpy as np
 from swerve.swerve_module import SUSwerveDriveModule, SUSwerveDriveModuleState
 from swerve.swerve_config import SUSwerveDriveConfig
 
+DIFF_DRIVE_MODE = False
+DIFF_ANGLE_COEFF = 1.0
+
 class SUSwerveDriveState:
     def __init__(self, delta_x: float, delta_y: float, delta_theta: float):
         self.delta_x = delta_x             # (delta meters)
@@ -60,10 +63,18 @@ class SUSwerveDrive:
     # state: The desired state of the robot
     # returns: The actual state of the robot    
     def updateState(self, state: SUSwerveDriveState, period: float) -> SUSwerveDriveState:
-        self.desired_robot_state_ = np.array([state.delta_x, state.delta_y, state.delta_theta], np.double)
+        if DIFF_DRIVE_MODE:
+            desired_modules_state_ = np.array([
+                state.delta_x - DIFF_ANGLE_COEFF * state.delta_theta, 0,
+                state.delta_x + DIFF_ANGLE_COEFF * state.delta_theta, 0,
+                state.delta_x - DIFF_ANGLE_COEFF * state.delta_theta, 0,
+                state.delta_x + DIFF_ANGLE_COEFF * state.delta_theta, 0,
+            ],np.double)
+        else:
+            self.desired_robot_state_ = np.array([state.delta_x, state.delta_y, state.delta_theta], np.double)
 
-        # compute the desired module state as module_positions * robot_state
-        desired_modules_state_ = self.module_positions_matrix_ @ self.desired_robot_state_
+            # compute the desired module state as module_positions * robot_state
+            desired_modules_state_ = self.module_positions_matrix_ @ self.desired_robot_state_
 
         # update the modules
         self.front_left_module_.updateState(SUSwerveDriveModuleState(desired_modules_state_[0], desired_modules_state_[1]), period)

@@ -64,7 +64,7 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 125;
+        config.max_length = 200;
         config.number_of_feelers = 16;
         config.start_angle = 30;
         config.end_angle = 180 - config.start_angle;
@@ -505,7 +505,7 @@ public:
             // msg.sideways_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //FIXME configure divider number thingy
             msg.sideways_velocity = 0.0;
             // msg.angular_velocity = std::clamp(static_cast<double>(this->headingArrow.getX()) / 60, -1.0, 1.0); //TODO figure out when we want to turn
-            msg.angular_velocity = std::clamp(-this->headingPID.calculate(this->headingArrow.getX()), -1.0, 1.0); //TODO figure out when we want to turn
+            msg.angular_velocity = std::clamp(this->headingPID.calculate(this->headingArrow.getX()), -1.0, 1.0); //TODO figure out when we want to turn
 
             //TODO safety lights need to change to other colors and stuff for debug information
         } else {

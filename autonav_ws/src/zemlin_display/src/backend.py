@@ -102,8 +102,12 @@ class DisplayBackend(Node):
         self.filtered_sub = self.create_subscription(
             CompressedImage, "/autonav/cfg_space/raw/image", self.filtered_callback, 10
         )
+        # self.expanded_sub = self.create_subscription(
+        #     CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
+        # )
         self.expanded_sub = self.create_subscription(
-            CompressedImage, "/autonav/path_debug_image", self.expanded_callback, 10
+            # CompressedImage, "/autonav/vision/combined/filtered", self.expanded_callback, 10
+            CompressedImage, "/autonav/feelers/debug", self.expanded_callback, 10
         )
 
         self.motor_feedback_sub = self.create_subscription(

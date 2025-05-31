@@ -12,6 +12,7 @@ import time
 import json
 import os
 import threading
+import time
 
 
 class ControllerMode(IntEnum):
@@ -254,9 +255,11 @@ class Manual25Node(Node):
         self.log("Audio manager started", LogLevel.INFO)
         while rclpy.ok():
             if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
+                time.sleep(0.5)
                 continue
 
             if self.controller_state == {}:
+                time.sleep(0.5)
                 continue
 
             if self.controller_state['abs_hat0y'] == 1:
@@ -275,6 +278,7 @@ class Manual25Node(Node):
                 self.audibleFeedbackPublisher.publish(audible_feedback)
 
             self.play_sound()
+            time.sleep(0.5)
 
         
     def position_callback(self, msg: Position):

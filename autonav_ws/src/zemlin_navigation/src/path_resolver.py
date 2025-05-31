@@ -54,9 +54,7 @@ class PathResolverNode(Node):
         self.safetyLightsPublisher = self.create_publisher(
             SafetyLights, "/autonav/SafetyLights", 20)
 
-        self.resolve_thread = threading.Thread(target=self.resolve)
-        self.resolve_thread.daemon = True
-        self.resolve_thread.start()
+        self.tick_timer = self.create_timer(0.05, self.resolve)
         self.set_device_state(DeviceState.READY)
 
     def onReset(self):
@@ -97,56 +95,53 @@ class PathResolverNode(Node):
         return value
 
     def resolve(self):
-        while True:
-            if self.device_states.get(self.get_name()) != DeviceState.OPERATING or self.system_state != SystemState.AUTONOMOUS:
-                continue
+        if self.system_state != SystemState.AUTONOMOUS:
+            return
 
-            self.perf_start("path_resolve")
+        self.perf_start("path_resolve")
 
-            cur_pos = (self.position.x, self.position.y)
-            lookahead = None
-            radius = self.config.radius_start
-            while lookahead is None and radius <= self.config.radius_max:
-                # self.log(f"Radius: {radius}")
-                lookahead = self.purePursuit.get_lookahead_point(cur_pos[0], cur_pos[1], radius)
-                radius *= self.config.radius_multiplier
+        cur_pos = (self.position.x, self.position.y)
+        lookahead = None
+        radius = self.config.radius_start
+        while lookahead is None and radius <= self.config.radius_max:
+            # self.log(f"Radius: {radius}")
+            lookahead = self.purePursuit.get_lookahead_point(cur_pos[0], cur_pos[1], radius)
+            radius *= self.config.radius_multiplier
 
-            inputPacket = MotorInput()
-            inputPacket.forward_velocity = 0.0
-            inputPacket.sideways_velocity = 0.0
-            inputPacket.angular_velocity = 0.0
-            
-            if not self.is_mobility():
-                self.perf_stop("path_resolve")
-                self.motorPublisher.publish(inputPacket)
-                time.sleep(0.05)
-                continue
-
-            if self.backCount == -1 and (lookahead is not None and ((lookahead[1] - cur_pos[1]) ** 2 + (lookahead[0] - cur_pos[0]) ** 2) > 0.25):
-                angle_diff = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
-                error = self.angle_diff(angle_diff, self.position.theta) / math.pi
-                forward_speed = self.config.forward_speed * (1 - abs(error)) ** 5
-                inputPacket.forward_velocity = forward_speed
-                inputPacket.angular_velocity = self.clamp(error * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
-
-                if self.status == 0:
-                    self.status = 1
-            else:
-                if self.backCount == -1:
-                    self.backCount = 8
-                    # TODO: Push safety lights
-                else:
-                    self.status = 0
-                    self.backCount -= 1
-
-                inputPacket.forward_velocity = self.config.reverse_speed
-                inputPacket.angular_velocity = BACK_SPEED
-
-            self.motorPublisher.publish(inputPacket)
-                
+        inputPacket = MotorInput()
+        inputPacket.forward_velocity = 0.0
+        inputPacket.sideways_velocity = 0.0
+        inputPacket.angular_velocity = 0.0
+        
+        if not self.is_mobility():
             self.perf_stop("path_resolve")
-    
-            time.sleep(0.05)
+            self.motorPublisher.publish(inputPacket)
+            return
+
+        if self.backCount == -1 and (lookahead is not None and ((lookahead[1] - cur_pos[1]) ** 2 + (lookahead[0] - cur_pos[0]) ** 2) > 0.25):
+            angle_diff = math.atan2(lookahead[1] - cur_pos[1], lookahead[0] - cur_pos[0])
+            error = self.angle_diff(angle_diff, self.position.theta) / math.pi
+            forward_speed = self.config.forward_speed * (1 - abs(error)) ** 5
+            inputPacket.forward_velocity = forward_speed
+            inputPacket.angular_velocity = self.clamp(error * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
+            # inputPacket.angular_velocity += 0.1 if self.angul
+
+            if self.status == 0:
+                self.status = 1
+        else:
+            if self.backCount == -1:
+                self.backCount = 8
+                # TODO: Push safety lights
+            else:
+                self.status = 0
+                self.backCount -= 1
+
+            inputPacket.forward_velocity = self.config.reverse_speed
+            inputPacket.angular_velocity = BACK_SPEED
+
+        self.motorPublisher.publish(inputPacket)
+            
+        self.perf_stop("path_resolve")
 
  
 def main():
