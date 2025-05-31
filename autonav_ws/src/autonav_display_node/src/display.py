@@ -466,9 +466,47 @@ class BroadcastNode(Node):
                     "mobility": self.mobility
                 }
             }), uid)
+        elif obj.get("op") == "get_configuration":
+            device = obj.get("device")
+            if device:
+                # -m ConfigurationBroadcast msg 2 req config
+                msg = ConfigurationBroadcast()
+                msg.device = device
+                msg.opcode = 4  # Get configuration
+
+                #publisher
+                self.configuration_broadcast_p = self.create_publisher(
+                    ConfigurationBroadcast,
+                    Topics.CONFIGURATION_BROADCAST.value,
+                    20
+                )
+                self.configuration_broadcast_p.publish(msg)
+
+                # response send
+                self.push_old(json.dumps({
+                    "op": "get_configuration_response",
+                    "device": device,
+                    "status": "requested"
+                }), uid)
+        elif obj.get("op") == "configuration":
+            device = obj.get("device")
+            json_data = obj.get("json")
+            if device and json_data:
+                # pusher to robot
+                msg = ConfigurationUpdate()
+                msg.device = device
+                msg.json = json_data if isinstance(json_data, str) else json.dumps(json_data)
+
+
+                self.configuration_update_p = self.create_publisher(
+                    ConfigurationUpdate,
+                    Topics.CONFIGURATION_UPDATE.value,
+                    20
+                )
+                self.configuration_update_p.publish(msg)
         # elif obj.get("op") == "set_system_state": todo fix setting sys state?
         #     self.set_system_total_state(int(obj["state"]), int(obj["mode"]), bool(obj["mobility"]))
-        # TODO: add configuration, conbus, preset ops to ws msg
+        # TODO: add conbus, preset ops to ws msg
 
 
 #todo add new callbacks
@@ -536,6 +574,21 @@ class BroadcastNode(Node):
 
     def configurationBroadcastCallback(self, msg: ConfigurationBroadcast):
         self.push(Topics.CONFIGURATION_BROADCAST.value, msg)
+
+        # If this is a response to a get_configuration request (opcode 4),
+        # send the configuration back to all clients
+        if msg.opcode == 4 and hasattr(msg, 'json') and msg.json:
+            try:
+                config_data = json.loads(msg.json)
+                self.push_old(json.dumps({
+                    "op": "get_configuration_response",
+                    "device": msg.device,
+                    "config": config_data
+                }))
+            except json.JSONDecodeError:
+                self.get_logger().error(f"Failed to parse configuration JSON: {msg.json}")
+            except Exception as e:
+                self.get_logger().error(f"Error processing configuration broadcast: {str(e)}")
 
     # Cameras
     def cameraCallback(self, msg: CompressedImage, key: str):
