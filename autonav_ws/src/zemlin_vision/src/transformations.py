@@ -115,7 +115,7 @@ class ImageTransformer(Node):
         mask1 = cv2.inRange(img, lower, upper)
 
         lower = (150, 45, 40)
-        upper = (220, 240, 255)
+        upper = (220, 255, 255)
         mask2 = cv2.inRange(img, lower, upper)
         mask = cv2.add(mask1, mask2)
         mask = 255 - mask

@@ -17,7 +17,7 @@ BACK_SPEED = 0.40
 
 class PathResolverConfig:
     def __init__(self):
-        self.forward_speed = 1.8
+        self.forward_speed = 2.4
         self.reverse_speed = -0.7
         self.radius_multiplier = 1.2
         self.radius_max = 4.0

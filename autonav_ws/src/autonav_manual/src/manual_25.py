@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rclpy
-from autonav_msgs.msg import ControllerInput, MotorInput, MotorFeedback
+from autonav_msgs.msg import ControllerInput, MotorInput, Position
 import numpy as np
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
@@ -64,12 +64,12 @@ class Manual25Node(Node):
             self.input_callback,
             10
         )
-
-        self.motorSubscription = self.create_subscription(
-            MotorFeedback,
-            '/autonav/motor_feedback',
-            self.on_motor_feedback,
-            10
+        
+        self.positionSubscriber = self.create_subscription(
+                Position,
+                '/autonav/position',
+                self.position_callback,
+                10
         )
 
         self.zeroEncodersPublisher = self.create_publisher(
@@ -200,15 +200,10 @@ class Manual25Node(Node):
         angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.max_angular_speed, self.config.max_angular_speed, 1.0, -1.0)
 
         motor_msg = MotorInput()
-        motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
-        motor_msg.sideways_velocity = -1 * sideways_velocity * np.cos(self.orientation) + forward_velocity * np.sin(self.orientation)
+        motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + -1 * sideways_velocity * np.sin(self.orientation)
+        motor_msg.sideways_velocity = sideways_velocity * np.cos(self.orientation) + forward_velocity * np.sin(self.orientation)
         motor_msg.angular_velocity = angular_velocity
         self.motorPublisher.publish(motor_msg)
-
-
-    def on_motor_feedback(self, msg:MotorFeedback):
-        delta_theta = msg.delta_theta * self.config.odom_fudge_factor
-        self.orientation += delta_theta
 
 
     def play_sound(self):
@@ -281,6 +276,11 @@ class Manual25Node(Node):
 
             self.play_sound()
 
+        
+    def position_callback(self, msg: Position):
+        self.orientation = msg.theta
+        
+        return
 
 def main(args=None):
     rclpy.init()

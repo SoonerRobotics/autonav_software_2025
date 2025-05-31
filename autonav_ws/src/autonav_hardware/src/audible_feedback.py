@@ -14,6 +14,7 @@ import PySoundSphere
 class AudibleFeedbackConfig:
     def __init__(self):
         self.volume = 20.0
+        self.on_start_sound = os.path.expanduser('~/autonav_software_2025/music/mine_xp.mp3')
         self.autonomous_transition_filepath = os.path.expanduser('~/autonav_software_2025/music/imposter.mp3')
         self.manual_transition_filepath = os.path.expanduser('~/autonav_software_2025/music/manual_mode.mp3')
         self.disabled_transition_filepath = os.path.expanduser('~/autonav_software_2025/music/robot_disabled.mp3')
@@ -42,6 +43,8 @@ class AudibleFeedbackNode(Node):
 
         self.system_state_monitor = self.create_timer(0.5, self.monitor_system_state)
         self.track_monitor = self.create_timer(0.5, self.monitor_tracks)
+
+        self.play_sound(self.config.on_start_sound, False)
     
     def apply_config(self, config):
         self.config.volume = config["volume"]
@@ -70,7 +73,7 @@ class AudibleFeedbackNode(Node):
             main_track = msg.main_track
             try:
                 self.play_sound(filename, main_track)
-            except  exception:
+            except:
                 return
 
     def play_sound(self, filename, main_track: bool):

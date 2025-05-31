@@ -46,7 +46,7 @@ camera_topics = [
     # Feelers Debug
     "/autonav/feelers/debug",
 ]
-FPS = 6
+FPS = 10
 
 
 class LoggingNode(Node):
@@ -59,6 +59,7 @@ class LoggingNode(Node):
         
         self.file = None
         self.events = []
+        self.subs = []
 
         self.video_writers = {}
         self.QOS = 20
@@ -73,7 +74,8 @@ class LoggingNode(Node):
 
         # Create camera subscribers
         for topic in camera_topics:
-            self.create_subscription(CompressedImage, topic, lambda msg, topic=topic: self.camera_callback(msg, topic), self.QOS)
+            subber = self.create_subscription(CompressedImage, topic, lambda msg, topic=topic: self.camera_callback(msg, topic), self.QOS)
+            self.subs.append(subber)
         
         # IMU is still TBD
         self.imu_subscriber  = self.create_subscription(IMUFeedback, '/autonav/imu', self.imu_feedback, self.QOS)
@@ -138,7 +140,7 @@ class LoggingNode(Node):
                 filename = os.path.join(self.BASE_PATH, f"{topic}.avi")
                 videos.append(filename)
                 writer.release()
-                self.video_writers[topic] = None
+        self.video_writers = {}
                 
         # Update metadata videos list
         metadata_event = self.events[0]

@@ -28,7 +28,7 @@ class AStarConfig:
         self.latitude_length = 111086.2
         self.longitude_length = 81978.2
         self.waypoint_pop_distance = 2.0
-        self.waypoint_delay = 18.5
+        self.waypoint_delay = 60
         self.robot_y = 66
         self.use_only_waypoints = False
         self.waypoint_sound = "~/autonav_software_2025/music/mine_xp.mp3"
@@ -63,7 +63,7 @@ class AStarNode(Node):
         self.config.robot_y = config["robot_y"]
         self.config.use_only_waypoints = config["use_only_waypoints"]
         self.config.waypoints = config["waypoints"]
-        self.config.waypoint_sound = config["waypoint_sound"]
+        # self.config.waypoint_sound = config["waypoint_sound"]
 
     def init(self):
         self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.onConfigSpaceReceived, 20)
@@ -125,7 +125,7 @@ class AStarNode(Node):
             self.onReset()
 
         if old == True and new == False and self.get_system_state() == SystemState.AUTONOMOUS:
-            self.push_safety_lights(255, 255, 255, 0, 0)
+            self.push_safety_lights(255, 0, 0, 3, 0)
             
     def onPoseReceived(self, msg: Position):
         self.position = msg
@@ -154,7 +154,7 @@ class AStarNode(Node):
         self.bigSoundPublisher.publish(audio)
 
     
-    def playStartedWaypointingSound(self):
+    def play_started_waypointing_sound(self):
         audio = AudibleFeedback()
         audio.filename = os.path.expanduser(self.config.waypoints_started_sound)
 
@@ -298,7 +298,7 @@ class AStarNode(Node):
                 self.push_safety_lights(255, 255, 255, 1, 0)
                 # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = time.time() + 1.5
-                self.play_waypoint_sound()
+                self.playWaypointSound()
 
             pathingDebug = PathingDebug()
             pathingDebug.desired_heading = heading_to_gps
