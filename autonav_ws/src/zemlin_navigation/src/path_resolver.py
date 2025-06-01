@@ -18,7 +18,7 @@ BACK_SPEED = 0.40
 
 class PathResolverConfig:
     def __init__(self):
-        self.forward_speed = 3.3
+        self.forward_speed = 3.8
         self.reverse_speed = -1.1
         self.radius_multiplier = 1.2
         self.radius_max = 4.0
@@ -143,7 +143,7 @@ class PathResolverNode(Node):
                 self.status = 1
         else:
             if self.backCount == -1:
-                self.backCount = 5
+                self.backCount = 4
                 # TODO: Push safety lights
             else:
                 self.status = 0

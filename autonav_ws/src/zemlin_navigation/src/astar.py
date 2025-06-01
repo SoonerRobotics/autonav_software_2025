@@ -27,8 +27,8 @@ class AStarConfig:
     def __init__(self):
         self.latitude_length = 111086.2
         self.longitude_length = 81978.2
-        self.waypoint_pop_distance = 2.0
-        self.waypoint_delay = 35
+        self.waypoint_pop_distance = 1.5
+        self.waypoint_delay = 27
         self.robot_y = 66
         self.use_only_waypoints = False
         self.waypoint_sound = "~/autonav_software_2025/music/mine_xp.mp3"
