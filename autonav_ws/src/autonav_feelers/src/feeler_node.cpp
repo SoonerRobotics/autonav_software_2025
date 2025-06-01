@@ -65,7 +65,7 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 50;
+        config.max_length = 100;
         config.number_of_feelers = 16;
         config.start_angle = 25;
         config.end_angle = 180 - config.start_angle;
@@ -73,9 +73,9 @@ public:
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
         config.gpsWaitMilliseconds = 5000*20;
-        config.gpsBiasWeight = 60;
-        config.forwardBiasWeight = 325;
-        config.backwardsBiasWeight = 20;
+        config.gpsBiasWeight = 0;
+        config.forwardBiasWeight = 100;
+        config.backwardsBiasWeight = 200;
 
         this->_config = config;
         this->config = config;
