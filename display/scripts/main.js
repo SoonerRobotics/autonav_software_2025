@@ -1558,8 +1558,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
         ntf('Path Resolver configuration reset', 'info');
     });
 
-    // Position Filters
-    // Add change event handlers to all Position Filters inputs
     $("#filter_latitude_length, #filter_longitude_length, #filter_type").on("change", function() {
         const configData = {
             latitude_length: parseFloat($("#filter_latitude_length").val()) || 111086.2,
@@ -1577,13 +1575,42 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
     });
 
     $("#reset_position_filters").on("click", function() {
-        // Reset to default values or fetch from server
         send({
             op: "get_configuration",
             device: "zemlin_filters"
         });
 
         ntf('Position Filters configuration reset', 'info');
+    });
+
+    $("#max_length, #number_of_feelers, #start_angle, #waypointPopDist, #ultrasonic_contribution, #gpsWaitSeconds, #gpsBiasWeight, #forwardBiasWeight").on("change", function() {
+        const configData = {
+            max_length: parseInt($("#max_length").val()) || 200,
+            number_of_feelers: parseInt($("#number_of_feelers").val()) || 35,
+            start_angle: parseFloat($("#start_angle").val()) || 5,
+            waypointPopDist: parseFloat($("#waypointPopDist").val()) || 2,
+            ultrasonic_contribution: parseFloat($("#ultrasonic_contribution").val()) || 1,
+            gpsWaitSeconds: parseInt($("#gpsWaitSeconds").val()) || 5,
+            gpsBiasWeight: parseFloat($("#gpsBiasWeight").val()) || 50,
+            forwardBiasWeight: parseFloat($("#forwardBiasWeight").val()) || 50
+        };
+
+        send({
+            op: "configuration",
+            device: "autonav_feelers",
+            json: JSON.stringify(configData)
+        });
+
+        ntf('Feeler Node Config configuration saved', 'success');
+    });
+
+    $("#reset_feeler_node_config").on("click", function() {
+        send({
+            op: "get_configuration",
+            device: "autonav_feelers"
+        });
+
+        ntf('Feeler Node Config configuration reset', 'info');
     });
 })
 //Old function meant to toggle dev mode with button press

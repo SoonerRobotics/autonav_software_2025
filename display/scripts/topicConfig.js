@@ -4,10 +4,7 @@ function initTopicConfig() {
     const topicContainer = document.getElementById('topic-config-container');
     if (!topicContainer) return;
 
-    // Clear container
     topicContainer.innerHTML = '';
-
-    // Fetch all topics frm globals.js
     const topicConstants = getAllTopicConstants();
     
     // config box 4 e/a topic

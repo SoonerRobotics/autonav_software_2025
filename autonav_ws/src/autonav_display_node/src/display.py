@@ -63,7 +63,7 @@ class Topics(Enum):# todo refactor to json file being read in..
     COMBINED_IMAGE = "/autonav/vision/combined/filtered"
     FEELERS = "/autonav/feelers/debug"  
 
-    # Configuration
+    # Configuration2
     CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"
     CONFIGURATION_UPDATE = "/autonav/shared/config/updates" 
     CONFIG_PRESTS_LOAD = "/autonav/presets/load"

@@ -546,6 +546,60 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Feeler Node Config Column -->
+            <div class="col-md-3">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Feeler Node Config</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="max_length">Max Length</label>
+                            <input type="number" class="form-control" id="max_length" min="0" max="1000" step="1" value="200">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="number_of_feelers">Number of Feelers</label>
+                            <input type="number" class="form-control" id="number_of_feelers" min="1" max="100" step="1" value="35">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="start_angle">Start Angle (degrees)</label>
+                            <input type="number" class="form-control" id="start_angle" min="0" max="360" step="1" value="5">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="waypointPopDist">Waypoint Pop Distance (meters)</label>
+                            <input type="number" class="form-control" id="waypointPopDist" min="0" max="10" step="0.1" value="2">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="ultrasonic_contribution">Ultrasonic Contribution</label>
+                            <input type="number" class="form-control" id="ultrasonic_contribution" min="0" max="5" step="0.1" value="1">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="gpsWaitSeconds">GPS Wait Seconds</label>
+                            <input type="number" class="form-control" id="gpsWaitSeconds" min="0" max="60" step="1" value="5">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="gpsBiasWeight">GPS Bias Weight (pixels)</label>
+                            <input type="number" class="form-control" id="gpsBiasWeight" min="0" max="200" step="1" value="50">
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="forwardBiasWeight">Forward Bias Weight (pixels)</label>
+                            <input type="number" class="form-control" id="forwardBiasWeight" min="0" max="200" step="1" value="50">
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-secondary" id="reset_feeler_node_config">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="page" id="preferences">
