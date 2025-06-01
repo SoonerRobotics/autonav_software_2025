@@ -28,7 +28,7 @@ class CombinationNodeConfig:
     def __init__(self):
         self.x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
         self.x_shrink = 240
-        self.y_shrink = 400
+        self.y_shrink = 350
 
 class ImageCombiner(Node):
     def __init__(self):

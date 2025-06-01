@@ -44,8 +44,8 @@ class ImageTransformerConfig:
         # Region of disinterest
         # Order: bottom-left, 
         self.blank_robot = [
-            [40, IMAGE_HEIGHT-80],
-            [IMAGE_WIDTH-1, IMAGE_HEIGHT-80],
+            [40, IMAGE_HEIGHT-5],
+            [IMAGE_WIDTH-1, IMAGE_HEIGHT-5],
             [IMAGE_WIDTH-1, IMAGE_HEIGHT-1],
             [0, IMAGE_HEIGHT-1]
         ]
