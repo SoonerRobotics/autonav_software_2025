@@ -414,5 +414,107 @@ export const configDevices: ConfigDevice[] = [
 				]
 			}
 		]
+	},
+	{
+		id: "feelers",
+		name: "Feelers",
+		options: [
+			{
+				key: "max_length",
+				label: "Max Length",
+				type: "number",
+				defaultValue: 150,
+				min: 1,
+				max: 400,
+				step: 10
+			},
+			{
+				key: "number_of_feelers",
+				label: "Number of Feelers",
+				type: "number",
+				defaultValue: 16,
+				min: 4,
+				max: 200,
+				step: 1
+			},
+			{
+				key: "start_angle",
+				label: "Start Angle",
+				type: "number",
+				defaultValue: 25,
+				min: 0,
+				max: 360,
+				step: 5
+			},
+			{
+				key: "end_angle",
+				label: "End Angle",
+				type: "number",
+				defaultValue: 180-25,
+				min: 0,
+				max: 360,
+				step: 5
+			},
+			{
+				key: "balance_feelers",
+				label: "Balance Feelers",
+				type: "boolean",
+				defaultValue: true
+			},
+			{
+				key: "waypointPopDist",
+				label: "Waypoint Pop Dist",
+				type: "number",
+				defaultValue: 2,
+				min: 0.001,
+				max: 10,
+				step: .1
+			},
+			{
+				key: "ultrasonic_contribution",
+				label: "Ultrasonic Contrib",
+				type: "number",
+				defaultValue: 0,
+				min: 0,
+				max: 1,
+				step: .5
+			},
+			{
+				key: "gpsWaitMilliseconds",
+				label: "GPS Wait Millis",
+				type: "number",
+				defaultValue: 30,
+				min: 0,
+				max: 99999,
+				step: 10
+			},
+			{
+				key: "gpsBiasWeight",
+				label: "GPS Bias Weight",
+				type: "number",
+				defaultValue: 50,
+				min: 0,
+				max: 400,
+				step: 5
+			},
+			{
+				key: "forwardBiasWeight",
+				label: "Forward Bias Weight",
+				type: "number",
+				defaultValue: 50,
+				min: 0,
+				max: 400,
+				step: 5
+			},
+			{
+				key: "backwardsBiasWeight",
+				label: "Backward Bias Weight",
+				type: "number",
+				defaultValue: 0,
+				min: 0,
+				max: 400,
+				step: 5
+			},
+		]
 	}
 ]

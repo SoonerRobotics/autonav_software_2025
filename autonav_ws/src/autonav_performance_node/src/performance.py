@@ -10,7 +10,7 @@ import psutil
 
 class PerformanceConfig():
     def __init__(self):
-        self.CELSIUS = False
+        self.celcius = False
 
 class PerformanceNode(Node):
     def __init__(self):
@@ -31,7 +31,7 @@ class PerformanceNode(Node):
         msg = HardwarePerformance()
         msg.cpu = psutil.cpu_percent()
         msg.memory = psutil.virtual_memory().percent
-        msg.temp = str(psutil.sensors_temperatures(self.config.CELSIUS))
+        msg.temp = str(psutil.sensors_temperatures(self.config["celcius"]))
         
         # self.log(f"{msg.cpu}, {msg.memoru}, {msg.temp}", LogLevel.INFO)
 

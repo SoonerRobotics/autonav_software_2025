@@ -221,7 +221,7 @@ class ImageTransformer(Node):
         #     self.log("transformations publishing!", LogLevel.DEBUG)
     
         if not self.has_logged:
-            self.log(f"WE RAN! {self.dir}", LogLevel.ERROR)
+            self.log(f"image recieved: {self.dir}", LogLevel.INFO)
             self.has_logged = True
 
 def main():

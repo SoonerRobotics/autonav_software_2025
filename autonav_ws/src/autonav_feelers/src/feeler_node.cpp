@@ -196,6 +196,8 @@ public:
     void on_config_updated(const json &old_cfg, const json &new_cfg) override {
         auto new_config = new_cfg.get<FeelerNodeConfig>();
         this->config = new_config;
+
+        this->buildFeelers();
     }
 
     /**
