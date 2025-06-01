@@ -33,7 +33,7 @@ class PerformanceNode(Node):
         msg.memory = psutil.virtual_memory().percent
         msg.temp = str(psutil.sensors_temperatures(self.config.CELSIUS))
         
-        self.log(f"{msg.cpu}, {msg.memoru}, {msg.temp}", LogLevel.INFO)
+        # self.log(f"{msg.cpu}, {msg.memoru}, {msg.temp}", LogLevel.INFO)
 
         self.performance_publisher.publish(msg)
 

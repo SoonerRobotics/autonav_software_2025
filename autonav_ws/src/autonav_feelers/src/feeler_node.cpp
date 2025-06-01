@@ -370,7 +370,7 @@ public:
             this->distToWaypoint = std::sqrt(std::pow((goalPoint.lon - this->position.longitude)*this->latitudeLength, 2) + std::pow((goalPoint.lat - this->position.latitude)*this->longitudeLength, 2));
 
             // if we are close enough to the waypoint, and we aren't going to cause an out-of-bounds index error
-            if (this->distToWaypoint < config.waypointPopDist && this->waypointIndex < this->waypointsDict[this->direction].size()-1) {
+            if (this->distToWaypoint < config.waypointPopDist && this->waypointIndex < (this->waypointsDict[this->direction].size()-2)) {
                 // then go to the next waypoint
                 this->waypointIndex++;
 
