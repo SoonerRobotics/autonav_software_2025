@@ -18,7 +18,7 @@ RUN pip install sty just_playback evdev PySoundSphere --break-system-packages \
 COPY . /autonav_software_2025/
 
 WORKDIR /autonav_software_2025
-# prev had issues running the entrypt script so need to change perms for some reason now..
+# Ensure the entrypoint script has execute permissions
 RUN chmod +x /autonav_software_2025/.devcontainer/sourceAndBuild.sh
 
 ENTRYPOINT ["/autonav_software_2025/.devcontainer/sourceAndBuild.sh"]
