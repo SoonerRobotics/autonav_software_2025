@@ -77,12 +77,25 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                     onTopicData(topic, obj);
                 }
 
+                if (op === "get_log_files_callback" || op === "get_log_file_content_callback") {
+                    if (typeof handleWebSocketMessage === "function") {
+                        handleWebSocketMessage(obj);
+                    }
+                }
+
                 if (op === "get_presets_callback") {
-                    const presets = obj.presets;
+
+                    const serverPresets = obj.presets || [];
+
+                    const localPresets = JSON.parse(localStorage.getItem("presets") || "{}");
+
                     const presetElement = $("#dropdown_elements");
                     presetElement.empty();
-                    for (const preset of presets) {
-                        const dropdownItem = $(`<li><a class="dropdown-item" data-value="${preset}">${preset}</a></li>`);
+
+                    for (const preset of serverPresets) {
+                        if (localPresets[preset]) continue;
+
+                        const dropdownItem = $(`<li><a class="dropdown-item" data-value="${preset}">${preset} (server)</a></li>`);
                         presetElement.append(dropdownItem);
 
                         dropdownItem.on("click", function () {
@@ -95,8 +108,27 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                         });
                     }
 
-                    current_preset = obj.active_preset;
-                    $("#active_preset_value").text(current_preset);
+                    // Add localStorage presets
+                    for (const preset in localPresets) {
+                        const dropdownItem = $(`<li><a class="dropdown-item" data-value="${preset}">${preset}</a></li>`);
+                        presetElement.append(dropdownItem);
+
+                        dropdownItem.on("click", function() {
+                            const preset_name = $(this).children().attr("data-value");
+                            loadPreset(preset_name);
+                        });
+                    }
+
+                    // If no presets, add a message
+                    if (serverPresets.length === 0 && Object.keys(localPresets).length === 0) {
+                        presetElement.append('<li><a class="dropdown-item disabled">No presets available</a></li>');
+                    }
+
+                    // Set current preset
+                    if (obj.active_preset) {
+                        current_preset = obj.active_preset;
+                        $("#active_preset_value").text(current_preset);
+                    }
                 }
 
                 if (op === "get_nodes_callback") {
@@ -357,9 +389,19 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                 );
                 $("#var_system_mobility").text(mobility ? "Enabled" : "Disabled");
 
+                // Check if estop status has changed
+                const previousEstop = systemState.estop;
+                const currentEstop = state >= 4; // Consider estop activated when state is Shutdown (4+)
+
                 systemState.state = state;
                 systemState.mode = mode;
                 systemState.mobility = mobility;
+                systemState.estop = currentEstop;
+
+                // Notify if estop is activated
+                if (currentEstop && !previousEstop) {
+                    ntf('Emergency Stop Activated!', 'error');
+                }
 
                 $("#input_system_state").val(state);
                 $("#input_system_mode").val(mode);
@@ -614,6 +656,16 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
                 const {device, json} = msg;
                 config[device] = JSON.parse(json);
                 regenerateConfig();
+
+                updateConfigurationUI(device, config[device]);
+                break;
+            }
+
+            case "get_configuration_response": {
+                const {device, config: deviceConfig} = msg;
+                if (deviceConfig) {
+                    updateConfigurationUI(device, deviceConfig);
+                }
                 break;
             }
 
@@ -669,6 +721,19 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
     });
 
     $("#save_preset_mode").on("click", function () {
+        if (!current_preset || current_preset === "None") {
+            ntf('No preset selected', 'error');
+            return;
+        }
+
+        // Save the current configuration to the active preset in localStorage
+        const presets = JSON.parse(localStorage.getItem("presets") || "{}");
+        presets[current_preset] = config;
+        localStorage.setItem("presets", JSON.stringify(presets));
+
+        ntf(`Preset "${current_preset}" updated successfully`, 'success');
+
+        // Also send to server if it supports it
         send({
             op: "save_preset_mode"
         });
@@ -677,20 +742,139 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
 
     $("#save_preset_as").on("click", function () {
         const preset_name = $("#preset_save_name").val();
+        if (!preset_name) {
+            ntf('Please enter a preset name', 'error');
+            return;
+        }
+
+        // Save the current configuration to localStorage
+        const presets = JSON.parse(localStorage.getItem("presets") || "{}");
+        presets[preset_name] = config;
+        localStorage.setItem("presets", JSON.stringify(presets));
+
+        // Update the current preset
+        current_preset = preset_name;
+        $("#active_preset_value").text(current_preset);
+
+        // Update the dropdown menu
+        updatePresetsDropdown();
+
+        // Clear the input field
+        $("#preset_save_name").val("");
+
+        ntf('Preset saved successfully', 'success');
+
+        // Also send to server if it supports it
         send({
             op: "save_preset_as",
             preset: preset_name
         });
-        send({op: "get_presets"});
-        $("#preset_save_name").val("");
     });
 
+    // Function to update the presets dropdown menu
+    function updatePresetsDropdown() {
+        const presets = JSON.parse(localStorage.getItem("presets") || "{}");
+        const presetElement = $("#dropdown_elements");
+        presetElement.empty();
+
+        // Add presets from localStorage
+        for (const preset in presets) {
+            const dropdownItem = $(`<li><a class="dropdown-item" data-value="${preset}">${preset}</a></li>`);
+            presetElement.append(dropdownItem);
+
+            dropdownItem.on("click", function() {
+                loadPreset(preset);
+            });
+        }
+
+        // If no presets, add a message
+        if (Object.keys(presets).length === 0) {
+            presetElement.append('<li><a class="dropdown-item disabled">No presets available</a></li>');
+        }
+    }
+
+    // Function to load a preset
+    function loadPreset(presetName) {
+        const presets = JSON.parse(localStorage.getItem("presets") || "{}");
+        if (presets[presetName]) {
+            // Update the current configuration with the preset values
+            config = presets[presetName];
+
+            // Update the UI with the new configuration values
+            for (const device in config) {
+                updateConfigurationUI(device, config[device]);
+            }
+
+            // Update the current preset
+            current_preset = presetName;
+            $("#active_preset_value").text(current_preset);
+
+            ntf(`Preset "${presetName}" loaded successfully`, 'success');
+
+            // Also send to server if it supports it
+            send({
+                op: "set_active_preset",
+                preset: presetName
+            });
+        } else {
+            ntf(`Preset "${presetName}" not found`, 'error');
+        }
+    }
+
+    // The presets dropdown will be initialized when the server responds to the get_presets request
+    // Add a fallback to initialize the presets dropdown with localStorage presets if the server doesn't respond
+    setTimeout(() => {
+        // If the dropdown is empty, initialize it with localStorage presets
+        if ($("#dropdown_elements").children().length === 0) {
+            const localPresets = JSON.parse(localStorage.getItem("presets") || "{}");
+            const presetElement = $("#dropdown_elements");
+            presetElement.empty();
+
+            // Add localStorage presets
+            for (const preset in localPresets) {
+                const dropdownItem = $(`<li><a class="dropdown-item" data-value="${preset}">${preset}</a></li>`);
+                presetElement.append(dropdownItem);
+
+                dropdownItem.on("click", function() {
+                    const preset_name = $(this).children().attr("data-value");
+                    loadPreset(preset_name);
+                });
+            }
+
+            // If no presets, add a message
+            if (Object.keys(localPresets).length === 0) {
+                presetElement.append('<li><a class="dropdown-item disabled">No presets available</a></li>');
+            }
+        }
+    }, 2000); // Wait 2 seconds for the server to respond
+
     $("#delete_preset").on("click", function () {
+        if (!current_preset || current_preset === "None") {
+            ntf('No preset selected', 'error');
+            return;
+        }
+
+        // Remove the preset from localStorage
+        const presets = JSON.parse(localStorage.getItem("presets") || "{}");
+        if (presets[current_preset]) {
+            delete presets[current_preset];
+            localStorage.setItem("presets", JSON.stringify(presets));
+
+            // Update the dropdown menu
+            updatePresetsDropdown();
+
+            // Reset the current preset
+            current_preset = "None";
+            $("#active_preset_value").text(current_preset);
+
+            ntf(`Preset "${current_preset}" deleted successfully`, 'success');
+        }
+
+        // Also send to server if it supports it
         send({
             op: "delete_preset",
             preset: current_preset
         });
-        send({op: "get_presets"});
     });
 
     $("#checkbox_system_mobility").on("change", function () {
@@ -739,7 +923,7 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             const select = document.createElement("select");
             select.classList.add("form-select");
             select.onchange = function () {
-                config[device][text] = select.value === 1;
+                config[device][text] = select.value === "1";
                 send({
                     op: "configuration",
                     device: device,
@@ -764,7 +948,7 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             span.classList.add("input-group-text");
             span.innerText = text;
 
-            div.appendChild(spntfan);
+            div.appendChild(span);
             div.appendChild(select);
             return div;
         } else if (type === "float") {
@@ -956,6 +1140,131 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             div.appendChild(inputX4);
             div.appendChild(inputY4);
             return div;
+        } else if (type === "waypoints") {
+            const div = document.createElement("div");
+            div.classList.add("input-group");
+            div.classList.add("mb-3");
+
+            const waypointsContainer = document.createElement("div");
+            waypointsContainer.classList.add("waypoints-container");
+
+            // Display existing waypoints
+            if (data && Array.isArray(data)) {
+                data.forEach((waypoint, index) => {
+                    const waypointRow = document.createElement("div");
+                    waypointRow.classList.add("waypoint-row", "d-flex", "mb-2");
+
+                    const latInput = document.createElement("input");
+                    latInput.type = "number";
+                    latInput.classList.add("form-control", "me-2");
+                    latInput.value = waypoint[0];
+                    latInput.placeholder = "Latitude";
+                    latInput.step = "0.000001";
+
+                    const lngInput = document.createElement("input");
+                    lngInput.type = "number";
+                    lngInput.classList.add("form-control", "me-2");
+                    lngInput.value = waypoint[1];
+                    lngInput.placeholder = "Longitude";
+                    lngInput.step = "0.000001";
+
+                    const removeBtn = document.createElement("button");
+                    removeBtn.classList.add("btn", "btn-danger");
+                    removeBtn.innerText = "Remove";
+                    removeBtn.onclick = function() {
+                        waypointRow.remove();
+                        // Update config
+                        const newWaypoints = [];
+                        waypointsContainer.querySelectorAll('.waypoint-row').forEach(row => {
+                            const lat = parseFloat(row.querySelector('input:nth-child(1)').value);
+                            const lng = parseFloat(row.querySelector('input:nth-child(2)').value);
+                            newWaypoints.push([lat, lng]);
+                        });
+                        config[device][text] = newWaypoints;
+                        send({
+                            op: "configuration",
+                            device: device,
+                            json: config[device],
+                        });
+                    };
+
+                    waypointRow.appendChild(latInput);
+                    waypointRow.appendChild(lngInput);
+                    waypointRow.appendChild(removeBtn);
+                    waypointsContainer.appendChild(waypointRow);
+                });
+            }
+
+            // Add button to add new waypoint
+            const addBtn = document.createElement("button");
+            addBtn.classList.add("btn", "btn-primary", "mt-2");
+            addBtn.innerText = "Add Waypoint";
+            addBtn.onclick = function() {
+                const waypointRow = document.createElement("div");
+                waypointRow.classList.add("waypoint-row", "d-flex", "mb-2");
+
+                const latInput = document.createElement("input");
+                latInput.type = "number";
+                latInput.classList.add("form-control", "me-2");
+                latInput.placeholder = "Latitude";
+                latInput.step = "0.000001";
+
+                const lngInput = document.createElement("input");
+                lngInput.type = "number";
+                lngInput.classList.add("form-control", "me-2");
+                lngInput.placeholder = "Longitude";
+                lngInput.step = "0.000001";
+
+                const removeBtn = document.createElement("button");
+                removeBtn.classList.add("btn", "btn-danger");
+                removeBtn.innerText = "Remove";
+                removeBtn.onclick = function() {
+                    waypointRow.remove();
+                    // Update config
+                    const newWaypoints = [];
+                    waypointsContainer.querySelectorAll('.waypoint-row').forEach(row => {
+                        const lat = parseFloat(row.querySelector('input:nth-child(1)').value);
+                        const lng = parseFloat(row.querySelector('input:nth-child(2)').value);
+                        newWaypoints.push([lat, lng]);
+                    });
+                    config[device][text] = newWaypoints;
+                    send({
+                        op: "configuration",
+                        device: device,
+                        json: config[device],
+                    });
+                };
+
+                waypointRow.appendChild(latInput);
+                waypointRow.appendChild(lngInput);
+                waypointRow.appendChild(removeBtn);
+                waypointsContainer.appendChild(waypointRow);
+
+                // Update inputs to trigger change events
+                latInput.onchange = lngInput.onchange = function() {
+                    const newWaypoints = [];
+                    waypointsContainer.querySelectorAll('.waypoint-row').forEach(row => {
+                        const lat = parseFloat(row.querySelector('input:nth-child(1)').value);
+                        const lng = parseFloat(row.querySelector('input:nth-child(2)').value);
+                        newWaypoints.push([lat, lng]);
+                    });
+                    config[device][text] = newWaypoints;
+                    send({
+                        op: "configuration",
+                        device: device,
+                        json: config[device],
+                    });
+                };
+            };
+
+            const span = document.createElement("span");
+            span.classList.add("input-group-text");
+            span.innerText = text;
+
+            div.appendChild(span);
+            div.appendChild(waypointsContainer);
+            div.appendChild(addBtn);
+            return div;
         } else {
             const options = addressKeys[device][text];
             if (typeof options == "object") {
@@ -1078,6 +1387,204 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
     function send(obj) {
         sendQueue.push(obj);
     }
+
+    function updateConfigurationUI(device, deviceConfig) {
+        console.log("Updating UI for device:", device, deviceConfig);
+
+        switch(device) {
+            case "autonav_vision_transformer":
+                // Update Vision Transformer UI
+                $("#region_of_disinterest_offset").val(deviceConfig.region_of_disinterest_offset || 0);
+                $("#lower_hue").val(deviceConfig.lower_hue || 0);
+                $("#lower_saturation").val(deviceConfig.lower_saturation || 0);
+                $("#lower_value").val(deviceConfig.lower_value || 0);
+                $("#upper_hue").val(deviceConfig.upper_hue || 0);
+                $("#upper_saturation").val(deviceConfig.upper_saturation || 0);
+                $("#upper_value").val(deviceConfig.upper_value || 0);
+                $("#blur").val(deviceConfig.blur || 0);
+                $("#blur_iterations").val(deviceConfig.blur_iterations || 0);
+                break;
+
+            case "autonav_nav_astar":
+                // Update A* Navigation UI
+                $("#latitude_length").val(deviceConfig.latitude_length || 111086.2);
+                $("#longitude_length").val(deviceConfig.longitude_length || 91978.2);
+                $("#waypoint_pop_distance").val(deviceConfig.waypoint_pop_distance || 1.0);
+                $("#waypoint_delay").val(deviceConfig.waypoint_delay || 10);
+                $("#robot_y").val(deviceConfig.robot_y || 70);
+                $("#use_only_waypoints").prop("checked", deviceConfig.use_only_waypoints || false);
+                break;
+
+            case "zemlin_path_resolver":
+                // Update Path Resolver UI
+                $("#forward_speed").val(deviceConfig.forward_speed || 0.5);
+                $("#reverse_speed").val(deviceConfig.reverse_speed || -0.5);
+                $("#angular_aggressiveness").val(deviceConfig.angular_aggressiveness || 1.0);
+                $("#max_angular_speed").val(deviceConfig.max_angular_speed || 1.0);
+                $("#radius_multiplier").val(deviceConfig.radius_multiplier || 1.0);
+                $("#radius_max").val(deviceConfig.radius_max || 1.0);
+                $("#radius_start").val(deviceConfig.radius_start || 0.5);
+                break;
+
+            case "zemlin_filters":
+                // Update Position Filters UI
+                $("#filter_latitude_length").val(deviceConfig.latitude_length || 111086.2);
+                $("#filter_longitude_length").val(deviceConfig.longitude_length || 91978.2);
+                $("#filter_type").val(deviceConfig.filter_type || 0);
+                break;
+
+            default:
+                console.log("Unknown device:", device);
+                break;
+        }
+    }
+
+    // Event handlers for configuration page buttons
+
+    // Vision Transformer
+    // Added -c event handlers for Vision Transformer inps
+    $("#region_of_disinterest_offset, #lower_hue, #lower_saturation, #lower_value, #upper_hue, #upper_saturation, #upper_value, #blur, #blur_iterations").on("change", function() {
+        const configData = {
+            region_of_disinterest_offset: parseInt($("#region_of_disinterest_offset").val()) || 0,
+            lower_hue: parseInt($("#lower_hue").val()) || 0,
+            lower_saturation: parseInt($("#lower_saturation").val()) || 0,
+            lower_value: parseInt($("#lower_value").val()) || 0,
+            upper_hue: parseInt($("#upper_hue").val()) || 0,
+            upper_saturation: parseInt($("#upper_saturation").val()) || 0,
+            upper_value: parseInt($("#upper_value").val()) || 0,
+            blur: parseInt($("#blur").val()) || 0,
+            blur_iterations: parseInt($("#blur_iterations").val()) || 0
+        };
+
+        send({
+            op: "configuration",
+            device: "autonav_vision_transformer",
+            json: JSON.stringify(configData)
+        });
+
+        ntf('Vision Transformer configuration saved', 'success');
+    });
+
+    $("#reset_vision_transformer").on("click", function() {
+        // Reset to default values or fetch from server
+        send({
+            op: "get_configuration",
+            device: "autonav_vision_transformer"
+        });
+
+        ntf('Vision Transformer configuration reset', 'info');
+    });
+
+    // A* Navigation
+    // Add change event handlers to all A* Navigation inputs
+    $("#latitude_length, #longitude_length, #waypoint_pop_distance, #waypoint_delay, #robot_y").on("change", function() {
+        const configData = {
+            latitude_length: parseFloat($("#latitude_length").val()) || 111086.2,
+            longitude_length: parseFloat($("#longitude_length").val()) || 91978.2,
+            waypoint_pop_distance: parseFloat($("#waypoint_pop_distance").val()) || 1.0,
+            waypoint_delay: parseFloat($("#waypoint_delay").val()) || 10,
+            robot_y: parseInt($("#robot_y").val()) || 70,
+            use_only_waypoints: $("#use_only_waypoints").is(":checked")
+        };
+
+        send({
+            op: "configuration",
+            device: "autonav_nav_astar",
+            json: JSON.stringify(configData)
+        });
+
+        ntf('A* Navigation configuration saved', 'success');
+    });
+
+    // Add change event handler for checkbox
+    $("#use_only_waypoints").on("change", function() {
+        const configData = {
+            latitude_length: parseFloat($("#latitude_length").val()) || 111086.2,
+            longitude_length: parseFloat($("#longitude_length").val()) || 91978.2,
+            waypoint_pop_distance: parseFloat($("#waypoint_pop_distance").val()) || 1.0,
+            waypoint_delay: parseFloat($("#waypoint_delay").val()) || 10,
+            robot_y: parseInt($("#robot_y").val()) || 70,
+            use_only_waypoints: $(this).is(":checked")
+        };
+
+        send({
+            op: "configuration",
+            device: "autonav_nav_astar",
+            json: JSON.stringify(configData)
+        });
+
+        ntf('A* Navigation configuration saved', 'success');
+    });
+
+    $("#reset_astar_navigation").on("click", function() {
+        // Reset to default values or fetch from server
+        send({
+            op: "get_configuration",
+            device: "autonav_nav_astar"
+        });
+
+        ntf('A* Navigation configuration reset', 'info');
+    });
+
+    // Path Resolver
+    // Add change event handlers to all Path Resolver inputs
+    $("#forward_speed, #reverse_speed, #angular_aggressiveness, #max_angular_speed, #radius_multiplier, #radius_max, #radius_start").on("change", function() {
+        const configData = {
+            forward_speed: parseFloat($("#forward_speed").val()) || 0.5,
+            reverse_speed: parseFloat($("#reverse_speed").val()) || -0.5,
+            angular_aggressiveness: parseFloat($("#angular_aggressiveness").val()) || 1.0,
+            max_angular_speed: parseFloat($("#max_angular_speed").val()) || 1.0,
+            radius_multiplier: parseFloat($("#radius_multiplier").val()) || 1.0,
+            radius_max: parseFloat($("#radius_max").val()) || 1.0,
+            radius_start: parseFloat($("#radius_start").val()) || 0.5
+        };
+
+        send({
+            op: "configuration",
+            device: "zemlin_path_resolver",
+            json: JSON.stringify(configData)
+        });
+
+        ntf('Path Resolver configuration saved', 'success');
+    });
+
+    $("#reset_path_resolver").on("click", function() {
+        // Reset to default values or fetch from server
+        send({
+            op: "get_configuration",
+            device: "zemlin_path_resolver"
+        });
+
+        ntf('Path Resolver configuration reset', 'info');
+    });
+
+    // Position Filters
+    // Add change event handlers to all Position Filters inputs
+    $("#filter_latitude_length, #filter_longitude_length, #filter_type").on("change", function() {
+        const configData = {
+            latitude_length: parseFloat($("#filter_latitude_length").val()) || 111086.2,
+            longitude_length: parseFloat($("#filter_longitude_length").val()) || 91978.2,
+            filter_type: parseInt($("#filter_type").val()) || 0
+        };
+
+        send({
+            op: "configuration",
+            device: "zemlin_filters",
+            json: JSON.stringify(configData)
+        });
+
+        ntf('Position Filters configuration saved', 'success');
+    });
+
+    $("#reset_position_filters").on("click", function() {
+        // Reset to default values or fetch from server
+        send({
+            op: "get_configuration",
+            device: "zemlin_filters"
+        });
+
+        ntf('Position Filters configuration reset', 'info');
+    });
 })
 //Old function meant to toggle dev mode with button press
 /*

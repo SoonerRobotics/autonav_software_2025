@@ -40,6 +40,7 @@ $(document).keydown(function (e) {
 const dataPageIds = [
     "dashboard",
     "vision",
+    "logging",
     "configuration",
     "preferences"
 ];

@@ -50,13 +50,14 @@ const addressKeys = {
 
     "autonav_vision_transformer": {
         "internal_title": "[Vision] Transformer",
+        "region_of_disinterest_offset": "int",
         "lower_hue": "int",
-        "lower_sat": "int",
-        "lower_val": "int",
+        "lower_saturation": "int",
+        "lower_value": "int",
         "upper_hue": "int",
-        "upper_sat": "int",
-        "upper_val": "int",
-        "blur_weight": "int",
+        "upper_saturation": "int",
+        "upper_value": "int",
+        "blur": "int",
         "blur_iterations": "int",
         "map_res": "int",
         "left_bottomleft": "point.int",
@@ -112,7 +113,13 @@ const addressKeys = {
 
     "autonav_nav_astar": {
         "internal_title": "[Navigation] A*",
-        "waypointPopDistance": "float",
+        "latitude_length": "float",
+        "longitude_length": "float",
+        "waypoint_pop_distance": "float",
+        "waypoint_delay": "float",
+        "robot_y": "int",
+        "use_only_waypoints": "bool",
+        "waypoints": "waypoints",
         "waypointDirection": {
             0: "North",
             1: "South",
@@ -123,12 +130,32 @@ const addressKeys = {
             6: "Misc 5",
         },
         "calculateWaypointDirection": "bool",
-        "useOnlyWaypoints": "bool",
-        "waypointDelay": "float",
         "vertical_fov": "float",
         "horizontal_fov": "float",
         "waypointMaxWeight": "float",
         "waypointWeight": "float",
+    },
+
+    "zemlin_path_resolver": {
+        "internal_title": "[Path Resolver]",
+        "forward_speed": "float",
+        "reverse_speed": "float",
+        "angular_aggressiveness": "float",
+        "max_angular_speed": "float",
+        "radius_multiplier": "float",
+        "radius_max": "float",
+        "radius_start": "float"
+    },
+
+    "zemlin_filters": {
+        "internal_title": "[Position Filters]",
+        "latitude_length": "float",
+        "longitude_length": "float",
+        "filter_type": {
+            0: "Dead Reckoning",
+            1: "Particle Filter",
+            2: "Bearing Filter"
+        }
     },
 
     "autonav_nav_resolver": {

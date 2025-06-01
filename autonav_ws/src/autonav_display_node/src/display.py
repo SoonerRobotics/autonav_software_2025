@@ -1,9 +1,10 @@
 #!/usr/bin/env -S python3
-# TODO DO NOT COMMIT THIS FILE!! IT SHOULD BE REVERTED ONCE YOU GET WS WORKING
 import asyncio
 import json
 import threading
 import time
+import os
+import glob
 
 import cv2
 import cv_bridge
@@ -23,34 +24,34 @@ class Topics(Enum):# todo refactor to json file being read in..
     BROADCAST = "/autonav/shared/autonav_display_broadcast"
     SYSTEM_STATE = "/autonav/shared/system"
     DEVICE_STATE = "/autonav/shared/device"
-    LOG = "/autonav/shared/log"#todo confirm implementation
+    LOG = "/autonav/shared/log"
 
     # IMU Data
     IMU = "/autonav/imu"
     AUTONAV_GPS = "/autonav/gps"
     MOTOR_INPUT = "/autonav/motor_input"
     POSITION = "/autonav/position"
-    CONTROLLER_INPUT = '/autonav/controller_input'#todo confirm implementation
+    CONTROLLER_INPUT = '/autonav/controller_input'
 
     # Motor and System Feedback
     MOTOR_FEEDBACK = "/autonav/motor_feedback"
-    NUC_STATISTICS = "/autonav/statistics"#todo implement in index
-    ULTRASONICS = "/autonav/ultrasonic"#todo implement in index
-    CONBUS_DATA = "/autonav/conbus/data"#todo confirm implementation
-    CONBUS_INSTRUCTION = "/autonav/conbus/instruction"#todo confirm implementation
+    NUC_STATISTICS = "/autonav/statistics"
+    ULTRASONICS = "/autonav/ultrasonic"
+    CONBUS_DATA = "/autonav/conbus/data"
+    CONBUS_INSTRUCTION = "/autonav/conbus/instruction"
 
     # Aliases for backward compatibility
-    CONBUS = "/autonav/conbus/data"#todo confirm implementation
-    SAFETY_LIGHTS = "/autonav/safety_lights"#todo implement in index
-    PERFORMANCE = "/autonav/performance"#todo implement in index
+    CONBUS = "/autonav/conbus/data"
+    SAFETY_LIGHTS = "/autonav/safety_lights"
+    PERFORMANCE = "/autonav/performance"
 
     # PID and Motor Statistics
-    LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics"#todo confirm implementation
-    ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics"#todo confirm implementation
-    MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors"#todo confirm implementation
-    MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors"#todo confirm implementation
-    CAN_STATS = "/autonav/can_stats"#todo confirm implementation
-    ZERO_ENCODERS = "/autonav/zero_encoders"#todo confirm implementation
+    LINEAR_PID_STATISTICS = "/autonav/linear_pid_statistics"
+    ANGULAR_PID_STATISTICS = "/autonav/angular_pid_statistics"
+    MOTOR_STATISTICS_FRONT = "/autonav/motor_statistics_front_motors"
+    MOTOR_STATISTICS_BACK = "/autonav/motor_statistics_back_motors"
+    CAN_STATS = "/autonav/can_stats"
+    ZERO_ENCODERS = "/autonav/zero_encoders"
 
     # Raw camera
     RAW_LEFT = "/autonav/camera/left"
@@ -60,17 +61,17 @@ class Topics(Enum):# todo refactor to json file being read in..
 
     # Other Camera Nodes
     COMBINED_IMAGE = "/autonav/vision/combined/filtered"
-    FEELERS = "/autonav/feelers/debug"  # todo implement in index
+    FEELERS = "/autonav/feelers/debug"  
 
     # Configuration
-    CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"#todo confirm implementation
-    CONFIGURATION_UPDATE = "/autonav/shared/config/updates" #todo implement in index
-    CONFIG_PRESTS_LOAD = "/autonav/presets/load"#todo implement in index
-    CONFIG_PRESTS_SAVE = "/autonav/presets/save"#todo implement in index
+    CONFIGURATION_BROADCAST = "/autonav/shared/config/requests"
+    CONFIGURATION_UPDATE = "/autonav/shared/config/updates" 
+    CONFIG_PRESTS_LOAD = "/autonav/presets/load"
+    CONFIG_PRESTS_SAVE = "/autonav/presets/save"
 
     # Others
-    PLAYBACK = "/autonav/autonav_playback"  # TODO see how to feed this data in
-    AUDIBLE_FEEDBACK = '/autonav/audible_feedback'  # todo implement!
+    PLAYBACK = "/autonav/autonav_playback"  # 
+    AUDIBLE_FEEDBACK = '/autonav/audible_feedback'  
 
 
 async_loop = asyncio.new_event_loop()
@@ -466,9 +467,64 @@ class BroadcastNode(Node):
                     "mobility": self.mobility
                 }
             }), uid)
+        elif obj.get("op") == "get_log_files":
+
+            log_files = self.get_log_files()
+            self.push_old(json.dumps({
+                "op": "get_log_files_callback",
+                "log_files": log_files
+            }), uid)
+        elif obj.get("op") == "get_log_file_content":
+
+            log_file_path = obj.get("log_file_path")
+            if log_file_path:
+                content = self.get_log_file_content(log_file_path)
+                self.push_old(json.dumps({
+                    "op": "get_log_file_content_callback",
+                    "log_file_path": log_file_path,
+                    "content": content
+                }), uid)
+        elif obj.get("op") == "get_configuration":
+            device = obj.get("device")
+            if device:
+                # -m ConfigurationBroadcast msg 2 req config
+                msg = ConfigurationBroadcast()
+                msg.device = device
+                msg.opcode = 4  # Get configuration
+
+                #publisher
+                self.configuration_broadcast_p = self.create_publisher(
+                    ConfigurationBroadcast,
+                    Topics.CONFIGURATION_BROADCAST.value,
+                    20
+                )
+                self.configuration_broadcast_p.publish(msg)
+
+                # response send
+                self.push_old(json.dumps({
+                    "op": "get_configuration_response",
+                    "device": device,
+                    "status": "requested"
+                }), uid)
+        elif obj.get("op") == "configuration":
+            device = obj.get("device")
+            json_data = obj.get("json")
+            if device and json_data:
+                # pusher to robot
+                msg = ConfigurationUpdate()
+                msg.device = device
+                msg.json = json_data if isinstance(json_data, str) else json.dumps(json_data)
+
+
+                self.configuration_update_p = self.create_publisher(
+                    ConfigurationUpdate,
+                    Topics.CONFIGURATION_UPDATE.value,
+                    20
+                )
+                self.configuration_update_p.publish(msg)
         # elif obj.get("op") == "set_system_state": todo fix setting sys state?
         #     self.set_system_total_state(int(obj["state"]), int(obj["mode"]), bool(obj["mobility"]))
-        # TODO: add configuration, conbus, preset ops to ws msg
+        # TODO: add conbus, preset ops to ws msg
 
 
 #todo add new callbacks
@@ -537,10 +593,105 @@ class BroadcastNode(Node):
     def configurationBroadcastCallback(self, msg: ConfigurationBroadcast):
         self.push(Topics.CONFIGURATION_BROADCAST.value, msg)
 
+        # If this is a response to a get_configuration request (opcode 4),
+        # send the configuration back to all clients
+        if msg.opcode == 4 and hasattr(msg, 'json') and msg.json:
+            try:
+                config_data = json.loads(msg.json)
+                self.push_old(json.dumps({
+                    "op": "get_configuration_response",
+                    "device": msg.device,
+                    "config": config_data
+                }))
+            except json.JSONDecodeError:
+                self.get_logger().error(f"Failed to parse configuration JSON: {msg.json}")
+            except Exception as e:
+                self.get_logger().error(f"Error processing configuration broadcast: {str(e)}")
+
     # Cameras
     def cameraCallback(self, msg: CompressedImage, key: str):
         topic = getattr(Topics, f"RAW_{key.upper()}" if key in ['left', 'right', 'front', 'back'] else f"FEELERS").value
         self.push_image(topic, msg)
+
+    def get_log_files(self):
+        log_files = []
+        home_dir = os.path.expanduser("~")
+        log_base_dir = os.path.join(home_dir, ".autonav", "logs")
+
+
+        if not os.path.exists(log_base_dir):
+            return log_files
+
+
+        for mode in ["manual", "autonomous"]:
+            mode_dir = os.path.join(log_base_dir, mode)
+            if os.path.exists(mode_dir):
+
+                timestamp_dirs = glob.glob(os.path.join(mode_dir, "*"))
+                for timestamp_dir in timestamp_dirs:
+                    if os.path.isdir(timestamp_dir):
+
+                        timestamp = os.path.basename(timestamp_dir)
+
+
+                        log_file = os.path.join(timestamp_dir, "output.suslog")
+                        if os.path.exists(log_file):
+                            log_files.append({
+                                "mode": mode,
+                                "timestamp": timestamp,
+                                "path": log_file,
+                                "size": os.path.getsize(log_file)
+                            })
+
+
+        zip_files = glob.glob(os.path.join(log_base_dir, "*.zip"))
+        for zip_file in zip_files:
+            filename = os.path.basename(zip_file)
+
+            parts = filename.split("_", 1)
+            if len(parts) == 2:
+                mode = parts[0]
+                timestamp = parts[1].replace(".zip", "")
+                log_files.append({
+                    "mode": mode,
+                    "timestamp": timestamp,
+                    "path": zip_file,
+                    "size": os.path.getsize(zip_file),
+                    "is_zip": True
+                })
+
+
+        log_files.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return log_files
+
+    def get_log_file_content(self, log_file_path):
+        """
+        Get the content of a log file
+        Returns the content as a string or an error message
+        """
+        try:
+            if not os.path.exists(log_file_path):
+                return {"error": "File not found"}
+
+
+            if log_file_path.endswith(".zip"):
+                return {"error": "Zip files cannot be viewed directly"}
+
+
+            with open(log_file_path, "r") as f:
+                content = f.read()
+
+
+            try:
+                parsed_content = json.loads(content)
+                return {"content": parsed_content}
+            except json.JSONDecodeError:
+
+                return {"content": content, "is_plain_text": True}
+
+        except Exception as e:
+            return {"error": str(e)}
 
     def init(self):
         self.set_device_state(AutonavDeviceState.OPERATING)
