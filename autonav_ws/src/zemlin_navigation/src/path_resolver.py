@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from autonav_msgs.msg import MotorInput, Position, SafetyLights
+from autonav_msgs.msg import MotorInput, Position, SafetyLights, AudibleFeedback
 from autonav_shared.node import Node
 from autonav_shared.types import DeviceState, SystemState
 from nav_msgs.msg import Path
@@ -9,6 +9,7 @@ import threading
 import math
 import rclpy
 import time
+import os
 
 
 IS_SOUTH = False
@@ -17,14 +18,14 @@ BACK_SPEED = 0.40
 
 class PathResolverConfig:
     def __init__(self):
-        self.forward_speed = 2.4
-        self.reverse_speed = -0.7
+        self.forward_speed = 3.3
+        self.reverse_speed = -1.1
         self.radius_multiplier = 1.2
         self.radius_max = 4.0
         self.radius_start = 0.7
         self.angular_aggressiveness = 14
         self.max_angular_speed = 4
-
+        self.backup_sound = '~/autonav_software_2025/music/truck.mp3'
 
 class PathResolverNode(Node):
     def __init__(self):
@@ -57,8 +58,16 @@ class PathResolverNode(Node):
         self.tick_timer = self.create_timer(0.05, self.resolve)
         self.set_device_state(DeviceState.READY)
 
+        self.audibleFeedbackPublisher = self.create_publisher(
+                AudibleFeedback,
+                '/autonav/audible_feedback',
+                10
+        )
+
+
     def onReset(self):
         self.backCount = -1
+
 
     def on_system_state_updated(self, old, new):
         if new == SystemState.AUTONOMOUS and self.device_states.get(self.get_name()) == DeviceState.READY:
@@ -125,12 +134,16 @@ class PathResolverNode(Node):
             inputPacket.forward_velocity = forward_speed
             inputPacket.angular_velocity = self.clamp(error * self.config.angular_aggressiveness, -self.config.max_angular_speed, self.config.max_angular_speed)
             # inputPacket.angular_velocity += 0.1 if self.angul
+            # audible_feedback = AudibleFeedback()
+            # audible_feedback.filename = os.path.expanduser(self.config.backup_sound)
+            # audible_feedback.main_track = False
+            # self.audibleFeedbackPublisher.publish(audible_feedback)
 
             if self.status == 0:
                 self.status = 1
         else:
             if self.backCount == -1:
-                self.backCount = 8
+                self.backCount = 5
                 # TODO: Push safety lights
             else:
                 self.status = 0

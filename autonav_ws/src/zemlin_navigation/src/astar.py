@@ -28,7 +28,7 @@ class AStarConfig:
         self.latitude_length = 111086.2
         self.longitude_length = 81978.2
         self.waypoint_pop_distance = 2.0
-        self.waypoint_delay = 50
+        self.waypoint_delay = 35
         self.robot_y = 66
         self.use_only_waypoints = False
         self.waypoint_sound = "~/autonav_software_2025/music/mine_xp.mp3"
@@ -45,8 +45,11 @@ class AStarConfig:
             # Single IGVC Waypoint
             # [(42.6679277, -83.2193276)]
 
+            # IGVC Custom
+            [(42.667947451088374, -83.21932953784066), (42.6679277, -83.2193276)]
+
             # The REAL (TM) QUAL POINT
-            [(42.6683230, -83.2183619)]
+            # [(42.6683230, -83.2183619)]
 
             # IGVC Real Waypoints
             # [(42.6682623, -83.2193709), (42.6681206, -83.2193606), (42.6680766, -83.2193592), (42.6679277, -83.2193276), (42.6679216, -83.2189126), (42.668130236144883, -83.21889785301433)]
@@ -347,7 +350,7 @@ class AStarNode(Node):
 
         self.costMap = grid_data
         self.bestPosition = temp_best_pos
-        self.perf_stop("Smellification", True)
+        self.perf_stop("Smellification")
         
     def pathToGlobalPose(self, pp0, pp1):
         x = (80 - pp1) * VERTICAL_CAMERA_DIST / 80

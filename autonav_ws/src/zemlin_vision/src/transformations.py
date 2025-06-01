@@ -33,7 +33,7 @@ class ImageTransformerConfig:
         self.upper_hue_ground = 255
         self.upper_saturation_ground = 140
         self.upper_value_ground = 200
-        self.lower_hue_ramp = 150
+        self.lower_hue_ramp = 80
         self.lower_saturation_ramp = 45
         self.lower_value_ramp = 40
         self.upper_hue_ramp = 220
@@ -42,6 +42,7 @@ class ImageTransformerConfig:
         self.blur = 5
         self.blur_iterations = 3
         self.region_of_disinterest_offset = 30
+        self.override_ramp = False
 
 
 class ImageTransformer(Node):
@@ -76,6 +77,7 @@ class ImageTransformer(Node):
         self.config.blur = config["blur"]
         self.config.blur_iterations = config["blur_iterations"]
         self.config.region_of_disinterest_offset = config["region_of_disinterest_offset"]
+        self.config.override_ramp = config["override_ramp"]
 
     def on_system_state_changed(self, old, new):
         if old != SystemState.AUTONOMOUS and new == SystemState.AUTONOMOUS:
@@ -150,7 +152,7 @@ class ImageTransformer(Node):
             self.config.upper_value_ramp
         )
         mask2 = cv2.inRange(img, lower, upper)
-        mask = cv2.add(mask1, mask2) if self.waypointReached else mask1
+        mask = cv2.add(mask1, mask2) if (self.waypointReached or self.config.override_ramp) else mask1
         mask = 255 - mask
 
         # Apply region of disinterest and flattening

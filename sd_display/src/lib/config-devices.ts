@@ -51,6 +51,12 @@ export const configDevices: ConfigDevice[] = [
 				max: 100,
 				step: 1
 			},
+			{
+				key: "override_ramp",
+				label: "Override Ramp",
+				type: "boolean",
+				defaultValue: false
+			}
 		],
 		groups: [
 			{
