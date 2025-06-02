@@ -55,7 +55,10 @@ struct FeelerNodeConfig {
     unsigned long gpsWaitMilliseconds; // time to wait before using GPS waypoints, in milliseconds
     int gpsBiasWeight; // pixels
     int forwardBiasWeight; // pixels
-    int backwardsBiasWeight;
+    int backwardsBiasWeight; // pixels
+    float max_turn_speed; // meters per second, probably (check sparkmax_node.py)
+    float max_drive_speed; // meters per second
+    float max_strafe_speed; // meters per second
     
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(FeelerNodeConfig, max_length, number_of_feelers, start_angle, end_angle, balance_feelers, waypointPopDist, ultrasonic_contribution, gpsWaitMilliseconds, gpsBiasWeight, forwardBiasWeight);
 };
@@ -76,6 +79,9 @@ public:
         config.gpsBiasWeight = 0;
         config.forwardBiasWeight = 100;
         config.backwardsBiasWeight = 200;
+        config.max_turn_speed = 1.25;
+        config.max_drive_speed = 2.0;
+        config.max_strafe_speed = 0.0;
 
         this->_config = config;
         this->config = config;
@@ -513,12 +519,26 @@ public:
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
             //FIXME the clamping should be configurable or something
-            msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()), -2.0, 2.0); //FIXME configure divider number thingy
-            // msg.forward_velocity = std::clamp(static_cast<double>(this->headingArrow.getY()) / 30, -1.25, 1.25); //FIXME configure divider number thingy
-            // msg.sideways_velocity = std::clamp(static_cast<double>(-this->headingArrow.getX()) / 30, -1.0, 1.0); //FIXME configure divider number thingy
+            float multiplier = 1.0;
+            if (!this->config.balance_feelers) {
+                multiplier = 5.0;
+            }
+            msg.forward_velocity = std::clamp(static_cast<float>(this->headingArrow.getY()) * multiplier, -this->config.max_drive_speed, this->config.max_drive_speed); //FIXME configure divider number thingy
             msg.sideways_velocity = 0.0;
-            // msg.angular_velocity = std::clamp(static_cast<double>(this->headingArrow.getX()) / 60, -1.0, 1.0); //TODO figure out when we want to turn
-            msg.angular_velocity = std::clamp(this->headingPID.calculate(this->headingArrow.getX()), -1.25, 1.25); //TODO figure out when we want to turn
+            msg.angular_velocity = std::clamp(static_cast<float>(this->headingPID.calculate(this->headingArrow.getX())), -this->config.max_turn_speed, this->config.max_turn_speed); // one camera for now so always turn, no strafe
+
+            //TODO FIXME these are like, kinda jank hacks to get it to work, it should not be like this in the final version
+            // if feelers doesn't produce any motor command (if it's in a symmetrical position)
+            if (abs(msg.forward_velocity) < 0.1 && abs(msg.angular_velocity) < 0.1) {
+                // then assume something is bad and go backwards and to the left
+                msg.forward_velocity = -0.5;
+                msg.angular_velocity = 0.2;
+            
+            // if we are going backwards and not really turning
+            } else if (msg.forward_velocity < 0.0 && abs(msg.angular_velocity) < 0.1) {
+                msg.angular_velocity *= 3; // then go faster
+                msg.angular_velocity = std::clamp(msg.angular_velocity, -this->config.max_turn_speed, this->config.max_turn_speed);
+            }
 
             //TODO safety lights need to change to other colors and stuff for debug information
         } else {
