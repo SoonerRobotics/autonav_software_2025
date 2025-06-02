@@ -1462,7 +1462,7 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             json: JSON.stringify(configData)
         });
 
-        ntf('Vision Transformer configuration saved', 'success');
+
     });
 
     $("#reset_vision_transformer").on("click", function() {
@@ -1472,7 +1472,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             device: "autonav_vision_transformer"
         });
 
-        ntf('Vision Transformer configuration reset', 'info');
     });
 
     // A* Navigation
@@ -1493,7 +1492,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             json: JSON.stringify(configData)
         });
 
-        ntf('A* Navigation configuration saved', 'success');
     });
 
     // Add change event handler for checkbox
@@ -1513,7 +1511,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             json: JSON.stringify(configData)
         });
 
-        ntf('A* Navigation configuration saved', 'success');
     });
 
     $("#reset_astar_navigation").on("click", function() {
@@ -1523,7 +1520,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             device: "autonav_nav_astar"
         });
 
-        ntf('A* Navigation configuration reset', 'info');
     });
 
     // Path Resolver
@@ -1545,7 +1541,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             json: JSON.stringify(configData)
         });
 
-        ntf('Path Resolver configuration saved', 'success');
     });
 
     $("#reset_path_resolver").on("click", function() {
@@ -1555,7 +1550,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             device: "zemlin_path_resolver"
         });
 
-        ntf('Path Resolver configuration reset', 'info');
     });
 
     $("#filter_latitude_length, #filter_longitude_length, #filter_type").on("change", function() {
@@ -1571,7 +1565,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             json: JSON.stringify(configData)
         });
 
-        ntf('Position Filters configuration saved', 'success');
     });
 
     $("#reset_position_filters").on("click", function() {
@@ -1580,7 +1573,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             device: "zemlin_filters"
         });
 
-        ntf('Position Filters configuration reset', 'info');
     });
 
     $("#max_length, #number_of_feelers, #start_angle, #waypointPopDist, #ultrasonic_contribution, #gpsWaitSeconds, #gpsBiasWeight, #forwardBiasWeight").on("change", function() {
@@ -1601,7 +1593,7 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             json: JSON.stringify(configData)
         });
 
-        ntf('Feeler Node Config configuration saved', 'success');
+        ;
     });
 
     $("#reset_feeler_node_config").on("click", function() {
@@ -1610,7 +1602,6 @@ document.addEventListener("DOMContentLoaded", function () {    // Check if local
             device: "autonav_feelers"
         });
 
-        ntf('Feeler Node Config configuration reset', 'info');
     });
 })
 //Old function meant to toggle dev mode with button press
