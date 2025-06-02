@@ -13,6 +13,7 @@
 #include "autonav_msgs/msg/ultrasonic.hpp"
 #include "autonav_msgs/msg/safety_lights.hpp"
 #include "autonav_msgs/msg/audible_feedback.hpp"
+#include "autonav_msgs/msg/waypoint_reached.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/image_transport.hpp"
 
@@ -68,19 +69,19 @@ public:
     FeelerNode() : AutoNav::Node("autonav_feelers") {
         // configuration stuff
         auto config = FeelerNodeConfig();
-        config.max_length = 100;
-        config.number_of_feelers = 16;
-        config.start_angle = 25;
+        config.max_length = 150;
+        config.number_of_feelers = 25;
+        config.start_angle = 5;
         config.end_angle = 180 - config.start_angle;
         config.balance_feelers = true;
         config.waypointPopDist = 2;
         config.ultrasonic_contribution = 1;
-        config.gpsWaitMilliseconds = 5000*20;
-        config.gpsBiasWeight = 0;
-        config.forwardBiasWeight = 100;
+        config.gpsWaitMilliseconds = 30000;
+        config.gpsBiasWeight = 175;
+        config.forwardBiasWeight = 250;
         config.backwardsBiasWeight = 200;
-        config.max_turn_speed = 1.25;
-        config.max_drive_speed = 2.0;
+        config.max_turn_speed = 1.5;
+        config.max_drive_speed = 2.4;
         config.max_strafe_speed = 0.0;
 
         this->_config = config;
@@ -154,6 +155,7 @@ public:
         debugPublisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/feelers/debug", 1);
         safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
         audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
+        waypointPublisher = this->create_publisher<autonav_msgs::msg::WaypointReached>("/autonav/waypoint_reached", 1);
         publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishOutputMessages, this));
 
         set_device_state(AutoNav::DeviceState::READY);
@@ -231,7 +233,7 @@ public:
         }
         
         // bias feelers forwards
-        Feeler forwardsFeeler = Feeler(10, 100); // positive (?!) y is upwards in an image
+        Feeler forwardsFeeler = Feeler(-30, 100); // positive (?!) y is upwards in an image
         for (int i = 0; i < this->feelers.size(); i++) {
             this->feelers.at(i).bias(this->config.forwardBiasWeight * (this->feelers.at(i) * forwardsFeeler));
             
@@ -355,7 +357,7 @@ public:
             // log("Heading: " + std::to_string(this->position.theta));
             
             // Feeler velocityFeeler = Feeler(this->position.x_vel, this->position.y_vel);
-            Feeler velocityFeeler = Feeler(0, 100);
+            Feeler velocityFeeler = Feeler(-20, 100);
 
             // calculate bias for every feeler
             for (int i = 0; i < this->feelers.size(); i++) {
@@ -370,7 +372,11 @@ public:
                     forward_bias = 0.0;
                 }
 
-                this->feelers.at(i).bias(gps_bias + forward_bias);
+		if (feelers.at(i).getY() < 0) {
+			//TODO FIXME
+		} else {
+	                this->feelers.at(i).bias(gps_bias + forward_bias);
+		}
             }
 
             // log("ROBOT has been BIASED", AutoNav::Logging::INFO);
@@ -381,6 +387,13 @@ public:
             if (this->distToWaypoint < config.waypointPopDist && this->waypointIndex < (this->waypointsDict[this->direction].size()-2)) {
                 // then go to the next waypoint
                 this->waypointIndex++;
+
+                autonav_msgs::msg::WaypointReached msg;
+                msg.latitude = goalPoint.lat;
+                msg.longitude = goalPoint.lon;
+                msg.tag = "feelers";
+
+                this->waypointPublisher->publish(msg);
 
                 log("NEXT WAYPOINT!", AutoNav::Logging::WARN);
             }
@@ -519,7 +532,7 @@ public:
             // convert headingArrow to motor outputs
             //FIXME we want to be going max speed on the straightaways
             //FIXME the clamping should be configurable or something
-            float multiplier = 1.0;
+            float multiplier = 1.5;
             if (!this->config.balance_feelers) {
                 multiplier = 5.0;
             }
@@ -535,8 +548,8 @@ public:
                 msg.angular_velocity = 0.2;
             
             // if we are going backwards and not really turning
-            } else if (msg.forward_velocity < 0.0 && abs(msg.angular_velocity) < 0.1) {
-                msg.angular_velocity *= 3; // then go faster
+            } else if (msg.forward_velocity < 0.0) {
+                msg.angular_velocity *= 10; // then go faster
                 msg.angular_velocity = std::clamp(msg.angular_velocity, -this->config.max_turn_speed, this->config.max_turn_speed);
             }
 
@@ -618,6 +631,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr debugPublisher;
     rclcpp::Publisher<autonav_msgs::msg::SafetyLights>::SharedPtr safetyLightsPublisher;
     rclcpp::Publisher<autonav_msgs::msg::AudibleFeedback>::SharedPtr audibleFeedbackPublisher;
+    rclcpp::Publisher<autonav_msgs::msg::WaypointReached>::SharedPtr waypointPublisher;
 
     rclcpp::TimerBase::SharedPtr publishTimer;
 

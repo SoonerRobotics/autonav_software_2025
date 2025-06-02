@@ -116,11 +116,11 @@ class ControllerInputNode(Node):
 
                 if ecodes.EV[event.type] == "EV_ABS": # joysticks, dpad, or triggers
                     if codename in self.stick_names:
-                        value = self.normalize(event.value, -1, 1, JOY_MIN, JOY_MAX, 10.0)
+                        value = self.normalize(event.value, -1, 1, JOY_MIN, JOY_MAX, 30.0)
                     elif codename in self.dpad_names:
                         value = float(event.value)
                     else: #trigger
-                        value = self.normalize(event.value, 0, 1, TRIGGER_MIN, TRIGGER_MAX, 10.0)
+                        value = self.normalize(event.value, 0, 1, TRIGGER_MIN, TRIGGER_MAX, 30.0)
 
                 elif ecodes.EV[event.type] == "EV_KEY": # buttons
                     value = float(event.value)

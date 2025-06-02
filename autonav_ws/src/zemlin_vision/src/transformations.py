@@ -24,7 +24,7 @@ g_mapData.origin.position.y = -10.0
 
 MAP_RES = 80
 
-FEELERS = False
+FEELERS = True
 
 class ImageTransformerConfig:
     def __init__(self):
@@ -42,7 +42,7 @@ class ImageTransformerConfig:
         self.upper_value_ramp = 255
         self.blur = 5
         self.blur_iterations = 3
-        self.region_of_disinterest_offset = 30
+        self.region_of_disinterest_offset = 150
         self.override_ramp = False
 
 
@@ -226,7 +226,15 @@ class ImageTransformer(Node):
 
 def main():
     rclpy.init()
-    rclpy.spin(ImageTransformer())
+    executor = rclpy.executors.MultiThreadedExecutor()
+    executor.add_node(ImageTransformer("front"))
+
+    #if FEELERS:
+    #    executor.add_node(ImageTransformer("left"))
+    #    executor.add_node(ImageTransformer("right"))
+
+    #rclpy.spin(ImageTransformer())
+    executor.spin()
     rclpy.shutdown()
 
 

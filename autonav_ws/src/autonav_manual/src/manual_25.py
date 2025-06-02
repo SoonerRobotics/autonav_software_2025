@@ -112,7 +112,6 @@ class Manual25Node(Node):
 
         self.change_controller_mode()
         self.change_system_state()
-        self.handle_encoders()
 
         # # self.log(f"orientation: {self.orientation}")
         # # local vs. global toggle
@@ -164,16 +163,6 @@ class Manual25Node(Node):
             self.set_system_state(SystemState.AUTONOMOUS)
         elif self.controller_state['btn_select'] == 1.0:
             self.set_system_state(SystemState.DISABLED)
-
-    
-    def handle_encoders(self):
-        if self.controller_state['btn_tl'] == 1.0:
-            # self.log("zeroing the encoders", LogLevel.INFO)
-            number_of_absolute_encoders = 4
-            for i in range(number_of_absolute_encoders):
-                encoder_msg = ZeroEncoders()
-                encoder_msg.which_encoder = i
-                self.zeroEncodersPublisher.publish(encoder_msg)
 
 
     def compose_motorinput_message_local(self):

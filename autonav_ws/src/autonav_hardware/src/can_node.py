@@ -3,7 +3,7 @@
 import rclpy
 from autonav_shared.node import Node
 from autonav_msgs.msg import MotorInput, MotorFeedback, SafetyLights, Ultrasonic, Conbus, CanStats
-from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatistics, ZeroEncoders
+from autonav_msgs.msg import LinearPIDStatistics, AngularPIDStatistics, MotorStatistics
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
