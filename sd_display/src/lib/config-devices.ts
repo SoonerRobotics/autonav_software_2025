@@ -51,15 +51,21 @@ export const configDevices: ConfigDevice[] = [
 				max: 100,
 				step: 1
 			},
+			{
+				key: "override_ramp",
+				label: "Override Ramp",
+				type: "boolean",
+				defaultValue: false
+			}
 		],
 		groups: [
 			{
-				key: "lower-thresholds",
-				label: "Lower Thresholds",
+				key: "lower-thresholds-ground",
+				label: "Lower Thresholds (Ground)",
 				layout: "row",
 				options: [
 					{
-						key: "lower_hue",
+						key: "lower_hue_ground",
 						label: "Lower Hue Threshold",
 						type: "number",
 						defaultValue: 0,
@@ -70,7 +76,7 @@ export const configDevices: ConfigDevice[] = [
 						category: "HSV"
 					},
 					{
-						key: "lower_saturation",
+						key: "lower_saturation_ground",
 						label: "Lower Saturation Threshold",
 						placeholder: "0-255",
 						type: "number",
@@ -80,7 +86,7 @@ export const configDevices: ConfigDevice[] = [
 						step: 1,
 					},
 					{
-						key: "lower_value",
+						key: "lower_value_ground",
 						label: "Lower Value Threshold",
 						placeholder: "0-255",
 						type: "number",
@@ -92,12 +98,12 @@ export const configDevices: ConfigDevice[] = [
 				]
 			},
 			{
-				key: "upper-thresholds",
-				label: "Upper Thresholds",
+				key: "upper-thresholds-ground",
+				label: "Upper Thresholds (Ground)",
 				layout: "row",
 				options: [
 					{
-						key: "upper_hue",
+						key: "upper_hue_ground",
 						label: "Upper Hue Threshold",
 						placeholder: "0-255",
 						type: "number",
@@ -108,7 +114,7 @@ export const configDevices: ConfigDevice[] = [
 						category: "HSV"
 					},
 					{
-						key: "upper_saturation",
+						key: "upper_saturation_ground",
 						label: "Upper Saturation Threshold",
 						placeholder: "0-255",
 						type: "number",
@@ -119,7 +125,7 @@ export const configDevices: ConfigDevice[] = [
 						category: "HSV"
 					},
 					{
-						key: "upper_value",
+						key: "upper_value_ground",
 						label: "Upper Value Threshold",
 						placeholder: "0-255",
 						type: "number",
@@ -128,6 +134,83 @@ export const configDevices: ConfigDevice[] = [
 						max: 255,
 						step: 1,
 						category: "HSV"
+					}
+				]
+			},
+			{
+				key: "lower-thresholds-ramp",
+				label: "Lower Thresholds (Ramp)",
+				layout: "row",
+				options: [
+					{
+						key: "lower_hue_ramp",
+						label: "Lower Hue Threshold",
+						type: "number",
+						defaultValue: 0,
+						placeholder: "0-255",
+						min: 0,
+						max: 255,
+						step: 1,
+						category: "HSV"
+					},
+					{
+						key: "lower_saturation_ramp",
+						label: "Lower Saturation Threshold",
+						placeholder: "0-255",
+						type: "number",
+						defaultValue: 0,
+						min: 0,
+						max: 255,
+						step: 1,
+					},
+					{
+						key: "lower_value_ramp",
+						label: "Lower Value Threshold",
+						placeholder: "0-255",
+						type: "number",
+						defaultValue: 0,
+						min: 0,
+						max: 255,
+						step: 1,
+					}
+				]
+			},
+			{
+				key: "upper-thresholds-ramp",
+				label: "Upper Thresholds (Ramp)",
+				layout: "row",
+				options: [
+					{
+						key: "upper_hue_ramp",
+						label: "Upper Hue Threshold",
+						placeholder: "0-255",
+						type: "number",
+						defaultValue: 0,
+						min: 0,
+						max: 255,
+						step: 1,
+						category: "HSV"
+					},
+					{
+						key: "upper_saturation_ramp",
+						label: "Upper Saturation Threshold",
+						placeholder: "0-255",
+						type: "number",
+						defaultValue: 0,
+						min: 0,
+						max: 255,
+						step: 1,
+						category: "HSV"
+					},
+					{
+						key: "upper_value_ramp",
+						label: "Upper Value Threshold",
+						placeholder: "0-255",
+						type: "number",
+						defaultValue: 0,
+						min: 0,
+						max: 255,
+						step: 1,
 					}
 				]
 			},
@@ -330,6 +413,108 @@ export const configDevices: ConfigDevice[] = [
 					{ value: 2, label: "Bearing Filter" },
 				]
 			}
+		]
+	},
+	{
+		id: "feelers",
+		name: "Feelers",
+		options: [
+			{
+				key: "max_length",
+				label: "Max Length",
+				type: "number",
+				defaultValue: 150,
+				min: 1,
+				max: 400,
+				step: 10
+			},
+			{
+				key: "number_of_feelers",
+				label: "Number of Feelers",
+				type: "number",
+				defaultValue: 16,
+				min: 4,
+				max: 200,
+				step: 1
+			},
+			{
+				key: "start_angle",
+				label: "Start Angle",
+				type: "number",
+				defaultValue: 25,
+				min: 0,
+				max: 360,
+				step: 5
+			},
+			{
+				key: "end_angle",
+				label: "End Angle",
+				type: "number",
+				defaultValue: 180-25,
+				min: 0,
+				max: 360,
+				step: 5
+			},
+			{
+				key: "balance_feelers",
+				label: "Balance Feelers",
+				type: "boolean",
+				defaultValue: true
+			},
+			{
+				key: "waypointPopDist",
+				label: "Waypoint Pop Dist",
+				type: "number",
+				defaultValue: 2,
+				min: 0.001,
+				max: 10,
+				step: .1
+			},
+			{
+				key: "ultrasonic_contribution",
+				label: "Ultrasonic Contrib",
+				type: "number",
+				defaultValue: 0,
+				min: 0,
+				max: 1,
+				step: .5
+			},
+			{
+				key: "gpsWaitMilliseconds",
+				label: "GPS Wait Millis",
+				type: "number",
+				defaultValue: 30,
+				min: 0,
+				max: 99999,
+				step: 10
+			},
+			{
+				key: "gpsBiasWeight",
+				label: "GPS Bias Weight",
+				type: "number",
+				defaultValue: 50,
+				min: 0,
+				max: 400,
+				step: 5
+			},
+			{
+				key: "forwardBiasWeight",
+				label: "Forward Bias Weight",
+				type: "number",
+				defaultValue: 50,
+				min: 0,
+				max: 400,
+				step: 5
+			},
+			{
+				key: "backwardsBiasWeight",
+				label: "Backward Bias Weight",
+				type: "number",
+				defaultValue: 0,
+				min: 0,
+				max: 400,
+				step: 5
+			},
 		]
 	}
 ]

@@ -20,6 +20,25 @@ double radians(double degrees) {
     return degrees * (PI / 180);
 }
 
+/**
+ * Interpolates (linearly) between two colors. For some reason openCV doesn't have a function like this?
+ * At least not one I could find. Both colors should have the same number of channels.
+ * https://stackoverflow.com/questions/4353525/floating-point-linear-interpolation
+ * @param src the base color
+ * @param dest the color to interpolate towards
+ * @param percentAmount a number between 0 and 1 inclusive to represent how much each color contributes to the final color
+ * @return an openCV color somewhere between the two given colors, inclusive
+ */
+cv::Scalar lerp(cv::Scalar src, cv::Scalar dest, double percentAmount) {
+    double ch1 = (src[0] * (1.0 - percentAmount)) + (dest[0] * percentAmount);
+    double ch2 = (src[1] * (1.0 - percentAmount)) + (dest[1] * percentAmount);
+    double ch3 = (src[2] * (1.0 - percentAmount)) + (dest[2] * percentAmount);
+    // ignore channel 4 'cause we shouldn't ever use it for Feelers (though potentially this we could use it for other things,
+    //  as this is not a class method)
+
+    return cv::Scalar(ch1, ch2, ch3);
+}
+
 class Feeler {
 public:
     Feeler(int x, int y);
@@ -36,12 +55,14 @@ public:
     int getOriginalX();
     int getOriginalY();
     double getOriginalLength();
+    double getBiasAmount();
     std::string to_string();
 
     cv::Scalar getColor();
     void setColor(cv::Scalar c);
 
     void setXY(int x, int y);
+    void setOriginalXY(int x, int y);
     void setLength(double newLength);
     void bias(double amount);
     void update(cv::Mat *mask, AutoNav::Node *node);
@@ -86,7 +107,7 @@ Feeler::Feeler(int x, int y) {
     this->original_y = y;
     this->original_length = this->length;
 
-    this->color = cv::Scalar(200, 0, 0);
+    this->color = cv::Scalar(0, 200, 0);
 }
 
 /**
@@ -181,6 +202,13 @@ double Feeler::getOriginalLength() {
 }
 
 /**
+ * @return the bias amount (total) of the feeler
+ */
+double Feeler::getBiasAmount() {
+    return this->bias_amount;
+}
+
+/**
  * @return color of the feeler (for drawing purposes)
  */
 cv::Scalar Feeler::getColor() {
@@ -208,6 +236,16 @@ void Feeler::setXY(int x_, int y_) {
     this->y = y_;
 
     this->length = this->dist(x_, y_);
+}
+
+/**
+ * Set the original x and y of the feeler. This is mostly used for all the operator magic methods (*, -, +)
+ */
+void Feeler::setOriginalXY(int x, int y) {
+    this->original_x = x;
+    this->original_y = y;
+
+    this->original_length = this->dist(x, y);
 }
 
 /**
@@ -373,7 +411,7 @@ void Feeler::draw(cv::Mat image) {
  */
 Feeler Feeler::operator+(Feeler const &other) {
     Feeler ret = Feeler(this->x + other.x, this->y + other.y);
-    ret.color = this->color;
+    ret.setColor(this->color);
 
     return ret;
 }
@@ -386,7 +424,7 @@ Feeler Feeler::operator+(Feeler const &other) {
  */
 Feeler Feeler::operator-(Feeler const &other) {
     Feeler ret = Feeler(this->x - other.x, this->y - other.y);
-    ret.color = this->color;
+    ret.setColor(this->color);
 
     return ret;
 }
@@ -400,7 +438,8 @@ Feeler Feeler::operator-(Feeler const &other) {
  */
 Feeler Feeler::operator*(int &scalarNum) {
     Feeler ret = Feeler(this->x * scalarNum, this->y * scalarNum);
-    ret.color = this->color;
+    
+    ret.setColor(this->color);
 
     return ret;
 }
@@ -425,6 +464,10 @@ Feeler Feeler::operator*(int &scalarNum) {
  * @return a number representing the dot product of the two Feelers after both have been normalized.
  */
 double Feeler::operator*(Feeler const &other) {
+    if (other.getX() == 0 && other.getY() == 0) {
+        return 0.0;
+    }
+
     double x_norm = this->x / this->getLength();
     double y_norm = this->y / this->getLength();
 

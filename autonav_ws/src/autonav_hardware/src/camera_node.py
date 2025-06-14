@@ -37,7 +37,7 @@ class CameraConfig:
     def __init__(self):
         self.width = 640
         self.height = 480
-        self.frame_rate = 10
+        self.frame_rate = 15
 
 
 # ROS node to grab frames from a camera and publish them to /autonav/camera for the vision pipeline to take
@@ -57,7 +57,7 @@ class CameraNode(Node):
 
         # publishers
         self.publisher = self.create_publisher(CompressedImage, "/autonav/camera/" + self.direction, 20)
-        # self.publish_timer = self.create_timer(1 / self.config.frameRate, self.publishFrame)
+        # self.publish_timer = self.create_timer(1 / self.config.frame_rate, self.publishFrame)
         self.next_pub_time = 0
         self.big_worker = threading.Thread(target=self.publishFrame)
         self.big_worker.daemon = True
@@ -72,7 +72,7 @@ class CameraNode(Node):
         self.config.frame_rate = config["frame_rate"]
     
     def publishFrame(self):
-        while True:
+        while rclpy.ok():
             if self.camera is None or not self.camera.isOpened():
                 self.camera = cv2.VideoCapture(camera_ids[self.direction])
 
@@ -82,15 +82,11 @@ class CameraNode(Node):
                 self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.height)
                 # self.camera.set(cv2.CAP_PROP_FPS, self.config.frame_rate)
                 # self.camera.set(cv2.CAP_PROP_BITRATE, 5)
-                # self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
-                
-                # other things to lower the bandwidth used
-                self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+                self.camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)
 
             # check if the camera is open
             if not self.camera.isOpened():
                 # self.log("Camera " + self.direction + " failed to open!", LogLevel.ERROR)
-                time.sleep(0.1)
                 continue
 
             # check if we should publish
@@ -103,13 +99,17 @@ class CameraNode(Node):
                 # check if we got a frame
                 if not ret:
                     # self.log("Camera " + self.direction + " failed to read frame!", LogLevel.ERROR)
+                    time.sleep(max(self.next_pub_time - time.time(), 0))
                     continue
 
                 # Check if we need to flip the frame
-                if camera_settings[self.direction]["flip"]:
+                # if camera_settings[self.direction]["flip"]:
                     # flip the frame vertically
-                    frame = cv2.flip(frame, 0)
-                    frame = cv2.flip(frame, 1)
+                frame = cv2.flip(frame, 0)
+                frame = cv2.flip(frame, 1)
+
+                # self.log("big camera capture")
+                # self.get_logger().info("big camera")
 
                 # convert the frame to a CompressedImage
                 msg = CompressedImage()
@@ -120,6 +120,7 @@ class CameraNode(Node):
 
                 # publish the image
                 self.publisher.publish(msg)
+                time.sleep(max(0, self.next_pub_time - time.time()))
 
 
 def main():
@@ -129,22 +130,26 @@ def main():
     # nodes = [CameraNode(direction) for direction in camera_ids.keys()]
 
     # https://answers.ros.org/question/377848/spinning-multiple-nodes-across-multiple-threads/
-    executor = rclpy.executors.MultiThreadedExecutor()
+    # executor = rclpy.executors.MultiThreadedExecutor()
 
-    nodes = [
+    # nodes = [
         # CameraNode("left"),
-        CameraNode("front"),
+        # CameraNode("front"),
         # CameraNode("right"),
         # CameraNode("back"),
-    ]
+    # ]
     
-    for node in nodes:
-        executor.add_node(node)
+    # for node in nodes:
+        # executor.add_node(node)
 
-    executor.spin()
+    # executor.spin()
 
     # release all the cameras once we're done with them
-    [node.camera.release() for node in nodes]
+    # [node.camera.release() for node in nodes]
+
+    nod = CameraNode("front")
+
+    rclpy.spin(nod)
 
     # and just in case, kill opencv
     cv2.destroyAllWindows()

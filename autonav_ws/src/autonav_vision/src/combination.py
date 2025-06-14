@@ -28,7 +28,7 @@ class CombinationNodeConfig:
     def __init__(self):
         self.x_offset = (COMBINED_IMAGE_WIDTH//2)-(IMAGE_WIDTH//2)
         self.x_shrink = 240
-        self.y_shrink = 240
+        self.y_shrink = 350
 
 class ImageCombiner(Node):
     def __init__(self):
@@ -42,6 +42,9 @@ class ImageCombiner(Node):
 
     def init(self):
         self.set_device_state(DeviceState.WARMING)
+
+        self.useBackCamera = False
+        self.useSideCameras = False
 
         self.image_front = None
         self.image_left = None
@@ -63,29 +66,10 @@ class ImageCombiner(Node):
         self.debug_image_right_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/right", self.debug_image_received_right, 1)
         self.debug_image_back_subscriber = self.create_subscription(CompressedImage, "/autonav/vision/debug/back", self.debug_image_received_back, 1)
 
-        # self.gps_subscriber = self.create_subscription(GPSFeedback, "/autonav/gps", self.on_gps_received, 1)
-
         self.combined_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/filtered", 1)
         self.combined_debug_image_publisher = self.create_publisher(CompressedImage, "/autonav/vision/combined/debug", 1)
 
-        # self.feeler_debug_image_subscriber = self.create_subscription(CompressedImage, "/autonav/feelers/debug", self.on_feelers_received, 1) # TEMP TODO FIXME
-        # self.feeler_debug_image = None
-
         self.set_device_state(DeviceState.READY)
-
-        #FIXME TEMP DEBUG HACK
-        self.log("starting image combiner...", LogLevel.WARN)
-        # self.video_writer = cv2.VideoWriter("./data/combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        # self.debug_video_writer = cv2.VideoWriter("./data/debug_combined.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        # self.feeler_video_writer = cv2.VideoWriter("./data/debug_feeler.mp4", cv2.VideoWriter.fourcc(*"mp4v"), 15.0, (COMBINED_IMAGE_WIDTH, COMBINED_IMAGE_HEIGHT)) #TODO
-        # self.gps_filename = "./data/gps.csv"
-        # self.gps_file = open(self.gps_filename, "w")
-        # self.frame = 0
-        # self.has_logged = False
-
-    # def on_gps_received(self, msg):
-    #     if not self.gps_file.closed:
-    #         self.gps_file.write(f"{msg.latitude},{msg.longitude}\n")
 
     def image_received_front(self, msg):
         self.image_front = msg
@@ -132,9 +116,19 @@ class ImageCombiner(Node):
         # convert everything to actual images
         #TODO move this out to the actual subscriber callbacks???
         debug_image_front = bridge.compressed_imgmsg_to_cv2(self.debug_image_front)
-        debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
-        debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
-        debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
+        debug_image_left = np.zeros_like(debug_image_front)
+        debug_image_right = np.zeros_like(debug_image_front)
+        debug_image_back = np.zeros_like(debug_image_front)
+
+        debug_image_left = cv2.rotate(debug_image_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        debug_image_right = cv2.rotate(debug_image_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+        if self.useBackCamera:
+            debug_image_back = bridge.compressed_imgmsg_to_cv2(self.debug_image_back)
+
+        if self.useSideCameras:
+            debug_image_left = bridge.compressed_imgmsg_to_cv2(self.debug_image_left)
+            debug_image_right = bridge.compressed_imgmsg_to_cv2(self.debug_image_right)
 
         # make the bigImages that will hold everything 
         bigImageFront = np.zeros_like(combined_image)
@@ -173,9 +167,17 @@ class ImageCombiner(Node):
         return combined_image
 
     def try_combine_images(self):
-        # this is a horrendous line of code pls don't actually do it this way FIXME
-        if self.image_front is None or self.image_right is None or self.image_left is None or self.image_back is None or self.debug_image_front is None or self.debug_image_right is None or self.debug_image_left is None or self.debug_image_back is None:
+        # check to make sure we have all the images
+        if self.image_front is None or self.debug_image_front is None:
             return
+
+        if self.useBackCamera:
+            if self.image_back is None or self.debug_image_back is None:
+                return
+        
+        if self.useSideCameras:
+            if self.image_left is None or self.debug_image_left is None or self.image_right is None or self.debug_image_right is None:
+                return
         
         # self.log("COMBINING ALL...", LogLevel.ERROR)
 
@@ -194,9 +196,22 @@ class ImageCombiner(Node):
         # convert all the images 
         # TODO move this to individual callbacks?
         mask_front = bridge.compressed_imgmsg_to_cv2(self.image_front)
-        mask_left = bridge.compressed_imgmsg_to_cv2(self.image_left)
-        mask_right = bridge.compressed_imgmsg_to_cv2(self.image_right)
-        mask_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
+
+        # make temporary blank images in case we aren't using those cameras
+        mask_back = np.zeros_like(mask_front)
+        mask_left = np.zeros_like(mask_front)
+        mask_right = np.zeros_like(mask_front)
+
+        # expects to be 480x640 'cause they're sideways
+        mask_left = cv2.rotate(mask_left, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        mask_right = cv2.rotate(mask_right, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        
+        if self.useBackCamera:
+            mask_back = bridge.compressed_imgmsg_to_cv2(self.image_back)
+        
+        if self.useSideCameras:
+            mask_left = bridge.compressed_imgmsg_to_cv2(self.image_left)
+            mask_right = bridge.compressed_imgmsg_to_cv2(self.image_right)
 
         # make the 4 big images
         bigImageFront = np.zeros_like(combined_image)
@@ -231,40 +246,7 @@ class ImageCombiner(Node):
 
         # publish both images
         self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined_image))
-        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))        
-
-        #TEMP TODO FIXME
-        # feeler_image = None
-        # if (self.feeler_debug_image != None):
-            # feeler_image = bridge.compressed_imgmsg_to_cv2(self.feeler_debug_image)
-            # self.feeler_debug_image = None
-            # if not self.has_logged:
-            #     self.log(f"Shape of feeler_image: {feeler_image.shape}")
-            #     self.has_logged = True
-
-        # FIXME DEBUG HACK
-        # while the UI still in development, log images to a video for debugging
-        # if self.frame < 500:
-        #     combined = cv2.cvtColor(np.uint8(combined_image), cv2.COLOR_GRAY2BGR)
-        #     self.video_writer.write(combined)
-        #     self.debug_video_writer.write(debug_combined)
-            # self.feeler_video_writer.write(feeler_image)
-        # elif self.video_writer.isOpened():
-        #     self.video_writer.release()
-        #     self.debug_video_writer.release()
-            # self.feeler_video_writer.release()
-            # self.gps_file.close()
-            # self.log("combined image logger is done!", LogLevel.ERROR)
-
-        # send to topics
-        # self.combined_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(combined))
-        # self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
-        
-        # self.frame += 1
-        self.log(f"combining frame. . .", LogLevel.WARN)
-    
-    # def on_feelers_received(self, msg):
-    #     self.feeler_debug_image = msg #TEMP TODO FIXME
+        self.combined_debug_image_publisher.publish(bridge.cv2_to_compressed_imgmsg(debug_combined))
 
 def main():
     rclpy.init()

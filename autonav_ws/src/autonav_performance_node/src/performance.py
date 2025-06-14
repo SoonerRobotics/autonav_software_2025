@@ -10,72 +10,36 @@ import psutil
 
 class PerformanceConfig():
     def __init__(self):
-        self.CELSIUS = False
+        self.celcius = False
 
 class PerformanceNode(Node):
-    
     def __init__(self):
         super().__init__("autonav_hardware_performance")
+
         # Initiliaze config
         self.config = PerformanceConfig()
-        
-        # setup cpu and mem
-        self.cpu_utilization = psutil.cpu_percent()
-        self.update_cpu()
-        self.memory = psutil.virtual_memory().percent
-        
+                
+    def init(self):
         # Publisher
         self.performance_publisher = self.create_publisher(HardwarePerformance, "/autonav/hardware_performance", 10)
 
-        timer_period = 0.1
-        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.timer_period = 0.1
+        self.timer = self.create_timer(self.timer_period, self.timer_callback)
     
     
     def timer_callback(self):
-        self.update_cpu()
-        self.update_memory()
-
-        temp = self.query_temps()
-        
-        # self.log(f"{temp}, {self.cpu_utilization}, {self.memory}")
-        
         msg = HardwarePerformance()
-        msg.cpu = self.cpu_utilization
-        msg.memory = self.memory
-        msg.temp = str(temp)
+        msg.cpu = psutil.cpu_percent()
+        msg.memory = psutil.virtual_memory().percent
+        msg.temp = str(psutil.sensors_temperatures(self.config["celcius"]))
         
+        # self.log(f"{msg.cpu}, {msg.memoru}, {msg.temp}", LogLevel.INFO)
+
         self.performance_publisher.publish(msg)
-        
-    
-    def query_temps(self):
-        if self.config.CELSIUS:
-            # Send in Celcius
-            return psutil.sensors_temperatures()
-        else:
-            # Send in American
-            return psutil.sensors_temperatures(True)
-    
-    def query_battery(self):
-        battery = psutil.sensors_battery()
-        if battery == None:
-            return
-        else:
-            return battery
-        
-    
-    def update_cpu(self, interval: float = 0.0):
-        i = None
-        if interval <= 0:
-            i = 0.0
-            self.cpu_utilization = psutil.cpu_percent(i)
-            return
-        self.cpu_utilization = psutil.cpu_percent(interval)
 
-    def update_memory(self):
-        self.memory = psutil.virtual_memory().percent
 
-def main(args=None):
-    rclpy.init(args=args)
+def main():
+    rclpy.init()
 
     performance_node = PerformanceNode()
 

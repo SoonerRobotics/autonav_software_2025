@@ -40,12 +40,13 @@ camera_topics = [
     "/autonav/vision/filtered/right",
 
     # Combined Cameras
-    "/autonav/vision/combined/filtered"
+    "/autonav/vision/combined/filtered",
+    "/autonav/vision/combined/debug",
 
     # Feelers Debug
-    "/autonav/feelers/debug"
+    "/autonav/feelers/debug",
 ]
-FPS = 6
+FPS = 15
 
 
 class LoggingNode(Node):
@@ -58,6 +59,7 @@ class LoggingNode(Node):
         
         self.file = None
         self.events = []
+        self.subs = []
 
         self.video_writers = {}
         self.QOS = 20
@@ -72,7 +74,8 @@ class LoggingNode(Node):
 
         # Create camera subscribers
         for topic in camera_topics:
-            self.create_subscription(CompressedImage, topic, lambda msg, topic=topic: self.camera_callback(msg, topic), self.QOS)
+            subber = self.create_subscription(CompressedImage, topic, lambda msg, topic=topic: self.camera_callback(msg, topic), self.QOS)
+            self.subs.append(subber)
         
         # IMU is still TBD
         self.imu_subscriber  = self.create_subscription(IMUFeedback, '/autonav/imu', self.imu_feedback, self.QOS)
@@ -137,7 +140,7 @@ class LoggingNode(Node):
                 filename = os.path.join(self.BASE_PATH, f"{topic}.avi")
                 videos.append(filename)
                 writer.release()
-                self.video_writers[topic] = None
+        self.video_writers = {}
                 
         # Update metadata videos list
         metadata_event = self.events[0]
@@ -156,10 +159,20 @@ class LoggingNode(Node):
 
 
     def on_system_state_updated(self, old, new):
-        if self.file == None and (new == SystemStateEnum.MANUAL or new == SystemStateEnum.AUTONOMOUS):
+        if self.file == None and (new == SystemStateEnum.AUTONOMOUS or new == SystemStateEnum.MANUAL):
             self.create_entry()
-        elif new != SystemStateEnum.MANUAL and new != SystemStateEnum.AUTONOMOUS and self.file != None:
-            self.close_entry(old)       
+            return
+
+        if self.file != None and (old == SystemStateEnum.AUTONOMOUS or old == SystemStateEnum.MANUAL) and (new != SystemStateEnum.AUTONOMOUS and new != SystemStateEnum.MANUAL):
+            self.close_entry(new.value)
+            return
+        
+        # if the system state was autonomous or manual, and the new state is still autonomous or manual, close the old file and create a new oen
+        if self.file != None and (old == SystemStateEnum.AUTONOMOUS or old == SystemStateEnum.MANUAL) and (new == SystemStateEnum.AUTONOMOUS or new == SystemStateEnum.MANUAL):
+            self.close_entry(old.value)
+            self.create_entry()
+            return
+
     
     def append_event(self, event_type: str, event):
         if self.file == None:
@@ -213,7 +226,12 @@ class LoggingNode(Node):
         if topic not in self.video_writers:
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             filename = os.path.join(self.BASE_PATH, f"{topic}.avi")
-            self.video_writers[topic] = cv2.VideoWriter(filename, fourcc, FPS, (640, 480))
+            
+            size = (640, 480)
+            if "combined" in topic or "feeler" in topic: # it's a combined one, so it's like 1600x1600 or something TODO FIXME
+                size = (1600, 1600)
+
+            self.video_writers[topic] = cv2.VideoWriter(filename, fourcc, FPS, size)
 
         if self.video_writers[topic] is not None:
             cv_image = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')

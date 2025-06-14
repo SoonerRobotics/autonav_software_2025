@@ -8,6 +8,7 @@ from autonav_shared.types import LogLevel, DeviceState, SystemState
 import can
 import threading
 import struct
+import time
 from ctypes import Structure, c_uint8, c_bool
 
 
@@ -44,6 +45,7 @@ class CanNode(Node):
         super().__init__("autonav_can")
         self.can_stats_record = CanStats()
         self.can = None
+        self.send_rainbow = 0
 
         # safety lights
         self.safetyLightsSubscriber = self.create_subscription(
@@ -90,6 +92,21 @@ class CanNode(Node):
         self.canReadThread.daemon = True
         self.canReadThread.start()
 
+    def send_startup_can(self):
+        time.sleep(1)
+        safety_lights_packet = SafetyLightsPacket()
+        safety_lights_packet.autonomous = True
+        safety_lights_packet.eco = False
+        safety_lights_packet.mode = 1
+        safety_lights_packet.brightness = 255
+        safety_lights_packet.red = 0
+        safety_lights_packet.green = 0
+        safety_lights_packet.blue = 255
+        safety_lights_packet.blink_period = 10
+        data = bytes(safety_lights_packet)
+        can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
+        self.can.send(can_msg)
+        self.send_rainbow = time.time() + 5
 
     def can_worker(self):
         try:
@@ -97,12 +114,27 @@ class CanNode(Node):
                 pass
 
             if self.can is not None:
+                if self.send_rainbow > time.time() and self.send_rainbow != 0:
+                    safety_lights_packet = SafetyLightsPacket()
+                    safety_lights_packet.autonomous = False
+                    safety_lights_packet.eco = False
+                    safety_lights_packet.mode = 3
+                    safety_lights_packet.brightness = 255
+                    safety_lights_packet.red = 255
+                    safety_lights_packet.green = 255
+                    safety_lights_packet.blue = 255
+                    safety_lights_packet.blink_period = 50
+                    data = bytes(safety_lights_packet)
+                    can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
+                    self.can.send(can_msg)
+                    self.send_rainbow = 0
                 return
 
             self.log("CAN device found at " + CAN_PATH, LogLevel.INFO)
             self.can = can.ThreadSafeBus(
                 bustype="slcan", channel=CAN_PATH, bitrate=CAN_SPEED)
             self.set_device_state(DeviceState.OPERATING)
+            self.send_startup_can()
         except:
             self.log("CAN device not found at " + CAN_PATH, LogLevel.ERROR)
             if self.can is not None:
@@ -116,6 +148,7 @@ class CanNode(Node):
         while rclpy.ok():
             if self.get_device_state() != DeviceState.OPERATING:
                 continue
+            
             if self.can is not None:
                 try:
                     msg = self.can.recv()
@@ -169,6 +202,7 @@ class CanNode(Node):
         if self.get_device_state() != DeviceState.OPERATING:
             return
 
+        self.send_rainbow = 0
         safety_lights_packet = SafetyLightsPacket()
         safety_lights_packet.autonomous = msg.mode == 1
         safety_lights_packet.eco = False
@@ -181,7 +215,7 @@ class CanNode(Node):
         data = bytes(safety_lights_packet)
         can_msg = can.Message(arbitration_id=arbitration_ids["SafetyLightsCommand"], data=data)
 
-        self.log(f"Sending safety lights command: {safety_lights_packet}", LogLevel.DEBUG)
+        # self.log(f"Sending safety lights command: {safety_lights_packet}", LogLevel.DEBUG)
         
         try:
             self.can.send(can_msg)
@@ -212,6 +246,7 @@ class CanNode(Node):
         self.can_stats_publisher.publish(self.can_stats_record)
 
 def main():
+    
     rclpy.init()
     can_node = CanNode()
     rclpy.spin(can_node)

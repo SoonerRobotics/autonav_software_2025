@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rclpy
-from autonav_msgs.msg import ControllerInput, MotorInput, MotorFeedback
+from autonav_msgs.msg import ControllerInput, MotorInput, Position
 import numpy as np
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
@@ -12,6 +12,7 @@ import time
 import json
 import os
 import threading
+import time
 
 
 class ControllerMode(IntEnum):
@@ -26,9 +27,9 @@ class Manual25Config:
         self.max_angular_speed = -np.pi
         self.odom_fudge_factor = 1
         self.sound_buffer = 0.5 # seconds
-        self.main_song_path = '~/autonav_software_2025/music/vivalavida.wav'
+        self.main_song_path = '~/autonav_software_2025/music/lay.mp3'
         self.x_button_sound = '~/autonav_software_2025/music/vine-boom.mp3'
-
+        self.right_button_sound = '~/autonav_software_2025/music/mine_xp.mp3'
 
 class Manual25Node(Node):
     def __init__(self):
@@ -64,12 +65,12 @@ class Manual25Node(Node):
             self.input_callback,
             10
         )
-
-        self.motorSubscription = self.create_subscription(
-            MotorFeedback,
-            '/autonav/motor_feedback',
-            self.on_motor_feedback,
-            10
+        
+        self.positionSubscriber = self.create_subscription(
+                Position,
+                '/autonav/position',
+                self.position_callback,
+                10
         )
 
         self.zeroEncodersPublisher = self.create_publisher(
@@ -149,7 +150,7 @@ class Manual25Node(Node):
             self.motorPublisher.publish(motor_msg)
 
         if new == SystemState.DISABLED and old != SystemState.DISABLED:
-            self.push_safety_lights(255, 255, 255, 0, 0)
+            self.push_safety_lights(255, 255, 255, 3, 0)
 
         if new == SystemState.MANUAL and old != SystemState.MANUAL:
             self.push_safety_lights(255, 255, 0, 0, 0)
@@ -200,15 +201,10 @@ class Manual25Node(Node):
         angular_velocity = self.normalize(self.controller_state["abs_z"], -self.config.max_angular_speed, self.config.max_angular_speed, 1.0, -1.0)
 
         motor_msg = MotorInput()
-        motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + sideways_velocity * np.sin(self.orientation)
-        motor_msg.sideways_velocity = -1 * sideways_velocity * np.cos(self.orientation) + forward_velocity * np.sin(self.orientation)
+        motor_msg.forward_velocity = forward_velocity * np.cos(self.orientation) + -1 * sideways_velocity * np.sin(self.orientation)
+        motor_msg.sideways_velocity = sideways_velocity * np.cos(self.orientation) + forward_velocity * np.sin(self.orientation)
         motor_msg.angular_velocity = angular_velocity
         self.motorPublisher.publish(motor_msg)
-
-
-    def on_motor_feedback(self, msg:MotorFeedback):
-        delta_theta = msg.delta_theta * self.config.odom_fudge_factor
-        self.orientation += delta_theta
 
 
     def play_sound(self):
@@ -248,15 +244,22 @@ class Manual25Node(Node):
             audible_feedback.filename = os.path.expanduser('~/Documents/field_oriented.mp3')
             self.audibleFeedbackPublisher.publish(audible_feedback)
             self.last_time = time.time()
-
+        
+        elif self.controller_state['btn_tr'] == 1:
+            audible_feedback = AudibleFeedback()
+            audible_feedback.filename = os.path.expanduser(self.config.right_button_sound)
+            self.audibleFeedbackPublisher.publish(audible_feedback)
+            self.last_time = time.time()
 
     def manage_audio(self):
         self.log("Audio manager started", LogLevel.INFO)
         while rclpy.ok():
             if self.get_device_state() != DeviceState.READY and self.get_device_state() != DeviceState.OPERATING:
+                time.sleep(0.5)
                 continue
 
             if self.controller_state == {}:
+                time.sleep(0.5)
                 continue
 
             if self.controller_state['abs_hat0y'] == 1:
@@ -275,7 +278,13 @@ class Manual25Node(Node):
                 self.audibleFeedbackPublisher.publish(audible_feedback)
 
             self.play_sound()
+            time.sleep(0.5)
 
+        
+    def position_callback(self, msg: Position):
+        self.orientation = msg.theta
+        
+        return
 
 def main(args=None):
     rclpy.init()

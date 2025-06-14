@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from autonav_msgs.msg import Position, PathingDebug, SafetyLights
+from autonav_msgs.msg import Position, PathingDebug, SafetyLights, AudibleFeedback, WaypointReached
 from autonav_shared.node import Node
 from autonav_shared.types import LogLevel, DeviceState, SystemState
 from geometry_msgs.msg import PoseStamped, Point
@@ -15,6 +15,7 @@ import cv2
 import cv_bridge
 import time
 import threading
+import os
 
 
 GRID_SIZE = 0.1
@@ -26,10 +27,12 @@ class AStarConfig:
     def __init__(self):
         self.latitude_length = 111086.2
         self.longitude_length = 81978.2
-        self.waypoint_pop_distance = 2.0
-        self.waypoint_delay = 18.5
+        self.waypoint_pop_distance = 1.5
+        self.waypoint_delay = 27
         self.robot_y = 66
         self.use_only_waypoints = False
+        self.waypoint_sound = "~/autonav_software_2025/music/mine_xp.mp3"
+        self.waypoints_started_sound = "~/autonav_software_2025/music/windows-xp-startup.mp3"
         self.waypoints = [
             # [(35.195074272, -97.438147936885), (35.1949329933, -97.43813450581), (35.19487062183, -97.43813631415), (35.1947369921, -97.43814289618)],
 
@@ -37,10 +40,16 @@ class AStarConfig:
             # [(35.21060116980733, -97.44233919102984), (35.21051527230819, -97.44233720628564), (35.21047672369589, -97.44231803913213), (35.2104757401181, -97.44212990887812), (35.21047600985816, -97.44192128767607), (35.21059801239906, -97.44209666880332)],
 
             # IGVC Qualification Points
-            [(42.668086, -83.218446)]
+            # [(42.668086, -83.218446)]
 
             # Single IGVC Waypoint
-            # [(42.5918464,-83.1750144)]            
+            # [(42.6679277, -83.2193276)]
+
+            # IGVC Custom
+            [(42.667947451088374, -83.21932953784066), (42.6679277, -83.2193276)]
+
+            # The REAL (TM) QUAL POINT
+            # [(42.6683230, -83.2183619)]
 
             # IGVC Real Waypoints
             # [(42.6682623, -83.2193709), (42.6681206, -83.2193606), (42.6680766, -83.2193592), (42.6679277, -83.2193276), (42.6679216, -83.2189126), (42.668130236144883, -83.21889785301433)]
@@ -50,6 +59,7 @@ class AStarNode(Node):
     def __init__(self):
         super().__init__("autonav_nav_astar")
         self.config = AStarConfig()
+        self.reached_first_waypoint = False
         self.onReset()
 
     def apply_config(self, config):
@@ -60,24 +70,20 @@ class AStarNode(Node):
         self.config.robot_y = config["robot_y"]
         self.config.use_only_waypoints = config["use_only_waypoints"]
         self.config.waypoints = config["waypoints"]
+        # self.config.waypoint_sound = config["waypoint_sound"]
 
     def init(self):
         self.configSpaceSubscriber = self.create_subscription(OccupancyGrid, "/autonav/cfg_space/expanded", self.onConfigSpaceReceived, 20)
         self.poseSubscriber = self.create_subscription(Position, "/autonav/position", self.onPoseReceived, 20)
         self.debugPublisher = self.create_publisher(PathingDebug, "/autonav/debug/astar", 20)
         self.pathPublisher = self.create_publisher(Path, "/autonav/path", 20)
+        self.waypointReachedPublisher = self.create_publisher(WaypointReached, "/autonav/waypoint_reached", 20)
+        self.bigSoundPublisher = self.create_publisher(AudibleFeedback, "/autonav/audible_feedback", 20)
         self.safetyLightsPublisher = self.create_publisher(SafetyLights, "/autonav/SafetyLights", 20)
         self.pathDebugImagePublisher = self.create_publisher(CompressedImage, "/autonav/path_debug_image", 20)
         self.nextDebugImage = None
-        self.mapThread = threading.Thread(target=self.createPath)
-        self.mapThread.daemon = True
-        self.mapThread.start()
-        # self.debugThread = threading.Thread(target=self.createDebug)
-        # self.debugThread.daemon = True
-        # self.debugThread.start()
-
+        self.tick_timer = self.create_timer(0.05, self.createPath)
         self.resetWhen = -1.0
-
         self.set_device_state(DeviceState.OPERATING)
 
     def getAngleDifference(self, to_angle, from_angle):
@@ -89,6 +95,7 @@ class AStarNode(Node):
         self.lastPath = None
         self.position = None
         self.configSpace = None
+        self.reached_first_waypoint = False
         self.costMap = None
         self.bestPosition = (0, 0)
         self.waypoints = []
@@ -120,27 +127,37 @@ class AStarNode(Node):
             self.onReset()
 
         if old == True and new == False and self.get_system_state() == SystemState.AUTONOMOUS:
-            self.push_safety_lights(255, 255, 255, 0, 0)
+            self.push_safety_lights(255, 0, 0, 3, 0)
             
     def onPoseReceived(self, msg: Position):
         self.position = msg
         
     def createPath(self):
-        while True and rclpy.ok():
-            if self.position is None or self.costMap is None:
-                time.sleep(0.1)
-                continue
-            
-            robot_pos = (40, self.config.robot_y)
-            path = self.findPathToPoint(robot_pos, self.bestPosition, self.costMap, 80, 80)
-            if path is not None:
-                global_path = Path()
-                global_path.poses = [self.pathToGlobalPose(pp[0], pp[1]) for pp in path]
-                self.lastPath = path
-                self.pathPublisher.publish(global_path)
-                self.nextDebugImage = path
+        if self.position is None or self.costMap is None:
+            return
+        
+        robot_pos = (40, self.config.robot_y)
+        path = self.findPathToPoint(robot_pos, self.bestPosition, self.costMap, 80, 80)
+        if path is not None:
+            global_path = Path()
+            global_path.poses = [self.pathToGlobalPose(pp[0], pp[1]) for pp in path]
+            self.lastPath = path
+            self.pathPublisher.publish(global_path)
+            self.nextDebugImage = path
 
-            time.sleep(0.1)
+    def playWaypointSound(self):
+        audio = AudibleFeedback()
+        audio.filename = os.path.expanduser(self.config.waypoint_sound)
+
+        self.bigSoundPublisher.publish(audio)
+
+    
+    def play_started_waypointing_sound(self):
+        audio = AudibleFeedback()
+        audio.filename = os.path.expanduser(self.config.waypoints_started_sound)
+
+        self.bigSoundPublisher.publish(audio)
+    
 
     def createDebug(self):
         while True and rclpy.ok():
@@ -252,6 +269,7 @@ class AStarNode(Node):
             self.waypointTime = 0
             self.push_safety_lights(255, 255, 0, 1, 2)
             self.push_safety_lights(255, 255, 255, 1, 0)
+            self.play_started_waypointing_sound()
         
         if time.time() < self.waypointTime and len(self.waypoints) == 0:
             time_remaining = self.waypointTime - time.time()
@@ -271,13 +289,21 @@ class AStarNode(Node):
             heading_to_gps = math.atan2(west_to_gps, north_to_gps) % (2 * math.pi)
 
             if north_to_gps ** 2 + west_to_gps ** 2 <= self.config.waypoint_pop_distance:
-                self.push_safety_lights(0, 255, 0, 1, 2)
+                if self.reached_first_waypoint:
+                    self.push_safety_lights(0, 255, 0, 1, 2)
+                else:
+                    self.push_safety_lights(0, 0, 255, 1, 2)
+                    self.reached_first_waypoint = True
                 self.push_safety_lights(255, 255, 255, 1, 0)
                 self.waypoints.pop(0)
-                self.push_safety_lights(255, 0, 255, 1, 2)
-                self.push_safety_lights(255, 255, 255, 1, 0)
                 # self.safetyLightsPublisher.publish(toSafetyLights(True, False, 2, 255, "#00FF00"))
                 self.resetWhen = time.time() + 1.5
+                self.waypointReachedPublisher.publish(WaypointReached(
+                    latitude=next_waypoint[0],
+                    longitude=next_waypoint[1],
+                    tag="peepeepoopoo"
+                ))
+                # self.playWaypointSound()
 
             pathingDebug = PathingDebug()
             pathingDebug.desired_heading = heading_to_gps
@@ -338,6 +364,7 @@ class AStarNode(Node):
         point.y = new_y
         pose.pose.position = point
         return pose
+
 
 def main():
     rclpy.init()

@@ -39,6 +39,7 @@ set(msg_files
     "msg/SwerveAbsoluteFeedback.msg"
     "msg/SwerveFeedback.msg"
     "msg/SystemState.msg"
+    "msg/WaypointReached.msg"
     "msg/Ultrasonic.msg"
     "msg/ZeroEncoders.msg"
 )
