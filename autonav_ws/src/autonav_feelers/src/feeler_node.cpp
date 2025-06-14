@@ -154,6 +154,7 @@ public:
         debugPublisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/feelers/debug", 1);
         safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
         audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
+        waypointPublisher = this->create_publisher<autonav_msgs::msg::WaypointReached>("/autonav/waypoint_reached", 1);
         publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishOutputMessages, this));
 
         set_device_state(AutoNav::DeviceState::READY);
@@ -381,6 +382,13 @@ public:
             if (this->distToWaypoint < config.waypointPopDist && this->waypointIndex < (this->waypointsDict[this->direction].size()-2)) {
                 // then go to the next waypoint
                 this->waypointIndex++;
+
+                autonav_msgs::msg::WaypointReached msg;
+                msg.latitude = goalPoint.lat;
+                msg.longitude = goalPoint.lon;
+                msg.tag = "feelers";
+
+                this->waypointPublisher->publish(msg);
 
                 log("NEXT WAYPOINT!", AutoNav::Logging::WARN);
             }
@@ -618,6 +626,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr debugPublisher;
     rclcpp::Publisher<autonav_msgs::msg::SafetyLights>::SharedPtr safetyLightsPublisher;
     rclcpp::Publisher<autonav_msgs::msg::AudibleFeedback>::SharedPtr audibleFeedbackPublisher;
+    rclcpp::Publisher<autonav_msgs::msg::WaypointReached>::SharedPtr waypointPublisher;
 
     rclcpp::TimerBase::SharedPtr publishTimer;
 
