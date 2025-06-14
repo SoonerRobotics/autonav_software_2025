@@ -13,27 +13,27 @@ const int IMAGE_HEIGHT = 480;
 
 struct ImageTransformerConfig {
     // HSV
-    int lower_hue = 0;
-    int lower_sat = 0;
-    int lower_val = 0;
-    int upper_hue = 255;
-    int upper_sat = 95;
-    int upper_val = 210;
+    int lower_hue;
+    int lower_sat;
+    int lower_val;
+    int upper_hue;
+    int upper_sat;
+    int upper_val;
 
     // Blur
-    int blur_weight = 5;
-    int blur_iterations = 3;
+    int blur_weight;
+    int blur_iterations;
 
     // Perspective transform
-    cv::Point src_top_left = (240, 80);
-    cv::Point src_top_right = (380, 80);
-    cv::Point src_bottom_left = (0, 480);
-    cv::Point src_bottom_right = (640, 480);
+    vector<int> src_top_left;
+    vector<int> src_top_right;
+    vector<int> src_bottom_left;
+    vector<int> src_bottom_right;
 
-    cv::Point dest_top_left = (240, 0);
-    cv::Point dest_top_right = (380, 0);
-    cv::Point dest_bottom_left = (240, 480);
-    cv::Point dest_bottom_right = (400, 480);
+    vector<int> dest_top_left;
+    vector<int> dest_top_right;
+    vector<int> dest_bottom_left;
+    vector<int> dest_bottom_right;
 
     // Region of disinterest
     // Order: bottom-left,
@@ -46,12 +46,17 @@ struct ImageTransformerConfig {
     // TODO FIXME re-add this
 
     // Disabling
-    bool disable_blur = false;
-    bool disable_hsv = false;
-    bool disable_region_of_disinterest = false;
-    bool disable_perspective_transform = false;
+    bool disable_blur;
+    bool disable_hsv;
+    bool disable_region_of_disinterest;
+    bool disable_perspective_transform;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(); //TODO FIXME
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(ImageTransformerConfig, lower_hue, lower_sat, lower_val, 
+        upper_hue, upper_sat, upper_val, 
+        blur_weight, blur_iterations, 
+        src_top_left, src_top_right, src_bottom_left, src_bottom_right, 
+        dest_top_left, dest_top_right, dest_bottom_left, dest_bottom_right, 
+        disable_blur, disable_hsv, disable_region_of_disinterest, disable_perspective_transform);
 };
 
 class ImageTransformer : public AutoNav::Node {
@@ -63,7 +68,8 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr camera_debug_publisher;
 
     // vars
-    string m_config;
+    string dir;
+    ImageTransformerConfig m_config;
 
 public:
     ImageTransformer(string dir) : AutoNav::Node("autonav_vision_transformer_" + dir) {
@@ -78,15 +84,15 @@ public:
         config.blur_weight = 5;
         config.blur_iterations = 3;
         
-        config.src_top_left = (240, 80);
-        config.src_top_right = (380, 80);
-        config.src_bottom_left = (0, 480);
-        config.src_bottom_right = (640, 480);
+        config.src_top_left = {240, 80};
+        config.src_top_right = {380, 80};
+        config.src_bottom_left = {0, 480};
+        config.src_bottom_right = {640, 480};
         
-        config.dest_top_left = (240, 0);
-        config.dest_top_right = (380, 0);
-        config.dest_bottom_left = (240, 480);
-        config.dest_bottom_right = (400, 480);
+        config.dest_top_left = {240, 0};
+        config.dest_top_right = {380, 0};
+        config.dest_bottom_left = {240, 480};
+        config.dest_bottom_right = {400, 480};
         config.disable_blur = false;
         config.disable_hsv = false;
         config.disable_region_of_disinterest = false;
@@ -100,37 +106,37 @@ public:
     //TODO FIXME
     // void apply_config(config: ):
     //     // HSV
-    //     this.config.lower_hue = config["lower_hue"]
-    //     this.config.lower_sat = config["lower_sat"]
-    //     this.config.lower_val = config["lower_val"]
-    //     this.config.upper_hue = config["upper_hue"]
-    //     this.config.upper_sat = config["upper_sat"]
-    //     this.config.upper_val = config["upper_val"]
+    //     this->config.lower_hue = config["lower_hue"]
+    //     this->config.lower_sat = config["lower_sat"]
+    //     this->config.lower_val = config["lower_val"]
+    //     this->config.upper_hue = config["upper_hue"]
+    //     this->config.upper_sat = config["upper_sat"]
+    //     this->config.upper_val = config["upper_val"]
 
     //     // Blur
-    //     this.config.blur_weight = config["blur_weight"]
-    //     this.config.blur_iterations = config["blur_iterations"]
+    //     this->config.blur_weight = config["blur_weight"]
+    //     this->config.blur_iterations = config["blur_iterations"]
 
     //     // Perspective transform
-    //     this.config.src_top_left = config["src_top_left"]
-    //     this.config.src_top_right = config["src_top_right"]
-    //     this.config.src_bottom_left = config["src_bottom_left"]
-    //     this.config.src_bottom_right = config["src_bottom_right"]
+    //     this->config.src_top_left = config["src_top_left"]
+    //     this->config.src_top_right = config["src_top_right"]
+    //     this->config.src_bottom_left = config["src_bottom_left"]
+    //     this->config.src_bottom_right = config["src_bottom_right"]
 
-    //     this.config.dest_top_left = config["dest_top_left"]
-    //     this.config.dest_top_right = config["dest_top_right"]
-    //     this.config.dest_bottom_left = config["dest_bottom_left"]
-    //     this.config.dest_bottom_right = config["dest_bottom_right"]
+    //     this->config.dest_top_left = config["dest_top_left"]
+    //     this->config.dest_top_right = config["dest_top_right"]
+    //     this->config.dest_bottom_left = config["dest_bottom_left"]
+    //     this->config.dest_bottom_right = config["dest_bottom_right"]
 
     //     // Region of disinterest
     //     // Order: top-left, top-right, bottom-right, bottom-left
-    //     this.config.blank_robot = config["blank_robot"]
+    //     this->config.blank_robot = config["blank_robot"]
 
     //     // Disabling
-    //     this.config.disable_blur = config["disable_blur"]
-    //     this.config.disable_hsv = config["disable_hsv"]
-    //     this.config.disable_region_of_disinterest = config["disable_region_of_disinterest"]
-    //     this.config.disable_perspective_transform = config["disable_perspective_transform"]
+    //     this->config.disable_blur = config["disable_blur"]
+    //     this->config.disable_hsv = config["disable_hsv"]
+    //     this->config.disable_region_of_disinterest = config["disable_region_of_disinterest"]
+    //     this->config.disable_perspective_transform = config["disable_perspective_transform"]
 
     void init() override {
         this->set_device_state(AutoNav::DeviceState::WARMING);
@@ -139,124 +145,133 @@ public:
         camera_subscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/camera/" + this->dir, 1, std::bind(&ImageTransformer::onImageReceived, this, std::placeholders::_1));
         
         // publishers
-        camera_filtered_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/filtered/{this.dir}", 1);
-        camera_debug_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/debug/{this.dir}", 1);
+        camera_filtered_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/filtered/{this->dir}", 1);
+        camera_debug_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/debug/{this->dir}", 1);
         
         this->set_device_state(AutoNav::DeviceState::READY);
     }
 
     // Blur
-    void apply_blur(img) {
-        if (this.config.disable_blur) {
-            return img;
+    void apply_blur(cv::Mat img) {
+        if (this->m_config.disable_blur) {
+            return;
         }
         
-        for (int i = 0; i < this.config.blur_iterations; i++) {
-            img = cv::blur(img, (this.config.blur_weight, this.config.blur_weight));
+        for (int i = 0; i < this->m_config.blur_iterations; i++) {
+            cv::blur(img, img, {this->m_config.blur_weight, this->m_config.blur_weight});
         }
-        
-        return img;
     }
 
     // Threshold
-    void apply_hsv(img) {
-        if (this.config.disable_hsv) {
-            return img;
+    void apply_hsv(cv::Mat img, cv::Mat mask) {
+        if (this->m_config.disable_hsv) {
+            return;
         }
 
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV);
-        lower = (this.config.lower_hue, this.config.lower_sat, this.config.lower_val);
-        upper = (this.config.upper_hue, this.config.upper_sat, this.config.upper_val);
-        mask = cv2.inRange(img, lower, upper);
+        cv::cvtColor(img, img, cv::COLOR_BGR2HSV);
 
-        return 255 - mask;
+        vector<int> lower = {this->m_config.lower_hue, this->m_config.lower_sat, this->m_config.lower_val};
+        vector<int> upper = {this->m_config.upper_hue, this->m_config.upper_sat, this->m_config.upper_val};
+
+        cv::inRange(img, lower, upper, mask);
+
+        // invert the mask, because the mask filters in the ground and we want to drive on the ground
+        // this is equivalent to what 'return 255 - mask' did in old python code
+        cv::bitwise_not(img, mask);
     }
 
     // Blank out the robot in the middle of the image
-    void apply_region_of_disinterest(img) {
-        if (this.config.disable_region_of_disinterest) {
-            return img;
+    void apply_region_of_disinterest(cv::Mat img) {
+        if (this->m_config.disable_region_of_disinterest) {
+            return;
         }
 
+        //TODO FIXME actually make this configurable and like, good
         // mask = np.ones_like(img) * 255
-        // cv2.fillPoly(mask, [np.array(this.config.blank_robot)], (0, 0, 0))
+        // cv2.fillPoly(mask, [np.array(this->config.blank_robot)], (0, 0, 0))
         
         // return cv2.bitwise_and(img, mask)
 
-        // return cv2.rectangle(img, (0, IMAGE_HEIGHT-80), (IMAGE_WIDTH, IMAGE_HEIGHT), (0, 0, 0))
-        return cv2.rectangle(img, (0, IMAGE_HEIGHT-150), (IMAGE_WIDTH, IMAGE_HEIGHT), (0, 0, 0), cv2.FILLED);
+        cv::Rect bottom;
+        bottom.x = 0;
+        bottom.y = IMAGE_HEIGHT-150;
+        bottom.width = IMAGE_WIDTH;
+        bottom.height = 150;
+        //TODO FIXME replace this line
+        cv::rectangle(img, bottom, {0, 0, 0}, cv::FILLED);
     }
 
-    void apply_perspective_transform(img, debug=False) {
-        if (this.config.disable_perspective_transform) {
-            return img;
+    void apply_perspective_transform(cv::Mat img, cv::Mat warped, bool debug=false) {
+        if (this->m_config.disable_perspective_transform) {
+            return;
         }
         
-        src_pts = np.float32([
-            this.config.src_top_left,
-            this.config.src_top_right,
-            this.config.src_bottom_left,
-            this.config.src_bottom_right
-        ]);
+        vector<vector<int>> src_pts = {
+            this->m_config.src_top_left,
+            this->m_config.src_top_right,
+            this->m_config.src_bottom_left,
+            this->m_config.src_bottom_right
+        };
 
-        dest_pts = np.float32([
-            this.config.dest_top_left,
-            this.config.dest_top_right,
-            this.config.dest_bottom_left,
-            this.config.dest_bottom_right
-        ]);
+        vector<vector<int>> dest_pts = {
+            this->m_config.dest_top_left,
+            this->m_config.dest_top_right,
+            this->m_config.dest_bottom_left,
+            this->m_config.dest_bottom_right
+        };
 
-        matrix = cv2.getPerspectiveTransform(src_pts, dest_pts);
+        auto matrix = cv::getPerspectiveTransform(src_pts, dest_pts);
 
         if (debug) {
             // alpha channel (0, 0, 0, 1) is important for combining images later
-            flattened = cv2.warpPerspective(img, matrix, (640, 480), borderValue=(0, 0, 0, 1));
+            cv::warpPerspective(img, warped, matrix, {640, 480}, cv::INTER_LINEAR, cv::BORDER_CONSTANT, {0, 0, 0, 1}); //TODO FIXME this line is probably wrong, end should be a scalar?
         } else {
-            flattened = cv2.warpPerspective(img, matrix, (640, 480), borderValue=(0, 0, 0));
+            cv::warpPerspective(img, warped, matrix, {640, 480}, cv::INTER_LINEAR, cv::BORDER_CONSTANT, {0, 0, 0}); //TODO FIXME this line is probably wrong, end should be a scalar?
         }
-
-        return flattened;
     }
 
-    void onImageReceived(msg) {
-        if (this.get_device_state() != DeviceState.OPERATING) {
-            this.set_device_state(DeviceState.OPERATING);
+    void onImageReceived(const sensor_msgs::msg::CompressedImage msg) {
+        if (this->get_device_state() != AutoNav::DeviceState::OPERATING) {
+            this->set_device_state(AutoNav::DeviceState::OPERATING);
         }
 
-        // Decompress image
-        image = bridge.compressed_imgmsg_to_cv2(msg);
+        // Decompress image (this will be the debug image)
+        auto image = cv_bridge::toCvCopy(msg)->image;
 
-        // separate "filtered_image" variable because we have to do some filtering/drawing on the debug image too
-        filtered_image = this.apply_blur(image);
-        filtered_image = this.apply_hsv(filtered_image);
-        filtered_image = this.apply_region_of_disinterest(filtered_image);
-        filtered_image = this.apply_perspective_transform(filtered_image);
+        // make a copy for the filtered view
+        cv::Mat filtered_image = image.clone();
+
+        // apply all operations on the cv::Mat that will be the filtered output
+        this->apply_blur(filtered_image);
+        this->apply_hsv(filtered_image, filtered_image);
+        this->apply_region_of_disinterest(filtered_image);
+        this->apply_perspective_transform(filtered_image, filtered_image); //FIXME???
 
         // debug image gets disinterest and warpPerspective
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA); // transparency so it combines nicely later on
-        image = this.apply_region_of_disinterest(image);
-        image = this.apply_perspective_transform(image, True);
+        cv::cvtColor(image, image, cv::COLOR_BGR2BGRA); // transparency so it combines nicely later on
+        this->apply_region_of_disinterest(image);
+        this->apply_perspective_transform(image, image, true);
 
         // rotate the image depending on which direction it's facing
         // this step is done last because we don't want to rotate it prior to filtering,
         // so that any side of the robot can be the front.
         // we rotate it now solely for running feelers on the combined image later
-        if (this.dir == "left") {
-            filtered_image = cv2.rotate(filtered_image, cv2.ROTATE_90_COUNTERCLOCKWISE);
-            image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE);
-        } else if (this.dir == "right") {
-            filtered_image = cv2.rotate(filtered_image, cv2.ROTATE_90_CLOCKWISE);
-            image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE);
-        } else if (this.dir == "back") {
-            filtered_image = cv2.rotate(filtered_image, cv2.ROTATE_180);
-            image = cv2.rotate(image, cv2.ROTATE_180);
+        if (this->dir == "left") {
+            cv::rotate(filtered_image, filtered_image, cv::ROTATE_90_COUNTERCLOCKWISE);
+            cv::rotate(image, image, cv::ROTATE_90_COUNTERCLOCKWISE);
+        } else if (this->dir == "right") {
+            cv::rotate(filtered_image, filtered_image, cv::ROTATE_90_CLOCKWISE);
+            cv::rotate(image, image, cv::ROTATE_90_CLOCKWISE);
+        } else if (this->dir == "back") {
+            cv::rotate(filtered_image, filtered_image, cv::ROTATE_180);
+            cv::rotate(image, image, cv::ROTATE_180);
         }
 
         // publish filtered image
-        this.camera_filtered_publisher->publish(bridge.cv2_to_compressed_imgmsg(filtered_image));
+        this->camera_filtered_publisher->publish(*(filtered_image->toCompressedImageMsg()));
 
         // publish debug image
-        this.camera_debug_publisher->publish(bridge.cv2_to_compressed_imgmsg(image));
+        this->camera_debug_publisher->publish(*(image->toCompressedImageMsg()));
     }
 };
 
@@ -280,7 +295,7 @@ int main(int argc, char *argv[]) {
     executor.add_node(front_node);
     
     executor.spin();
-    executor.remove_node(front);
+    executor.remove_node(front_node);
     rclcpp::shutdown();
 
     return 0;

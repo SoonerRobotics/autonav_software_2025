@@ -24,6 +24,16 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# C++
+add_executable(transformations_node src/transformations.cpp)
+ament_target_dependencies(transformations_node rclcpp autonav_msgs cv_bridge image_transport autonav_shared OpenCV)
+
+install(TARGETS
+  transformations_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+
 if(BUILD_TESTING)
   #find_package(ament_lint_auto REQUIRED)
   #set(ament_cmake_copyright_FOUND TRUE)
