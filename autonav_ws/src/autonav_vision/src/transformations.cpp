@@ -7,10 +7,6 @@
 
 using namespace std;
 
-// TODO FIXME we don't want to rely on these
-const int IMAGE_WIDTH = 640;
-const int IMAGE_HEIGHT = 480;
-
 struct ImageTransformerConfig {
     // HSV
     int lower_hue;
@@ -35,6 +31,7 @@ struct ImageTransformerConfig {
     vector<int> dest_bottom_left;
     vector<int> dest_bottom_right;
 
+    // TODO FIXME re-add this
     // Region of disinterest
     // Order: bottom-left,
     // int blank_robot = {
@@ -145,8 +142,8 @@ public:
         camera_subscriber = create_subscription<sensor_msgs::msg::CompressedImage>("/autonav/camera/" + this->dir, 1, std::bind(&ImageTransformer::onImageReceived, this, std::placeholders::_1));
         
         // publishers
-        camera_filtered_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/filtered/{this->dir}", 1);
-        camera_debug_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/debug/{this->dir}", 1);
+        camera_filtered_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/filtered/" + this->dir, 1);
+        camera_debug_publisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/vision/debug/" + this->dir, 1);
         
         this->set_device_state(AutoNav::DeviceState::READY);
     }
@@ -194,8 +191,8 @@ public:
 
         cv::Rect bottom;
         bottom.x = 0;
-        bottom.y = IMAGE_HEIGHT-150;
-        bottom.width = IMAGE_WIDTH;
+        bottom.y = img.rows-150;
+        bottom.width = img.cols;
         bottom.height = 150;
         //TODO FIXME replace this line
         cv::rectangle(img, bottom, {0, 0, 0}, cv::FILLED);
@@ -206,6 +203,8 @@ public:
             return;
         }
         
+        //TODO FIXME we could probably stand to make these member variables and then just reinitialize them or something?
+        // OR BETTER IDEA: only recalculate the matrix whenever the config changes and just store it in a member variable. bam.
         vector<vector<int>> src_pts = {
             this->m_config.src_top_left,
             this->m_config.src_top_right,
@@ -224,9 +223,9 @@ public:
 
         if (debug) {
             // alpha channel (0, 0, 0, 1) is important for combining images later
-            cv::warpPerspective(img, warped, matrix, {640, 480}, cv::INTER_LINEAR, cv::BORDER_CONSTANT, {0, 0, 0, 1}); //TODO FIXME this line is probably wrong, end should be a scalar?
+            cv::warpPerspective(img, warped, matrix, {img.cols, img.rows}, cv::INTER_LINEAR, cv::BORDER_CONSTANT, {0, 0, 0, 1}); //TODO FIXME this line is probably wrong, end should be a scalar?
         } else {
-            cv::warpPerspective(img, warped, matrix, {640, 480}, cv::INTER_LINEAR, cv::BORDER_CONSTANT, {0, 0, 0}); //TODO FIXME this line is probably wrong, end should be a scalar?
+            cv::warpPerspective(img, warped, matrix, {img.cols, img.rows}, cv::INTER_LINEAR, cv::BORDER_CONSTANT, {0, 0, 0}); //TODO FIXME this line is probably wrong, end should be a scalar?
         }
     }
 
@@ -236,7 +235,8 @@ public:
         }
 
         // Decompress image (this will be the debug image)
-        auto image = cv_bridge::toCvCopy(msg)->image;
+        auto image_ros_msg = cv_bridge::toCvCopy(msg);
+        auto image = image_ros_msg->image;
 
         // make a copy for the filtered view
         cv::Mat filtered_image = image.clone();
@@ -268,10 +268,14 @@ public:
         }
 
         // publish filtered image
-        this->camera_filtered_publisher->publish(*(filtered_image->toCompressedImageMsg()));
+        sensor_msgs::msg::CompressedImage::SharedPtr filtered_msg;
+        std_msgs::msg::Header hdr;
+        filtered_msg = cv_bridge::CvImage(hdr, "bgr8", filtered_image).toCompressedImageMsg();
+
+        this->camera_filtered_publisher->publish(*filtered_msg);
 
         // publish debug image
-        this->camera_debug_publisher->publish(*(image->toCompressedImageMsg()));
+        this->camera_debug_publisher->publish(*(image_ros_msg->toCompressedImageMsg()));
     }
 };
 
