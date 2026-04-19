@@ -13,6 +13,7 @@
 #include "autonav_msgs/msg/ultrasonic.hpp"
 #include "autonav_msgs/msg/safety_lights.hpp"
 #include "autonav_msgs/msg/audible_feedback.hpp"
+#include "autonav_msgs/msg/waypoint_reached.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/image_transport.hpp"
 
@@ -154,7 +155,7 @@ public:
         debugPublisher = create_publisher<sensor_msgs::msg::CompressedImage>("/autonav/feelers/debug", 1);
         safetyLightsPublisher = create_publisher<autonav_msgs::msg::SafetyLights>("/autonav/safety_lights", 1);
         audibleFeedbackPublisher = create_publisher<autonav_msgs::msg::AudibleFeedback>("/autonav/audible_feedback", 1);
-        waypointPublisher = this->create_publisher<autonav_msgs::msg::WaypointReached>("/autonav/waypoint_reached", 1);
+        waypointPublisher = create_publisher<autonav_msgs::msg::WaypointReached>("/autonav/waypoint_reached", 1);
         publishTimer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&FeelerNode::publishOutputMessages, this));
 
         set_device_state(AutoNav::DeviceState::READY);
