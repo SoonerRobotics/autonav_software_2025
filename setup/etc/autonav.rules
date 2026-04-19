@@ -1,5 +1,5 @@
 # REV Can
-KERNEL=="ttyACM*", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", ATTRS{serial}=="003500394B57530720373832", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-can-rev"
+KERNEL=="ttyACM*", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", ATTRS{serial}=="002D00254E53511520363936", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-can-rev"
 
 # SCR Can
 KERNEL=="ttyACM*", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", ATTRS{serial}=="003B001B3730511220333152", MODE:="0666", GROUP:="dialout", SYMLINK+="autonav-can-scr"
