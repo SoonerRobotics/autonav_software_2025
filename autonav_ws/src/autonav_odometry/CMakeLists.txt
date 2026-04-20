@@ -1,0 +1,24 @@
+cmake_minimum_required(VERSION 3.8)
+project(autonav_odometry)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# find dependencies
+find_package(ament_cmake_python REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(autonav_shared REQUIRED)
+ 
+# Install Python modules
+ament_python_install_package(${PROJECT_NAME})
+
+# Install Python programs
+install(PROGRAMS
+  # enumerate every file in src by hand here like a bozo because globs don't just work i guess
+  src/main.py
+  src/particlefilter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+ament_package()
