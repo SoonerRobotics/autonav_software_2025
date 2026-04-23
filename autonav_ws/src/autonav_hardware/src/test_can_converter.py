@@ -44,7 +44,7 @@ try:
         print(f"{forward:.2f} | {sideways:.2f} | {angular:.2f}")
 
         # data = bytes(motor_input_packer)
-        data = struct.pack("hhh", int(forward * SCALE), int(sideways * SCALE), int(angular * SCALE))
+        data = struct.pack("<hhh", int(forward * SCALE), int(sideways * SCALE), int(angular * SCALE))
         can_msg = can.Message(arbitration_id=10, data=data)
         
         try:
