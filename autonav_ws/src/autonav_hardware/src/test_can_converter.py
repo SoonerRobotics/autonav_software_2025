@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-import rclpy
-from autonav_shared.node import Node
-from autonav_msgs.msg import MotorInput, SwerveFeedback, ZeroEncoders, MotorFeedback, SwerveAbsoluteFeedback
-from autonav_shared.types import LogLevel, DeviceState, SystemState
-
 import can
 import threading
 from swerve.swerve_drive import SUSwerveDrive, SUSwerveDriveState
@@ -17,32 +12,17 @@ CAN_PATH = "/dev/ttyACM0"
 CAN_SPEED = 1_000_000
 
 
-class SparkMAXNode(Node):
+class SparkMAXNode():
     def __init__(self):
-        super().__init__("sparkmax_can_node")
         self.can = None
         self.motors = []
     
     def init(self):
-        self.set_device_state(DeviceState.WARMING)
-
         # make the CAN object
         self.can = can.ThreadSafeBus(bustype="slcan", channel=CAN_PATH, bitrate=CAN_SPEED)
         self.canReadThread = threading.Thread(target=self.can_reader)
         self.canReadThread.daemon = True
         self.canReadThread.start()
-
-        # ROS motor message callback
-        self.motorInputSubscriber = self.create_subscription(MotorInput, "/autonav/motor_input", self.on_motor_input_received, 20)
-        self.motorFeedbackPublisher = self.create_publisher(MotorFeedback, "/autonav/motor_feedback", 20)
-
-        # feedback publisher
-        # self.absoluteEncoderPublisher = self.create_publisher(SwerveAbsoluteFeedback, "/autonav/swerve/absolute", 20)
-        # self.swerveFeedbackPublisher = self.create_publisher(SwerveFeedback, "/autonav/swerve/feedback", 20)
-
-        # Periodic heartbeat to keep motors enabled
-        self.heartbeat_timer = self.create_timer(0.05, self.send_heartbeat)
-        # self.feedback_timer = self.create_timer(0.05, self.send_motor_feedbacK)
 
         self.motors = [
             CanSparkMax(1, self.can, self), # drive
@@ -65,15 +45,10 @@ class SparkMAXNode(Node):
 
         # to the uninitiated: this is not a pointer. this is python argument unpacking
         self.swerve_drive = SUSwerveDrive(*self.modules)
-
-        self.set_device_state(DeviceState.READY)
     
     #TODO: is there a better way to do this? maybe have a timer in each object itself? 
     # I feel like this should be more abstracted away, at least from this file
     def send_heartbeat(self):
-        if self.get_system_state() == SystemState.DISABLED:
-            return
-
         for idx, motor in enumerate(self.motors):
             motor.sendHeartbeat()
 
@@ -85,18 +60,16 @@ class SparkMAXNode(Node):
                     for motor in self.motors:
                         motor.canCallback(msg)
             except can.CanError as e:
-                self.log(f"CAN error: {e}", LogLevel.ERROR)
-                self.set_device_state(DeviceState.ERROR)
+                print(f"CAN error: {e}")
 
     def send_motor_feedbacK(self):
-        pass
-        # feedback = SwerveAbsoluteFeedback()
-        # feedback.position_fl = self.motors[1].getAbsolutePosition() #7
-        # feedback.position_fr = self.motors[2].getAbsolutePosition() #6
-        # feedback.position_bl = self.motors[5].getAbsolutePosition() #3
-        # feedback.position_br = self.motors[6].getAbsolutePosition() #2
+        feedback = SwerveAbsoluteFeedback()
+        feedback.position_fl = self.motors[1].getAbsolutePosition() #7
+        feedback.position_fr = self.motors[2].getAbsolutePosition() #6
+        feedback.position_bl = self.motors[5].getAbsolutePosition() #3
+        feedback.position_br = self.motors[6].getAbsolutePosition() #2
 
-        # self.absoluteEncoderPublisher.publish(feedback)
+        self.absoluteEncoderPublisher.publish(feedback)
 
     def on_motor_input_received(self, msg: MotorInput):
         if self.get_device_state() != DeviceState.OPERATING:
@@ -110,11 +83,11 @@ class SparkMAXNode(Node):
         ), 0.01)
 
         # publish feedback
-        # feedback_msg = MotorFeedback()
-        # feedback_msg.delta_x = swerve_feedback.delta_x
-        # feedback_msg.delta_y = swerve_feedback.delta_y
-        # feedback_msg.delta_theta = swerve_feedback.delta_theta
-        # self.motorFeedbackPublisher.publish(feedback_msg)
+        feedback_msg = MotorFeedback()
+        feedback_msg.delta_x = swerve_feedback.delta_x
+        feedback_msg.delta_y = swerve_feedback.delta_y
+        feedback_msg.delta_theta = swerve_feedback.delta_theta
+        self.motorFeedbackPublisher.publish(feedback_msg)
     
     def reconnect_can(self):
         try:

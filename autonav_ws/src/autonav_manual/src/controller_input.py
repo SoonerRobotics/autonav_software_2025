@@ -69,6 +69,8 @@ class ControllerInputNode(Node):
         devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
         controller = None
 
+        self.log(f"Devices: {devices}", LogLevel.INFO)
+
         for device in devices:
             if device.name == 'Xbox Wireless Controller':
                 controller = evdev.InputDevice(device.path)
@@ -141,7 +143,7 @@ class ControllerInputNode(Node):
 
                 msg = self.construct_controller_state_message()
 
-                # self.get_logger().info(f"publishing controller state:\n{str(self.controller_state)}")
+                self.get_logger().info(f"publishing controller state:\n{str(self.controller_state)}")
                 self.publisher.publish(msg)
 
             except OSError as e: # first disconnect
@@ -168,7 +170,7 @@ class ControllerInputNode(Node):
 
     def controller_state_timer_callback(self):
         msg = self.construct_controller_state_message()
-        # print(f"publishing: {str(self.controller_state)}")
+        print(f"publishing: {str(self.controller_state)}")
         self.publisher.publish(msg)
 
 
@@ -205,15 +207,15 @@ class ControllerInputNode(Node):
     def reconnect(self, last_callback_time_s):
         self.set_device_state(DeviceState.ERROR)
 
-        if self.system_state != SystemState.AUTONOMOUS:
-            self.set_system_state(SystemState.DISABLED)
+        # if self.system_state != SystemState.AUTONOMOUS:
+        #     self.set_system_state(SystemState.DISABLED)
              
         self.controller_state = dict.fromkeys(self.controller_state, 0.0)
         last_callback_time_s = self.clock_routine(last_callback_time_s)
 
         time.sleep(self.timer_period_s)
 
-        # self.get_logger().info("attempting to reconnect...")
+        self.get_logger().info("attempting to reconnect...")
         self.controller = None
         self.controller = self.get_controller()
 

@@ -9,10 +9,10 @@ import can
 import threading
 import struct
 import time
-from ctypes import Structure, c_uint8, c_bool
+from ctypes import Structure, c_uint8, c_bool, c_uint16
 
 
-CAN_PATH = "/dev/autonav-can-scr"
+CAN_PATH = "/dev/ttyACM0"
 CAN_SPEED = 100_000
 
 
@@ -26,6 +26,13 @@ arbitration_ids = {
     "ConbusLowerBound": 1000,
     "ConbusUpperBound": 1400
 }
+
+class MotorInputPacket(Structure):
+    _fields_ = [
+        ("forward_velocity", c_uint16, 16),
+        ("sideways_velocity", c_uint16, 16),
+        ("angular_velocity", c_uint16, 16),
+    ]
 
 
 class SafetyLightsPacket(Structure):
@@ -82,6 +89,20 @@ class CanNode(Node):
             "/autonav/can_stats",
             20
         )
+
+        # TEMP TESTING TODO FIXME
+        self.motorSubscriber = self.create_subscription(
+            MotorInput,
+            '/autonav/motor_input',
+            self.on_motorinput_received,
+            20
+        )
+
+        self.set_mobility(True)
+        self.set_system_state(SystemState.MANUAL)
+
+        self.log("Initialized!!!!", LogLevel.INFO)
+
 
 
     def init(self):
@@ -156,6 +177,29 @@ class CanNode(Node):
                         self.onCanMessageReceived(msg)
                 except Exception as e:
                     self.log(f"Received erroneous CAN message from hardware {e}", LogLevel.ERROR)
+    
+    def on_motorinput_received(self, msg):
+        SCALE = 1000
+
+        motor_input_packer = MotorInputPacket()
+        motor_input_packer.forward_velocity = msg.forward_velocity * SCALE
+        motor_input_packer.sideways_velocity = msg.sideways_velocity * SCALE
+        motor_input_packer.angular_velocity = msg.angular_velocity * SCALE
+
+        data = bytes(motor_input_packer)
+        can_msg = can.Message(arbitration_id=arbitration_ids["MotorsCommand"], data=data)
+
+        self.log(f"Sending motor command: {motor_input_packer}", LogLevel.DEBUG)
+        
+        try:
+            self.can.send(can_msg)
+        except AttributeError:
+            self.log("Error writing to CAN", LogLevel.ERROR)
+            pass # means the CAN object hasn't been created yet
+        except can.CanError:
+            self.log("2 Error writing to CAN", LogLevel.ERROR)
+            pass
+
     
 
     def onCanMessageReceived(self, msg):
