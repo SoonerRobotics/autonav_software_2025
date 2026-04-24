@@ -5,7 +5,7 @@ import struct
 import time
 from ctypes import Structure, c_uint16, c_uint8, c_bool, c_int16, c_short
 
-SCALE = 1000
+SCALE = 10000
 
 pygame.init()
 pygame.joystick.init()
@@ -37,16 +37,16 @@ try:
         angular = controller.get_axis(2)
 
         motor_input_packer = MotorInputPacket()
-        motor_input_packer.forward_velocity = int(forward * SCALE * 100)
-        motor_input_packer.sideways_velocity = int(sideways * SCALE * 100)
-        motor_input_packer.angular_velocity = int(angular * SCALE / 100)
+        motor_input_packer.forward_velocity = int(forward * SCALE)
+        motor_input_packer.sideways_velocity = int(sideways * SCALE)
+        motor_input_packer.angular_velocity = int(angular * SCALE / 10)
 
         # print(f"{forward:.2f} | {sideways:.2f} | {angular:.2f}")
 
-        data = bytes(motor_input_packer)
+        # data = bytes(motor_input_packer)
         # data = struct.pack("<hhh", int(forward * SCALE), int(sideways * SCALE), int(angular * SCALE))
-        data = struct.pack("<hhh", 25000, 0, 0)
-        can_msg = can.Message(arbitration_id=0xA, data=data)
+        data = struct.pack(">hhh", 10000, 500, 200)
+        can_msg = can.Message(arbitration_id=0xA, data=data, dlc=6)
         # other_can_msg = can.Message(arbitration_id=0x9)
         
         try:
@@ -56,17 +56,25 @@ try:
             print("Error writing to CAN",)
         except can.CanError:
             print("2 Error writing to CAN")
+        except KeyboardInterrupt:
+            break
 
-        # try:
-        #     msg = can_net.recv(timeout=0.01)
-        #     if msg is not None:
-        #         print(msg.arbitration_id)
-        # except can.CanError:
-        #     print("CAN ERROR!!! IN RECV!!!")
+        try:
+            msg = can_net.recv(timeout=0.01)
+            if msg is not None:
+                # print(msg.arbitration_id)
+                print(msg)
+        except can.CanError:
+            print("CAN ERROR!!! IN RECV!!!")
+        except KeyboardInterrupt:
+            break
         
-        # timer.tick(100)
+        timer.tick(100)
 except Exception as e:
     print(e)
     can_net.shutdown()
     time.sleep(1)
     pygame.quit()
+
+can_net.shutdown()
+pygame.quit()
