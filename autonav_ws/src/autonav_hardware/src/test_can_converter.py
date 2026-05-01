@@ -5,7 +5,7 @@ import struct
 import time
 from ctypes import Structure, c_uint16, c_uint8, c_bool, c_int16, c_short
 
-SCALE = 10000
+SCALE = 1000 #FIXME is supposed to be 10_000?
 
 pygame.init()
 pygame.joystick.init()
@@ -18,7 +18,8 @@ controller.init()
 
 # open CAN
 #FIXME bitrate is 125 kbps according to the spec, but rn Micheal's firmware is the same as last year (i.e. 100 kbps)
-can_net = can.ThreadSafeBus(bustype="slcan", channel="/dev/ttyACM0", bitrate=100_000)
+# can_net = can.ThreadSafeBus(bustype="slcan", channel="/dev/ttyACM0", bitrate=125_000)
+can_net = can.Bus(interface="slcan", channel="/dev/ttyACM0", bitrate=100_000)
 
 class MotorInputPacket(Structure):
     _fields_ = [
@@ -44,13 +45,14 @@ try:
         # print(f"{forward:.2f} | {sideways:.2f} | {angular:.2f}")
 
         # data = bytes(motor_input_packer)
-        # data = struct.pack("<hhh", int(forward * SCALE), int(sideways * SCALE), int(angular * SCALE))
-        data = struct.pack(">hhh", 10000, 500, 200)
-        can_msg = can.Message(arbitration_id=0xA, data=data, dlc=6)
+        data = struct.pack("<3h", int(forward * SCALE), int(sideways * SCALE), int(angular * SCALE / 10))
+        # data = struct.pack("<hhh", 10000, 500, 200)
+        can_msg = can.Message(arbitration_id=10, data=data, dlc=6, check=True, timestamp=time.time())
         # other_can_msg = can.Message(arbitration_id=0x9)
         
         try:
-            can_net.send(can_msg)
+            can_net.send(can_msg, timeout=0.01)
+            print(can_msg)
             # can_net.send(other_can_msg)
         except AttributeError:
             print("Error writing to CAN",)
@@ -69,7 +71,7 @@ try:
         except KeyboardInterrupt:
             break
         
-        timer.tick(100)
+        # timer.tick(200)
 except Exception as e:
     print(e)
     can_net.shutdown()
